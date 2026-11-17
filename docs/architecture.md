@@ -1,6 +1,6 @@
 # Architecture
 
-AirGlance 0.1.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
+AirGlance 0.1.1 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
 
@@ -93,7 +93,7 @@ The filmstrip and information panel are separate views (`FilmstripView`, `InfoPa
 ### App services
 
 - `AppServices` is created once per process. It loads settings, applies the saved language and theme, opens the thumbnail cache and starts the 30-day cleanup on the thread pool. It saves settings when a setting changes and again on exit. It also exposes the assembly version and a shell helper for the project links. It has no network client.
-- `LocalizationService` keeps a catalog of roughly 150 English/Chinese key pairs (153 at 0.1.0). XAML text uses `{DynamicResource L.*}`; text built in code uses `T` and `Format`. Applying a language builds a merged `ResourceDictionary`, removes the previous language dictionary and adds the new one. `LanguageChanged` refreshes view models and windows, so switching English/Chinese does not restart the app. The default follows the OS UI culture: a `zh*` culture selects Simplified Chinese, everything else English.
+- `LocalizationService` keeps a catalog of roughly 150 English/Chinese key pairs (153 at 0.1.1). XAML text uses `{DynamicResource L.*}`; text built in code uses `T` and `Format`. Applying a language builds a merged `ResourceDictionary`, removes the previous language dictionary and adds the new one. `LanguageChanged` refreshes view models and windows, so switching English/Chinese does not restart the app. The default follows the OS UI culture: a `zh*` culture selects Simplified Chinese, everything else English.
 - `ThemeService` normalizes `System`, `Light` or `Dark` and sets `Application.RequestedThemeVariant`. System mode follows `PlatformSettings.ColorValuesChanged`. When the OS reports high contrast, the service adds a high-contrast `ResourceDictionary` on top of the selected light/dark theme and maps the system accent to the `Coral` and `Teal` marks used for selection and focus. High contrast follows the OS even when light/dark is an explicit choice.
 - `BenchmarkRecorder` measures from the operating system's process start time. Startup mode records first window, first frame, decode time, image megapixels and peak working set, then exits after the first frame. Decode mode exits after a 1600 × 1000 decode. Scan mode times folder enumeration and the first eight 160 px thumbnails, and reports `scan_ms`, `thumbnail_ms`, `total_ms`, `files` and `peak_ws_mb`. All modes write `key=value` lines to stdout and exit 1 with `error=<message>` on failure.
 - `StartupTrace` reads `AIRGLANCE_STARTUP_TRACE` once. When it is `1`, it writes marks to stderr relative to the process start time. Normal runs only pay for the environment read.
@@ -276,7 +276,7 @@ dotnet test AirGlance.sln -c Release
 ## Related documents
 
 - [Format support matrix](formats.md)
-- [Shipping AirGlance 0.1.0](shipping.md)
+- [Shipping AirGlance 0.1.1](shipping.md)
 - [Third-party notices](../THIRD-PARTY-NOTICES.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)

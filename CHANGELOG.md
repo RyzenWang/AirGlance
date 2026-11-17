@@ -15,7 +15,7 @@ Performance patch. The first frame is now inside the 0.1 budget on the reference
 
 - MainWindow chrome is built in C# instead of XAML. The first XAML window load cost about 370 ms of the ~550 ms startup; the code-built window constructs the same layout in about 30 ms. Panel and context-menu XAML still load after the first frame.
 - The window icon is decoded after the first frame instead of during window construction.
-- Published 24 MP first frame is 293.0 ms median (was 665.0 ms); first window is 184.2 ms median (was 542.8 ms). See `docs/performance.md`.
+- Published 24 MP first frame is 299.4 ms median (was 665.0 ms); first window is 186.0 ms median (was 542.8 ms). See `docs/performance.md`.
 - Version is 0.1.1.
 
 ### Fixed

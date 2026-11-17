@@ -27,7 +27,7 @@ Prerequisites:
   ```powershell
   dotnet publish src/AirGlance.App/AirGlance.App.csproj `
     -c Release -r win-x64 `
-    -p:PublishAot=true -p:StripSymbols=true -p:Version=0.1.0 `
+    -p:PublishAot=true -p:StripSymbols=true -p:Version=0.1.1 `
     -o publish/win-x64
   ```
 
@@ -35,7 +35,7 @@ Then pack:
 
 ```powershell
 pwsh -File ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.1.0 `
+  -Version 0.1.1 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
@@ -50,13 +50,13 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
    and `Assets/` into a temporary staging directory. PDB and other symbol files
    are removed.
 3. Rewrites the staged manifest's `Identity/@Version` to the four-part MSIX
-   form (`0.1.0` becomes `0.1.0.0`) and sets
+   form (`0.1.1` becomes `0.1.1.0`) and sets
    `Identity/@ProcessorArchitecture` to the requested architecture. The checked
    in manifest defaults to `x64`; the build output is architecture-specific.
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_0.1.0.0_x64.msix`. Use `-Architecture arm64`
+example `artifacts/msix/AirGlance_0.1.1.0_x64.msix`. Use `-Architecture arm64`
 with an arm64 publish directory for the arm64 package.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
@@ -91,7 +91,7 @@ cannot pass until a trusted signing certificate is installed.
 
 A meaningful self-test therefore needs a signed package:
 
-1. Sign `AirGlance_0.1.0.0_x64.msix` with the organization's code-signing
+1. Sign `AirGlance_0.1.1.0_x64.msix` with the organization's code-signing
    certificate. The certificate subject must match the manifest `Publisher`.
    Do not use an untrusted certificate for a Store submission.
 2. On a clean Windows 10/11 test VM, trust that certificate and install the
@@ -106,7 +106,7 @@ A meaningful self-test therefore needs a signed package:
    & $appcert.FullName reset
 
    & $appcert.FullName test `
-     -appxpackagepath (Resolve-Path '.\AirGlance_0.1.0.0_x64.msix').Path `
+     -appxpackagepath (Resolve-Path '.\AirGlance_0.1.1.0_x64.msix').Path `
      -reportoutputpath (Join-Path (Get-Location) 'wack-x64.xml')
    ```
 
