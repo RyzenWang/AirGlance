@@ -1,5 +1,7 @@
 # Architecture
 
+**English** · [简体中文](architecture.zh-CN.md)
+
 AirGlance 0.1.3 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
@@ -284,7 +286,7 @@ dotnet test AirGlance.sln -c Release
 ## Related documents
 
 - [Format support matrix](formats.md)
-- [Shipping AirGlance 0.1.1](shipping.md)
+- [Shipping AirGlance 0.1.3](shipping.md)
 - [Third-party notices](../THIRD-PARTY-NOTICES.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)

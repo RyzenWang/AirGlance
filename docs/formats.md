@@ -1,5 +1,7 @@
 # Format support
 
+**English** · [简体中文](formats.zh-CN.md)
+
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.

@@ -1,5 +1,7 @@
 # Shipping AirGlance 0.1.3
 
+**English** · [简体中文](shipping.zh-CN.md)
+
 This is the release procedure for AirGlance 0.1.3 (2026-11-17). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used only for Partner Center, WACK and the Store listing.
 
 The 0.1 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The packaging scripts and CI workflows exist in the tree, but no signing certificate or Store submission is part of 0.1.

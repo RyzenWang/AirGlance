@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Every Markdown file under `docs/` now has a reciprocal language switch. Added
+  Simplified Chinese translations for the architecture, format, performance and
+  shipping docs, and an English version of the interaction design.
+
 ## [0.1.3] - 2026-11-17
 
 Interaction overhaul. The image now owns the whole window, and the controls float over

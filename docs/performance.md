@@ -1,5 +1,7 @@
 # Performance
 
+**English** · [简体中文](performance.zh-CN.md)
+
 All numbers here were measured on the machine below with the commands shown. If a
 number is not here, it was not measured; nothing in this file is projected.
 
