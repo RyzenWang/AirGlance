@@ -85,13 +85,13 @@ Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 
 
 | Metric | Target | 0.1.2 |
 | --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 183.1 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 296.7 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 293.9 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 76.4 MB |
-| Windows x64 portable zip | ≤ 30 MB | 15.51 MB |
+| Cold start to first window | ≤ 500 ms | 188.8 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 302.4 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 293.1 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 76.5 MB |
+| Windows x64 portable zip | ≤ 30 MB | 15.52 MB |
 
-The 0.1.2 build meets the startup and first-frame targets on the reference machine: the window is up in about 183 ms and a 24 MP image is on screen in about 297 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
+The 0.1.2 build meets the startup and first-frame targets on the reference machine: the window is up in about 189 ms and a 24 MP image is on screen in about 302 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 
@@ -103,7 +103,7 @@ These are limitations, not a promise list.
 - No tabs. The viewer is one folder per window. No tray icon and no single-instance forwarding.
 - No cropping and no lossless JPEG rotation. Rotate and flip only change what is on screen.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
-- 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **458 MB**, settling to about **85 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
+- 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **452 MB**, settling to about **83 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
 - The 0.1 Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
 
 ## Build from source

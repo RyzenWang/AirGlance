@@ -17,8 +17,8 @@ only the visible tiles in memory instead of a full-resolution bitmap.
 - Images at or above 40 megapixels use a file-backed tile cache when the full-resolution
   view is requested. The decoded pixels are written once to a temporary tile file, the
   unmanaged full decode is freed, and the viewer draws 512 px tiles from the file.
-- 100 MP at 100 percent: peak working set is 457.6 MB (was 842.0 MB), steady working set
-  is 85.1 MB (was 836.1 MB), private bytes 55.5 MB. The temporary tile file is about
+- 100 MP at 100 percent: peak working set is 452.4 MB (was 842.0 MB), steady working set
+  is 83.0 MB (was 836.1 MB), private bytes 54.5 MB. The temporary tile file is about
   400 MB while the image is open.
 - Rotate and flip at 100 percent rebuild the tile cache from the original file instead
   of materialising a full bitmap. Peak memory stays at the tile-write level.
