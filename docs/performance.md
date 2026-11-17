@@ -57,43 +57,43 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 
 ### 24 MP JPEG, fit window
 
-10 runs, median (p95 in brackets).
+10 runs of the published `v0.1.0` Windows x64 artifact, median (p95 in brackets).
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | ≤ 500 ms | **554.9 ms** (569.5) | miss |
-| First frame | ≤ 500 ms | **712.4 ms** (789.1) | miss |
-| Decode | — | **57.8 ms** (59.2) | — |
-| Peak working set | ≤ 250 MB | **77.8 MB** (79.7) | pass |
+| First window | ≤ 500 ms | **542.8 ms** (574.9) | miss |
+| First frame | ≤ 500 ms | **665.0 ms** (694.8) | miss |
+| Decode | — | **59.3 ms** (71.0) | — |
+| Peak working set | ≤ 250 MB | **76.7 MB** (77.0) | pass |
 
 Raw runs:
 
 ```text
 Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
-  1 569.5           717.9          56.4      24.0     77.8       884.5
-  2 553.7           699.9          57.7      24.0     77.8       860.6
-  3 559.2           706.9          58.4      24.0     77.7       868.2
-  4 541.1           654.5          58.0      24.0     74.5       771.2
-  5 556.1           757.7          57.3      24.0     79.7       908.1
-  6 544.5           685.1          59.2      24.0     77.6       840.2
-  7 557.6           725.5          57.5      24.0     77.8       882.4
-  8 556.8           789.1          58.2      24.0     77.7       949.6
-  9 539.9           759.9          57.9      24.0     77.8       914.0
- 10 539.7           674.0          57.7      24.0     77.4       831.6
+  1 546.0           673.6          62.4      24.0     73.8       846.8
+  2 568.1           694.8          59.5      24.0     76.7       838.6
+  3 535.4           662.9          59.1      24.0     76.8       745.8
+  4 556.4           684.8          57.4      24.0     76.7       762.6
+  5 536.7           665.9          71.0      24.0     76.8       733.0
+  6 574.9           678.8          57.6      24.0     74.6       749.2
+  7 534.2           664.0          59.1      24.0     77.0       741.3
+  8 533.5           661.5          59.8      24.0     76.9       747.8
+  9 539.7           643.3          59.6      24.0     73.8       718.7
+ 10 545.8           658.2          59.1      24.0     74.5       793.1
 ```
 
 ### 100 MP JPEG, fit window
 
-5 runs, median.
+5 runs of the published artifact, median.
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | — | 548.0 ms | — |
-| First frame | ≤ 2.0 s | **704.0 ms** | pass |
-| Decode | — | 144.2 ms | — |
-| Peak working set | — | 78.1 MB | — |
+| First window | — | 538.0 ms | — |
+| First frame | ≤ 2.0 s | **651.5 ms** | pass |
+| Decode | — | 142.7 ms | — |
+| Peak working set | — | 77.2 MB | — |
 
-Raw runs: 666.7, 711.7, 732.4, 704.0, 653.8 ms.
+Raw runs: 655.8, 651.5, 618.5, 708.7, 627.9 ms.
 
 ### 500-image folder
 
@@ -114,7 +114,7 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 
 | Artifact | Size | SHA256 |
 | --- | --- | --- |
-| `AirGlance-0.1.0-win-x64.zip` | **14.95 MB** | `0CA68CA382C82913B3E8B715C9316B8BA8F1D9A46E0649AAD9A68874BAD36402` |
+| `AirGlance-0.1.0-win-x64.zip` | **15.51 MB** | `303b19e81c094c9d3d8672490f998227c44eda9f4bc295d4b10f31928c69b045` |
 
 The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md) and unpacks to 37.27 MB. The 30 MB target applies to the
 zip, not the unpacked directory.
@@ -154,8 +154,8 @@ by default. `AIRGLANCE_GPU_RENDER=1` switches back to the default Avalonia GPU p
 
 | Budget item | Status |
 | --- | --- |
-| Cold start first window ≤ 500 ms | **missed** by ~55 ms |
-| 24 MP first frame ≤ 500 ms | **missed** by ~212 ms |
+| Cold start first window ≤ 500 ms | **missed** by ~43 ms |
+| 24 MP first frame ≤ 500 ms | **missed** by ~165 ms |
 | 100 MP first frame ≤ 2.0 s | met |
 | 24 MP fit-window memory ≤ 250 MB | met |
 | win-x64 zip ≤ 30 MB | met |

@@ -19,7 +19,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 
 ## Install
 
-0.1.0 is not on the product site yet. Builds are published on the GitHub Releases page.
+0.1.0 is not on the product site yet. Download it from the [v0.1.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.0).
 
 ### Windows
 
@@ -70,13 +70,13 @@ Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 
 
 | Metric | Target | 0.1.0 |
 | --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 554.9 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 712.4 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 704.0 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 77.8 MB |
-| Windows x64 portable zip | ≤ 30 MB | 14.95 MB |
+| Cold start to first window | ≤ 500 ms | 542.8 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 665.0 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 651.5 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 76.7 MB |
+| Windows x64 portable zip | ≤ 30 MB | 15.51 MB |
 
-The 0.1.0 build misses the 500 ms startup and first-frame targets. The window is up in about 555 ms and a 24 MP image is on screen in about 712 ms. The remaining cost is the first XAML window load; decoding is already overlapped with window creation. The numbers are the measured ones, not projections. See [docs/performance.md](docs/performance.md) for the breakdown and the raw runs.
+The 0.1.0 build misses the 500 ms startup and first-frame targets. The window is up in about 543 ms and a 24 MP image is on screen in about 665 ms. The remaining cost is the first XAML window load; decoding is already overlapped with window creation. The numbers are the measured ones, not projections. See [docs/performance.md](docs/performance.md) for the breakdown and the raw runs.
 
 ## Known limitations
 
