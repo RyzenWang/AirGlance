@@ -41,6 +41,17 @@ Not supported:
 - SVG
 - Video files such as MP4, MOV, WebM and MKV
 
+Why these are absent:
+
+- **HEIC / HEIF and AVIF** need native HEVC/AV1 codec libraries that are not part of the SkiaSharp build AirGlance ships. HEIC also brings HEVC patent licensing, and both need their own container, orientation and colour handling.
+- **TIFF** is a container with many compression variants, multiple pages, 16-bit and CMYK data. The SkiaSharp build used here has no TIFF codec, and adding libtiff would be a per-platform native dependency.
+- **RAW** files are not display-ready pixels. Opening one requires demosaicing, white balance, a camera colour matrix, tone mapping and often lens corrections. That is a separate LibRaw-class engine, not a decoder switch.
+- **SVG** is a vector format with CSS, fonts and external resources; it needs a rasterizer such as Svg.Skia, plus sanitising. It is not a raster image codec.
+- **Video** needs demuxing, a video decoder, audio/video synchronisation and a media stack such as FFmpeg or the OS media APIs. That is outside a still-image viewer, and the codec licensing and package size are significant.
+- **Animated GIF** is decoded to its first frame because the viewer has no animation timer or frame compositor. The same applies to animated WebP.
+
+AirGlance deliberately uses one decoder on every platform instead of falling back to OS codecs. Adding native codecs would make Windows, macOS and Linux behave differently, add per-platform native libraries and licensing, and could push the AOT packages toward or past the 30 MB size budget.
+
 The formats above are deliberately absent; there is no platform-codec fallback. Renaming a file to a supported extension does not help: the content check still fails, and the file is reported as corrupt rather than opened. Files with an unsupported extension are rejected even if their content happens to be a supported image.
 
 ## Install
