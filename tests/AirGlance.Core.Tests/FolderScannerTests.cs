@@ -56,10 +56,16 @@ public sealed class FolderScannerTests : IDisposable
     public void Hidden_files_are_skipped()
     {
         var visible = Path.Combine(_folder, "visible.jpg");
-        var hidden = Path.Combine(_folder, "hidden.jpg");
+        var hidden = Path.Combine(
+            _folder,
+            OperatingSystem.IsWindows() ? "hidden.jpg" : ".hidden.jpg");
         File.WriteAllBytes(visible, [0]);
         File.WriteAllBytes(hidden, [0]);
-        File.SetAttributes(hidden, FileAttributes.Hidden);
+
+        if (OperatingSystem.IsWindows())
+        {
+            File.SetAttributes(hidden, FileAttributes.Hidden);
+        }
 
         var files = FolderScanner.EnumerateImages(_folder);
 

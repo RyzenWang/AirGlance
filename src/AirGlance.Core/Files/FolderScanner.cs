@@ -39,6 +39,14 @@ public static class FolderScanner
 
             if (SupportedFormats.IsSupported(file))
             {
+                // On Unix a leading dot marks a hidden file. Windows reports the hidden
+                // attribute instead, and AttributesToSkip already removes it.
+                if (!OperatingSystem.IsWindows() &&
+                    Path.GetFileName(file).StartsWith(".", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 files.Add(file);
             }
         }
