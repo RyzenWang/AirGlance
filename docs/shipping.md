@@ -36,7 +36,7 @@ The release matrix is about artifacts, not runtime coverage. The v0.1.1 status i
 
 Two further gaps are recorded rather than claimed as passing:
 
-- Clipboard copy is implemented for image bytes, a bitmap and plain-text paths, but pasting the original bytes into a second application was not exercised on a real desktop in 0.1.1.
+- Clipboard image copy was checked on Windows x64 with an unmodified PNG and JPEG. The Windows clipboard contained `image/png` or `image/jpeg` alongside `CF_DIB`, `CF_DIBV5`, `CF_BITMAP` and a bitmap payload. The copy-path action and pasting the original bytes into a second application were not separately exercised.
 - Windows display scaling at 125%, 150% and 200% was not tested. The reference machine runs at 100% (96 DPI); text clipping at higher scaling is unverified.
 - No WACK pass or Store installation has been recorded for 0.1.1. The MSIX packages are unsigned.
 

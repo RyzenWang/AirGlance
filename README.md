@@ -55,7 +55,7 @@ The release publishes six archives. Runtime verification is narrower than that:
 | macOS x64 | `osx-x64.zip` | Unverified |
 | Linux arm64 | `linux-arm64.tar.gz` | Unverified |
 
-"Verified" means the AOT binary was launched and displayed an image. The other archives are produced by CI but have not been run on their platform. Clipboard paste into other applications and Windows display scaling above 100% are also unverified; see [shipping](docs/shipping.md).
+"Verified" means the AOT binary was launched and displayed an image. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
 
 ## Keyboard
 
