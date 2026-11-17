@@ -1,5 +1,7 @@
 # AirGlance
 
+**English** · [简体中文](README.zh-CN.md)
+
 **Whole folders, one glance.** · 「一个文件夹，一眼看完。」
 
 AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.1.2 is the current build; 0.1.0 was the first public build. It is deliberately small.
@@ -48,7 +50,7 @@ The release publishes six archives. Runtime verification is narrower than that:
 
 | Platform | Archive | NativeAOT binary actually run |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **Verified** on the reference machine (0.1.1) |
+| Windows x64 | `win-x64.zip` | **Verified** on the reference machine (0.1.2) |
 | Linux x64 | `linux-x64.tar.gz` | **Verified** by the maintainer |
 | Windows arm64 | `win-arm64.zip` | Unverified |
 | macOS arm64 | `osx-arm64.zip` | Unverified |
