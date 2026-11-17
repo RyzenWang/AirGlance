@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using AirGlance.App.Controls;
 using AirGlance.App.Services;
@@ -5,14 +6,18 @@ using AirGlance.App.ViewModels;
 using AirGlance.Core.Files;
 using AirGlance.Core.Imaging;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using ShapePath = Avalonia.Controls.Shapes.Path;
 
 namespace AirGlance.App.Views;
 
@@ -24,6 +29,7 @@ public partial class MainWindow : Window
     private readonly MainWindowViewModel _viewModel;
     private readonly DispatcherTimer _cursorTimer;
     private readonly DispatcherTimer? _benchmarkTimeout;
+    private readonly ImageViewer Viewer = new();
     private WindowState _stateBeforeFullscreen = WindowState.Normal;
     private ContextMenu? _contextMenu;
     private FilmstripView? _filmstripView;
@@ -32,6 +38,32 @@ public partial class MainWindow : Window
     private bool _isFullscreen;
     private bool _initialZoomApplied;
     private bool _cursorHidden;
+
+    private Border TitleBar = null!;
+    private Border CanvasBorder = null!;
+    private Border InfoHost = null!;
+    private Border FilmstripHost = null!;
+    private Border StatusBar = null!;
+    private Border LoadingChip = null!;
+    private Border DragOverlay = null!;
+    private StackPanel CaptionButtons = null!;
+    private StackPanel OverlayPanel = null!;
+    private StackPanel StatusLeft = null!;
+    private TextBlock FileNameText = null!;
+    private TextBlock OverlayTitle = null!;
+    private TextBlock OverlayMessage = null!;
+    private TextBlock OverlayHint = null!;
+    private TextBlock LoadingText = null!;
+    private TextBlock DropHintText = null!;
+    private TextBlock StatusDimensions = null!;
+    private TextBlock StatusPosition = null!;
+    private TextBlock TransientMessageText = null!;
+    private Button ZoomButton = null!;
+    private Button GitHubButton = null!;
+    private Button MinimizeButton = null!;
+    private Button MaximizeButton = null!;
+    private Button CloseButton = null!;
+    private ShapePath MaximizeIcon = null!;
 
     public MainWindow(
         AppServices services,
@@ -44,11 +76,12 @@ public partial class MainWindow : Window
         _benchmark = benchmark;
 
         StartupTrace.Mark("window-ctor-enter");
-        InitializeComponent();
-        StartupTrace.Mark("window-ctor-xaml");
+        BuildUi();
+        StartupTrace.Mark("window-ctor-ui");
 
         _viewModel = new MainWindowViewModel(services, preload);
         DataContext = _viewModel;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.ImagePresented += OnImagePresented;
         _viewModel.CurrentItemChanged += (_, _) => _filmstripView?.ScrollTo(_viewModel.CurrentIndex);
         StartupTrace.Mark("window-ctor-vm");
@@ -62,6 +95,8 @@ public partial class MainWindow : Window
 
         ConfigureWindowChrome();
         UpdateMaximizeIcon();
+        ApplyLanguage();
+        ApplyViewModelState();
         StartupTrace.Mark("window-ctor-chrome");
 
         _cursorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -107,6 +142,277 @@ public partial class MainWindow : Window
         Closed += OnClosed;
         StartupTrace.Mark("window-ctor-exit");
     }
+
+    private void BuildUi()
+    {
+        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        MinWidth = 720;
+        MinHeight = 480;
+        Title = "AirGlance";
+        Classes.Add("shell");
+
+        var root = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto")
+        };
+
+        // Title row.
+        TitleBar = new Border { Height = 44 };
+        TitleBar.Classes.Add("titlebar");
+        TitleBar.PointerPressed += OnTitleBarPointerPressed;
+
+        var titleGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto")
+        };
+
+        var brand = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 9,
+            Margin = new Thickness(14, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var brandMark = new Border();
+        brandMark.Classes.Add("brandmark");
+        var brandGlyph = new ShapePath { Data = FindGeometry("IconBrand") };
+        brandGlyph.Classes.Add("brand-glyph");
+        brandMark.Child = brandGlyph;
+        brand.Children.Add(brandMark);
+        var brandName = new TextBlock { Text = "AirGlance" };
+        brandName.Classes.Add("brand-name");
+        brand.Children.Add(brandName);
+        titleGrid.Children.Add(brand);
+
+        FileNameText = new TextBlock { Margin = new Thickness(16, 0) };
+        FileNameText.Classes.Add("filename");
+        Grid.SetColumn(FileNameText, 1);
+        titleGrid.Children.Add(FileNameText);
+
+        CaptionButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        MinimizeButton = CreateCaptionButton("IconMinimize", "L.Minimize", OnMinimizeClick);
+        MaximizeButton = CreateCaptionButton("IconMaximize", "L.Maximize", OnMaximizeClick);
+        MaximizeIcon = (ShapePath)MaximizeButton.Content!;
+        CloseButton = CreateCaptionButton("IconClose", "L.Close", OnCloseClick, close: true);
+        CaptionButtons.Children.Add(MinimizeButton);
+        CaptionButtons.Children.Add(MaximizeButton);
+        CaptionButtons.Children.Add(CloseButton);
+        Grid.SetColumn(CaptionButtons, 2);
+        titleGrid.Children.Add(CaptionButtons);
+
+        TitleBar.Child = titleGrid;
+        Grid.SetRow(TitleBar, 0);
+        root.Children.Add(TitleBar);
+
+        // Content row.
+        var contentGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto")
+        };
+
+        CanvasBorder = new Border { ClipToBounds = true };
+        CanvasBorder.Classes.Add("canvas");
+
+        var canvasGrid = new Grid();
+        Viewer.FirstFramePresented += OnFirstFramePresented;
+        Viewer.ZoomChanged += OnViewerZoomChanged;
+        Viewer.ViewportChanged += OnViewerViewportChanged;
+        canvasGrid.Children.Add(Viewer);
+
+        OverlayPanel = new StackPanel
+        {
+            IsVisible = false,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            MaxWidth = 480,
+            Spacing = 8
+        };
+        OverlayTitle = new TextBlock();
+        OverlayTitle.Classes.Add("overlay-title");
+        OverlayMessage = new TextBlock();
+        OverlayMessage.Classes.Add("overlay-message");
+        OverlayHint = new TextBlock { Margin = new Thickness(0, 6, 0, 0) };
+        OverlayHint.Classes.Add("overlay-hint");
+        OverlayPanel.Children.Add(OverlayTitle);
+        OverlayPanel.Children.Add(OverlayMessage);
+        OverlayPanel.Children.Add(OverlayHint);
+        canvasGrid.Children.Add(OverlayPanel);
+
+        LoadingChip = new Border();
+        LoadingChip.Classes.Add("loading-chip");
+        LoadingText = new TextBlock { Foreground = Brushes.White, FontSize = 12 };
+        LoadingChip.Child = LoadingText;
+        canvasGrid.Children.Add(LoadingChip);
+
+        CanvasBorder.Child = canvasGrid;
+        contentGrid.Children.Add(CanvasBorder);
+
+        InfoHost = new Border
+        {
+            Width = 300,
+            Margin = new Thickness(0, 12, 12, 12)
+        };
+        InfoHost.Classes.Add("panel");
+        Grid.SetColumn(InfoHost, 1);
+        contentGrid.Children.Add(InfoHost);
+
+        Grid.SetRow(contentGrid, 1);
+        root.Children.Add(contentGrid);
+
+        // Filmstrip host.
+        FilmstripHost = new Border { Height = 108 };
+        FilmstripHost.Classes.Add("filmstrip-host");
+        Grid.SetRow(FilmstripHost, 2);
+        root.Children.Add(FilmstripHost);
+
+        // Status row.
+        StatusBar = new Border { Height = 28 };
+        StatusBar.Classes.Add("statusbar");
+        var statusGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            Margin = new Thickness(12, 0)
+        };
+
+        StatusLeft = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        StatusDimensions = new TextBlock();
+        StatusDimensions.Classes.Add("mono");
+        StatusDimensions.Classes.Add("status-text");
+        StatusLeft.Children.Add(StatusDimensions);
+        StatusLeft.Children.Add(CreateStatusDot());
+
+        ZoomButton = new Button { Content = string.Empty };
+        ZoomButton.Classes.Add("link");
+        ZoomButton.Classes.Add("zoom-link");
+        ZoomButton.Click += OnZoomPresetClick;
+        StatusLeft.Children.Add(ZoomButton);
+        StatusLeft.Children.Add(CreateStatusDot());
+
+        StatusPosition = new TextBlock();
+        StatusPosition.Classes.Add("mono");
+        StatusPosition.Classes.Add("status-text");
+        StatusLeft.Children.Add(StatusPosition);
+        statusGrid.Children.Add(StatusLeft);
+
+        TransientMessageText = new TextBlock { Margin = new Thickness(12, 0) };
+        TransientMessageText.Classes.Add("transient");
+        Grid.SetColumn(TransientMessageText, 1);
+        statusGrid.Children.Add(TransientMessageText);
+
+        GitHubButton = new Button { Content = "GitHub", FontSize = 12 };
+        GitHubButton.Classes.Add("link");
+        GitHubButton.Click += OnGitHubClick;
+        AutomationProperties.SetName(GitHubButton, "GitHub");
+        Grid.SetColumn(GitHubButton, 2);
+        statusGrid.Children.Add(GitHubButton);
+
+        StatusBar.Child = statusGrid;
+        Grid.SetRow(StatusBar, 3);
+        root.Children.Add(StatusBar);
+
+        // Drag and drop overlay.
+        DragOverlay = new Border { IsVisible = false };
+        DragOverlay.Classes.Add("dragover");
+        Grid.SetRowSpan(DragOverlay, 4);
+        var dropHintBorder = new Border
+        {
+            Padding = new Thickness(18, 12),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        dropHintBorder.Classes.Add("panel");
+        DropHintText = new TextBlock();
+        DropHintText.Classes.Add("drop-hint");
+        dropHintBorder.Child = DropHintText;
+        DragOverlay.Child = dropHintBorder;
+        root.Children.Add(DragOverlay);
+
+        Content = root;
+    }
+
+    private Button CreateCaptionButton(
+        string iconResource,
+        string automationKey,
+        EventHandler<RoutedEventArgs> clickHandler,
+        bool close = false)
+    {
+        var button = new Button
+        {
+            Content = new ShapePath { Data = FindGeometry(iconResource) }
+        };
+        button.Classes.Add("caption");
+        if (close)
+        {
+            button.Classes.Add("close");
+        }
+
+        button.Click += clickHandler;
+        button.Tag = automationKey;
+        return button;
+    }
+
+    private TextBlock CreateStatusDot()
+    {
+        var dot = new TextBlock { Text = "\u00B7" };
+        dot.Classes.Add("status-dot");
+        return dot;
+    }
+
+    private Geometry FindGeometry(string key) =>
+        this.FindResource(key) as Geometry ?? StreamGeometry.Parse("M 0 0");
+
+    private void ApplyLanguage()
+    {
+        LoadingText.Text = _services.Localization.T("L.Loading");
+        DropHintText.Text = _services.Localization.T("L.DropHint");
+        AutomationProperties.SetName(MinimizeButton, _services.Localization.T("L.Minimize"));
+        AutomationProperties.SetName(MaximizeButton, _services.Localization.T("L.Maximize"));
+        AutomationProperties.SetName(CloseButton, _services.Localization.T("L.Close"));
+        ToolTip.SetTip(ZoomButton, _services.Localization.T("L.ZoomLevel"));
+        AutomationProperties.SetName(ZoomButton, _services.Localization.T("L.ZoomLevel"));
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+        ApplyViewModelState();
+
+    private void ApplyViewModelState()
+    {
+        Title = _viewModel.WindowTitle;
+        FileNameText.Text = _viewModel.TitleFileName;
+        TitleBar.IsVisible = _viewModel.ShowTitleBar;
+        OverlayPanel.IsVisible = _viewModel.OverlayVisible;
+        OverlayTitle.Text = _viewModel.OverlayTitle;
+        OverlayMessage.Text = _viewModel.OverlayMessage;
+        OverlayHint.Text = _viewModel.OverlayHint;
+        LoadingChip.IsVisible = _viewModel.IsLoading;
+        InfoHost.IsVisible = _viewModel.InfoShown;
+        FilmstripHost.IsVisible = _viewModel.FilmstripShown;
+        StatusBar.IsVisible = _viewModel.IsChromeVisible;
+        StatusLeft.IsVisible = _viewModel.HasImage;
+        StatusDimensions.Text = _viewModel.StatusDimensions;
+        ZoomButton.Content = _viewModel.ZoomText;
+        StatusPosition.Text = _viewModel.StatusPosition;
+        TransientMessageText.Text = _viewModel.TransientMessage ?? string.Empty;
+        DragOverlay.IsVisible = _viewModel.IsDragOver;
+
+        if (_viewModel.IsFullscreen)
+        {
+            if (!CanvasBorder.Classes.Contains("fullscreen"))
+            {
+                CanvasBorder.Classes.Add("fullscreen");
+            }
+        }
+        else
+        {
+            CanvasBorder.Classes.Remove("fullscreen");
+        }
+    }
+
 
     private void ConfigureWindowChrome()
     {
@@ -218,12 +524,31 @@ public partial class MainWindow : Window
         // The window is the product; the filmstrip and information panel arrive one
         // frame later, after the pixels are already on screen.
         Dispatcher.UIThread.Post(EnsurePanels, DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(SetWindowIcon, DispatcherPriority.Background);
 
         if (_benchmark is not null)
         {
             _benchmark.MarkFirstFrame(
                 _viewModel.LastDecodeMilliseconds,
                 _viewModel.Metadata?.Megapixels ?? 0);
+        }
+    }
+
+    private void SetWindowIcon()
+    {
+        if (Icon is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var stream = AssetLoader.Open(new Uri("avares://AirGlance/Assets/airglance.png"));
+            Icon = new WindowIcon(stream);
+        }
+        catch
+        {
+            // An icon is cosmetic; a failure must not affect the window.
         }
     }
 
@@ -763,6 +1088,7 @@ public partial class MainWindow : Window
     {
         _contextMenu = null;
         CanvasBorder.ContextMenu = null;
+        ApplyLanguage();
     }
 
     private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -904,9 +1230,12 @@ public partial class MainWindow : Window
 
     private void OnClosed(object? sender, EventArgs e)
     {
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _services.Localization.LanguageChanged -= OnLocalizationChanged;
         _cursorTimer.Stop();
         _benchmarkTimeout?.Stop();
         _viewModel.Dispose();
     }
 }
+
+

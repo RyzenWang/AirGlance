@@ -2,7 +2,7 @@
 
 **Whole folders, one glance.** · 「一个文件夹，一眼看完。」
 
-AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.1.0 is the first public build and deliberately small.
+AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.1.1 is the current build; 0.1.0 was the first public build. It is deliberately small.
 
 - [Download](#install) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
 
@@ -19,24 +19,24 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 
 ## Install
 
-0.1.0 is not on the product site yet. Download it from the [v0.1.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.0).
+0.1.1 is not on the product site yet. Download it from the [v0.1.1 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.1).
 
 ### Windows
 
-1. Download `AirGlance-0.1.0-win-x64.zip` (or `win-arm64`).
+1. Download `AirGlance-0.1.1-win-x64.zip` (or `win-arm64`).
 2. Unzip it anywhere and run `AirGlance.exe`.
 
 The 0.1 portable build is not code-signed, so SmartScreen warns the first time. Choose **More info → Run anyway**. The executable is a NativeAOT build; it does not need a .NET runtime installed.
 
 ### macOS
 
-1. Download `AirGlance-0.1.0-osx-arm64.zip` or `-osx-x64.zip`.
+1. Download `AirGlance-0.1.1-osx-arm64.zip` or `-osx-x64.zip`.
 2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.1 is not.
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.1.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.1.1-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -68,15 +68,15 @@ Right-click the image for open, copy, show-in-folder, open-with and settings.
 
 Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`. Ten fresh processes per row, median from `tools/bench.ps1`; the full method and raw values are in [docs/performance.md](docs/performance.md).
 
-| Metric | Target | 0.1.0 |
+| Metric | Target | 0.1.1 |
 | --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 542.8 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 665.0 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 651.5 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 76.7 MB |
-| Windows x64 portable zip | ≤ 30 MB | 15.51 MB |
+| Cold start to first window | ≤ 500 ms | 184.2 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 293.0 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 292.2 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 76.4 MB |
+| Windows x64 portable zip | ≤ 30 MB | 15.5 MB |
 
-The 0.1.0 build misses the 500 ms startup and first-frame targets. The window is up in about 543 ms and a 24 MP image is on screen in about 665 ms. The remaining cost is the first XAML window load; decoding is already overlapped with window creation. The numbers are the measured ones, not projections. See [docs/performance.md](docs/performance.md) for the breakdown and the raw runs.
+The 0.1.1 build meets the startup and first-frame targets on the reference machine: the window is up in about 184 ms and a 24 MP image is on screen in about 293 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. One cold run in ten is slower while the operating system scans the new executable, so the p95 is much higher than the median. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 
@@ -89,7 +89,7 @@ These are limitations, not a promise list.
 - No cropping and no lossless JPEG rotation. Rotate and flip only change what is on screen.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
 - 100 MP images can be viewed at fit-window size comfortably, but zooming to 100% decodes the full image and can use a lot of memory.
-- The 0.1.0 Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
+- The 0.1 Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
 
 ## Build from source
 

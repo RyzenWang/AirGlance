@@ -57,43 +57,43 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 
 ### 24 MP JPEG, fit window
 
-10 runs of the published `v0.1.0` Windows x64 artifact, median (p95 in brackets).
+10 runs of a locally built `v0.1.1` Windows x64 artifact, median (p95 in brackets).
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | ≤ 500 ms | **542.8 ms** (574.9) | miss |
-| First frame | ≤ 500 ms | **665.0 ms** (694.8) | miss |
-| Decode | — | **59.3 ms** (71.0) | — |
-| Peak working set | ≤ 250 MB | **76.7 MB** (77.0) | pass |
+| First window | ≤ 500 ms | **184.2 ms** (476.6) | pass |
+| First frame | ≤ 500 ms | **293.0 ms** (599.5) | pass |
+| Decode | — | **57.3 ms** (58.2) | — |
+| Peak working set | ≤ 250 MB | **76.4 MB** (77.9) | pass |
 
 Raw runs:
 
 ```text
 Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
-  1 546.0           673.6          62.4      24.0     73.8       846.8
-  2 568.1           694.8          59.5      24.0     76.7       838.6
-  3 535.4           662.9          59.1      24.0     76.8       745.8
-  4 556.4           684.8          57.4      24.0     76.7       762.6
-  5 536.7           665.9          71.0      24.0     76.8       733.0
-  6 574.9           678.8          57.6      24.0     74.6       749.2
-  7 534.2           664.0          59.1      24.0     77.0       741.3
-  8 533.5           661.5          59.8      24.0     76.9       747.8
-  9 539.7           643.3          59.6      24.0     73.8       718.7
- 10 545.8           658.2          59.1      24.0     74.5       793.1
+  1 476.6           599.5          56.3      24.0     77.9       808.7
+  2 185.6           291.2          57.8      24.0     75.9       404.6
+  3 185.2           293.6          58.2      24.0     76.4       353.1
+  4 185.1           308.9          55.9      24.0     77.0       366.0
+  5 184.2           292.7          58.0      24.0     76.4       352.7
+  6 182.0           292.4          57.2      24.0     76.3       356.9
+  7 180.2           287.7          57.0      24.0     76.3       347.0
+  8 183.0           293.2          57.5      24.0     76.4       352.4
+  9 184.1           291.5          57.2      24.0     76.3       351.9
+ 10 182.6           293.5          57.3      24.0     76.6       412.8
 ```
 
 ### 100 MP JPEG, fit window
 
-5 runs of the published artifact, median.
+5 runs of the same artifact, median.
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | — | 538.0 ms | — |
-| First frame | ≤ 2.0 s | **651.5 ms** | pass |
-| Decode | — | 142.7 ms | — |
-| Peak working set | — | 77.2 MB | — |
+| First window | — | 181.5 ms | — |
+| First frame | ≤ 2.0 s | **292.2 ms** | pass |
+| Decode | — | 141.7 ms | — |
+| Peak working set | — | 76.2 MB | — |
 
-Raw runs: 655.8, 651.5, 618.5, 708.7, 627.9 ms.
+Raw runs: 297.3, 293.9, 289.6, 292.2, 290.6 ms.
 
 ### 500-image folder
 
@@ -112,12 +112,11 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 
 ### Portable package
 
-| Artifact | Size | SHA256 |
-| --- | --- | --- |
-| `AirGlance-0.1.0-win-x64.zip` | **15.51 MB** | `303b19e81c094c9d3d8672490f998227c44eda9f4bc295d4b10f31928c69b045` |
-
-The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md) and unpacks to 37.27 MB. The 30 MB target applies to the
-zip, not the unpacked directory.
+The `v0.1.1` release publishes six archives and `SHA256SUMS.txt`. The Windows x64
+portable zip is about 15.5 MB, contains six files (the four runtime files, LICENSE and
+THIRD-PARTY-NOTICES.md) and unpacks to about 37 MB. The 30 MB target applies to the zip,
+not the unpacked directory. Use the release's `SHA256SUMS.txt` for the exact size and
+hash of each archive.
 
 ## Where the startup time goes
 
@@ -125,37 +124,37 @@ zip, not the unpacked directory.
 on the software compositor:
 
 ```text
-main=42.2
-app-init=73.6
-xaml-loaded=77.5
-framework-init=114.4
-services-ready=123.4
-window-ctor-enter=142.2
-window-ctor-xaml=512.9
-window-ctor-vm=513.7
-window-ctor-chrome=515.4
-window-ctor-exit=515.9
-window-created=516.3
-window-opened=544.8
-image-initialized=582.7
+main=42.7
+app-init=72.2
+xaml-loaded=76.0
+framework-init=113.2
+services-ready=120.3
+window-ctor-enter=138.3
+window-ctor-ui=152.2
+window-ctor-vm=152.9
+window-ctor-chrome=154.6
+window-ctor-exit=155.2
+window-created=155.7
+window-opened=192.3
+image-initialized=200.7
 ```
 
-The first MainWindow XAML load (`window-ctor-xaml`) accounts for about 370 ms of the
-~550 ms first-window time. The 24 MP image decode (about 60 ms) already overlaps with
-window construction, so it is no longer the first-frame bottleneck. The remaining gap
-from window to first frame is the first render pass (about 35-170 ms depending on the
-run and rendering mode).
+The window content now takes about 14 ms (`window-ctor-ui`). The old MainWindow XAML
+build cost about 370 ms; 0.1.1 builds the same chrome in C# and leaves the filmstrip,
+information panel and context menu in XAML, loaded after the first frame. The 24 MP
+decode (about 57 ms) overlaps window construction and image initialisation. The
+remaining gap from `image-initialized` to the first painted frame is about 100 ms.
 
 Earlier builds used the ANGLE/GPU compositor. On this machine that pushed first window
-to ~565 ms and first frame to ~790 ms, so 0.1.0 uses the software compositor on Windows
+to ~565 ms and first frame to ~790 ms, so 0.1 uses the software compositor on Windows
 by default. `AIRGLANCE_GPU_RENDER=1` switches back to the default Avalonia GPU path.
 
 ## Target status
 
 | Budget item | Status |
 | --- | --- |
-| Cold start first window ≤ 500 ms | **missed** by ~43 ms |
-| 24 MP first frame ≤ 500 ms | **missed** by ~165 ms |
+| Cold start first window ≤ 500 ms | met |
+| 24 MP first frame ≤ 500 ms | met |
 | 100 MP first frame ≤ 2.0 s | met |
 | 24 MP fit-window memory ≤ 250 MB | met |
 | win-x64 zip ≤ 30 MB | met |

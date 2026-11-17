@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using AirGlance.App.Services;
 using AirGlance.App.Views;
 using AirGlance.Core.Files;
@@ -160,4 +160,5 @@ public partial class App : Application
         }
     }
 }
+
 

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-17
+
+Performance patch. The first frame is now inside the 0.1 budget on the reference machine.
+
+### Changed
+
+- MainWindow chrome is built in C# instead of XAML. The first XAML window load cost about 370 ms of the ~550 ms startup; the code-built window constructs the same layout in about 30 ms. Panel and context-menu XAML still load after the first frame.
+- The window icon is decoded after the first frame instead of during window construction.
+- Published 24 MP first frame is 293.0 ms median (was 665.0 ms); first window is 184.2 ms median (was 542.8 ms). See `docs/performance.md`.
+- Version is 0.1.1.
+
+### Fixed
+
+- Status-bar separators rendered as the wrong character on some systems.
+- Hidden files beginning with a dot are skipped on Unix (`FolderScanner`).
+
 ## [0.1.0] - 2026-11-17
 
 First public release. AirGlance opens one folder at a time and shows one image at a time.
@@ -50,5 +66,6 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.1
 [0.1.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.0

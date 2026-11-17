@@ -73,9 +73,11 @@ The rule is deliberate:
 
 `Program` builds the Avalonia app with platform detection and the Inter font. On Windows it selects Avalonia's software compositor by default; `AIRGLANCE_GPU_RENDER=1` opts back into the GPU path. macOS and Linux keep the platform defaults.
 
-`App.OnFrameworkInitializationCompleted` parses the command line, creates process-wide `AppServices`, handles `--bench=decode` and `--bench=scan` without a window, and otherwise creates one `MainWindow`. Before the window is constructed it starts `StartupImageLoader.TryLoad` on the thread pool for the target path. The loader reads metadata and decodes a 1600 × 1000 preview while XAML is loading. `MainWindowViewModel` consumes the result once if the path still matches, so the first frame usually does not wait for the decode. Preload failures are ignored and the normal load path reports the error.
+`App.OnFrameworkInitializationCompleted` parses the command line, creates process-wide `AppServices`, handles `--bench=decode` and `--bench=scan` without a window, and otherwise creates one `MainWindow`. Before the window is constructed it starts `StartupImageLoader.TryLoad` on the thread pool for the target path. The loader reads metadata and decodes a 1600 × 1000 preview while the window is being built. `MainWindowViewModel` consumes the result once if the path still matches, so the first frame usually does not wait for the decode. Preload failures are ignored and the normal load path reports the error.
 
 `MainWindow` is intentionally thin. It handles the keyboard map, drag and drop, file and folder pickers, the context menu, fullscreen, clipboard writes, settings and help dialogs, and window/zoom persistence. It creates one `MainWindowViewModel`, which owns the folder and current image.
+
+The window chrome (title bar, canvas host, status bar and drag overlay) is built in C#. The earlier XAML version cost about 370 ms of the first-window time; the same tree built in code is about 15 ms. The filmstrip and information panel remain XAML and are loaded after the first frame. The window subscribes to `MainWindowViewModel.PropertyChanged` and applies visibility, text and fullscreen state imperatively; static labels are refreshed from `LocalizationService.LanguageChanged`.
 
 The filmstrip and information panel are separate views (`FilmstripView`, `InfoPanelView`) loaded one frame after the first image is painted. The window therefore appears and shows pixels before those panels exist; this matches the "window first, panels later" startup rule and keeps their XAML out of the first-frame path. The context menu is also built on the first right-click instead of during window construction.
 
@@ -248,8 +250,8 @@ Release builds are published with NativeAOT on Windows, macOS and Linux. NativeA
 AOT constraints are enforced by design:
 
 - Settings JSON uses `SettingsJsonContext`, a source-generated `JsonSerializerContext`. There is no reflection serializer.
-- All data-bound XAML uses compiled bindings and `x:DataType`.
-- XAML is compiled. Windows are constructed in code and populated from compiled XAML; they are not instantiated by the runtime XAML loader.
+- All data-bound XAML (panels and dialogs) uses compiled bindings and `x:DataType`.
+- XAML is compiled. The main window is built in C#; panels and dialogs are constructed in code from compiled XAML. No window is instantiated by the runtime XAML loader.
 - There is no `Assembly.Load`, no `Activator.CreateInstance`, no `dynamic` and no runtime code generation.
 - `AppServices.Version` reads `AssemblyInformationalVersionAttribute`; that is metadata reflection, not dynamic code.
 
