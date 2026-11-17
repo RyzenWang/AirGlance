@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:AirGlance.App.Controls"
         x:Class="AirGlance.App.Views.ShortcutsWindow"
         Title="{DynamicResource L.ShortcutsTitle}"
         Width="600"
@@ -13,12 +14,27 @@
         Background="{DynamicResource Paper}"
         KeyDown="OnKeyDown">
   <Grid RowDefinitions="Auto,*,Auto">
-    <StackPanel Margin="24,20,24,14" Spacing="14">
-      <TextBlock Text="{DynamicResource L.ShortcutsTitle}"
-                 FontSize="20"
-                 FontWeight="SemiBold"
-                 LetterSpacing="-0.4" />
-      <Border Classes="divider" />
+    <StackPanel Spacing="14">
+      <Grid x:Name="HeaderGrid" ColumnDefinitions="*,Auto" Margin="24,14,16,0">
+        <TextBlock Text="{DynamicResource L.ShortcutsTitle}"
+                   FontSize="20"
+                   FontWeight="SemiBold"
+                   LetterSpacing="-0.4"
+                   VerticalAlignment="Center" />
+        <Button x:Name="HeaderCloseButton"
+                Grid.Column="1"
+                Classes="icon"
+                Width="30"
+                Height="30"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Click="OnDoneClick"
+                AutomationProperties.Name="{DynamicResource L.Close}"
+                ToolTip.Tip="{DynamicResource L.Close}">
+          <controls:IconPath Data="{DynamicResource IconClose}" Width="14" Height="14" />
+        </Button>
+      </Grid>
+      <Border Classes="divider" Margin="24,0" />
     </StackPanel>
 
     <ScrollViewer Grid.Row="1" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto">

@@ -35,7 +35,7 @@ Main problems:
 - The filmstrip is collapsed by default; when expanded it overlays the bottom of the image without changing the image's size.
 - The info panel becomes a right-side overlay, and the image size stays the same.
 - Primary actions go into a floating dock at the bottom; the context menu keeps only secondary actions.
-- In "Browse mode", large left/right buttons + the wheel turn pages; in "Inspect mode", `Ctrl + wheel` zooms and dragging pans.
+- "Browse mode" pages with the large left/right buttons and the arrow keys; the wheel zooms around the pointer and dragging pans.
 - Icons + tooltips, with keyboard shortcuts retained; no interaction requires learning the context menu first.
 
 ## 3. Mockups
@@ -105,8 +105,8 @@ Main problems:
 
 | Operation | Suggested behavior |
 | --- | --- |
-| Wheel | Previous / next image (recommended default) |
-| `Ctrl/Cmd + wheel` | Zoom centered on the pointer |
+| Wheel | Zoom centered on the pointer (current implementation) |
+| `Shift + wheel` | Pan sideways |
 | Drag | Pan when the image is larger than the viewport |
 | Double-click the image | Toggle between fit-to-window and 100% |
 | Click the empty edge of the canvas | Show / hide the overlays |
@@ -115,7 +115,7 @@ Main problems:
 | Click the info button / press `I` | Open/close the info overlay |
 | Right-click | Secondary actions such as open, show in folder, open with another app, and settings |
 
-Making the wheel page by default is intentional: the first need of an image viewer is "keep looking at the next image", not "enlarge the current image by 10%". For fine inspection, use `Ctrl + wheel` or `+/-`. If users do not take to it, provide a "Wheel zooms" toggle in settings, still defaulting to paging.
+Wheel zoom is the current default: when inspecting an image, the direct action is to magnify the detail under the pointer rather than skip several images in one gesture. Paging stays on the arrow keys, `PgUp` / `PgDn`, `Space` / `Backspace` and the edge buttons. `Ctrl/Cmd + wheel` still zooms, so the muscle memory keeps working.
 
 ### 4.2 Keyboard
 
@@ -195,7 +195,7 @@ It is suggested to settle these four things first, then move on to implementatio
 
 | Decision | Recommendation | Alternative |
 | --- | --- | --- |
-| Wheel default | **Page; Ctrl+wheel zooms** | Keep zoom; page only with arrow keys/buttons |
+| Wheel default | **Zoom; page with the arrow keys/buttons** (implemented) | Page; Ctrl+wheel zooms |
 | Control dismissal | **Auto-fade after 2.5 s, recalled at the edges** | Always visible, but with lower opacity |
 | Filmstrip | **Collapsed by default, expands as an overlay** | Persistently at the bottom, but shrunk to 72 px |
 | Info panel | **Right-side overlay that does not squeeze the image** | The current docked sidebar |
@@ -208,7 +208,7 @@ Two other small points need confirmation:
 ## 7. Implementation Breakdown (after review approval)
 
 1. **Shell**: take the title bar, filmstrip, and status bar out of the layout and turn them into overlays on the canvas; build the dock and top chip in code and mount them after the first frame.
-2. **Navigation**: add left/right buttons and wheel paging; change the arrow keys to always page; add a "Wheel zooms" setting.
+2. **Navigation**: add left/right buttons and zoom at the pointer; change the arrow keys to always page.
 3. **Panels**: change Info into a right-side overlay; change the filmstrip into a bottom drawer; unify the behavior of `C`/`I`/`Esc`.
 4. **Empty state and settings**: empty-state card, dock settings popover, About/GitHub migration.
 5. **Accessibility and tests**: focusable buttons, tooltips, shortcut table, expanded window keyboard tests; confirm that overlays do not break 100 MP tiled rendering or the first-frame budget.
@@ -217,28 +217,48 @@ This is expected to be 2–3 UI iterations and does not touch the decoder. The f
 
 ## 8. Current Implementation Status
 
-The recommended combination has already landed in the working tree:
+0.1.3 shipped the recommended combination. This round aligned the overlay geometry and the icon system with section 5, item by item:
 
 - Full-window image canvas, with the top folder/file chip and the bottom dock floating above the image.
 - 2.5 s auto-fade; mouse movement or a PostMessage pointer move brings the controls back.
-- Wheel pages, `Ctrl/Cmd + wheel` zooms; the arrow keys always page.
-- The filmstrip is now a bottom overlay drawer, collapsed by default; the info panel is now a right-side overlay drawer.
+- Wheel zooms around the pointer; the arrow keys always page.
+- The filmstrip is a bottom overlay drawer, collapsed by default; the info panel is a right-side overlay drawer.
 - The info panel and filmstrip are mutually exclusive: opening one collapses the other, so they do not cover each other in a small window.
 - Empty-state card, left/right navigation buttons, chrome-free fullscreen, `Esc` closes overlays/exits fullscreen.
 - The selected thumbnail uses an explicit `IsCurrent` state instead of relying on the selected border of the ListBox template.
 
+This round:
+
+- Icons now live on one 24 × 24 design grid. `IconPath` scales the grid to the requested box and centres it, which fixes the old drift to the bottom-right and the clipping at small sizes.
+- Top chips: 18 px side margin, 16 px top offset, 38 px tall, 12 px radius, 12 px padding; 9 px and 14 px inner gaps; the file chip is centred on the window, not on the middle grid column.
+- Window controls are four buttons again (theme, minimise, maximise, close), 30 × 30 with a 2 px gap; the top-right theme toggle is new.
+- Dock: 52 px tall, 16 px radius, 6 px padding, 1 px gap; 38 × 40 buttons, 10 px radius, 18 px icons.
+- Navigation buttons: 46 px circles, 22 px margins, 72% opacity at rest, 100% on hover.
+- The filmstrip gained its heading row ("Filmstrip / N images · click to switch" plus a collapse button), 92 × 56 thumbnails with an inset filename, and 22/10/22/14 padding.
+- Fullscreen regained the bottom-right `Esc` hint; overlays gained their shadows, and the canvas gained the 42/56/58 breathing space and the radial backdrop.
+- The empty card is 570 px with 38/44/30 padding and a 26 px radius; both actions carry 15 px icons.
+- Below 900 px the folder chip hides and the file chip narrows, so the top row never overlaps.
+- Wheel zooms around the pointer; paging stays on the arrow keys, `PgUp` / `PgDn`, Space and the edge buttons.
+- Settings, Save a copy, Shortcuts and message dialogs now use the shell's borderless header; primary and secondary button labels are vertically centred.
+
 Known differences from the mockups:
 
-- Settings still opens the existing settings dialog; there is no in-dock popover.
-- Overlays use a semi-transparent solid color, with no real `backdrop-filter` blur (for software-composition performance reasons).
+- Settings is still a separate dialog (now with the same borderless header as the shell); there is no in-dock popover.
+- Overlays use a semi-transparent solid colour, with no real `backdrop-filter` blur (for software-composition performance reasons).
 - The filmstrip currently has no slide-in animation; a 200–240 ms shift transition can be added later.
-- The info panel heading uses "信息面板" (Info Panel), with no separate short "Info" title.
+- The info panel has no large filename heading and no "Show in folder / Copy path" footer yet; both actions still live in the context menu.
 
-Implementation screenshots:
+Implementation screenshots (1240 × 860; fullscreen 1240 × 698):
 
 ![Default state after implementation](implemented-hover.png)
 
 ![Filmstrip after implementation](implemented-browse.png)
 
 ![Info panel after implementation](implemented-info.png)
+
+![Empty state after implementation](implemented-empty.png)
+
+![Dark theme after implementation](implemented-dark.png)
+
+![Fullscreen after implementation](implemented-fullscreen.png)
 

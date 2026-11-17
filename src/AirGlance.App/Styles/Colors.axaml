@@ -18,6 +18,15 @@
       <SolidColorBrush x:Key="Caution" Color="#B26B1F" />
       <SolidColorBrush x:Key="Danger" Color="#B23A2B" />
       <SolidColorBrush x:Key="Canvas" Color="#EAE5DC" />
+      <RadialGradientBrush x:Key="CanvasBackdrop"
+                           Center="50%,34%"
+                           GradientOrigin="50%,34%"
+                           RadiusX="0.76"
+                           RadiusY="0.78">
+        <GradientStop Color="#F8F5EE" Offset="0" />
+        <GradientStop Color="#EDE7DC" Offset="0.58" />
+        <GradientStop Color="#E2DACE" Offset="1" />
+      </RadialGradientBrush>
       <SolidColorBrush x:Key="CanvasFullscreen" Color="#0D1116" />
       <SolidColorBrush x:Key="CheckerLight" Color="#FFFFFF" />
       <SolidColorBrush x:Key="CheckerDark" Color="#E0D9CD" />
@@ -58,6 +67,15 @@
       <SolidColorBrush x:Key="Caution" Color="#D9A35A" />
       <SolidColorBrush x:Key="Danger" Color="#FF8E79" />
       <SolidColorBrush x:Key="Canvas" Color="#171E27" />
+      <RadialGradientBrush x:Key="CanvasBackdrop"
+                           Center="50%,34%"
+                           GradientOrigin="50%,34%"
+                           RadiusX="0.76"
+                           RadiusY="0.78">
+        <GradientStop Color="#1B232C" Offset="0" />
+        <GradientStop Color="#131A21" Offset="0.58" />
+        <GradientStop Color="#0D1116" Offset="1" />
+      </RadialGradientBrush>
       <SolidColorBrush x:Key="CanvasFullscreen" Color="#0D1116" />
       <SolidColorBrush x:Key="CheckerLight" Color="#1C222A" />
       <SolidColorBrush x:Key="CheckerDark" Color="#2C343E" />

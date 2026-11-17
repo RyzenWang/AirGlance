@@ -33,6 +33,14 @@ public partial class FilmstripView : UserControl
         }
     }
 
+    private void OnCloseClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.ToggleFilmstrip();
+        }
+    }
+
     private void OnWheel(object? sender, PointerWheelEventArgs e)
     {
         var scrollViewer = FilmstripList.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();

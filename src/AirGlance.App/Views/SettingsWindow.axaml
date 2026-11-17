@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:AirGlance.App.ViewModels"
+        xmlns:controls="using:AirGlance.App.Controls"
         x:Class="AirGlance.App.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="{DynamicResource L.SettingsTitle}"
@@ -14,12 +15,31 @@
         FontSize="14"
         Background="{DynamicResource Paper}">
   <Grid RowDefinitions="Auto,*,Auto">
-    <StackPanel Grid.Row="0" Margin="24,20,24,14" Spacing="14">
-      <TextBlock Text="{DynamicResource L.SettingsTitle}"
-                 FontSize="20"
-                 FontWeight="SemiBold"
-                 LetterSpacing="-0.4" />
-      <Border Classes="divider" />
+    <StackPanel Grid.Row="0" Spacing="14">
+      <Grid x:Name="HeaderGrid"
+            ColumnDefinitions="*,Auto"
+            Margin="24,14,16,0">
+        <TextBlock Text="{DynamicResource L.SettingsTitle}"
+                   FontSize="20"
+                   FontWeight="SemiBold"
+                   LetterSpacing="-0.4"
+                   VerticalAlignment="Center" />
+        <Button x:Name="HeaderCloseButton"
+                Grid.Column="1"
+                Classes="icon"
+                Width="30"
+                Height="30"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Center"
+                Click="OnDoneClick"
+                AutomationProperties.Name="{DynamicResource L.Close}"
+                ToolTip.Tip="{DynamicResource L.Close}">
+          <controls:IconPath Data="{DynamicResource IconClose}"
+                             Width="14"
+                             Height="14" />
+        </Button>
+      </Grid>
+      <Border Classes="divider" Margin="24,0" />
     </StackPanel>
 
     <ScrollViewer Grid.Row="1" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto">
@@ -53,12 +73,16 @@
             <TextBlock Text="{DynamicResource L.Checkerboard}" VerticalAlignment="Center" TextWrapping="Wrap" />
             <ToggleSwitch Grid.Column="1"
                           IsChecked="{Binding Checkerboard, Mode=TwoWay}"
+                          OnContent="{DynamicResource L.On}"
+                          OffContent="{DynamicResource L.Off}"
                           HorizontalAlignment="Right" />
           </Grid>
           <Grid ColumnDefinitions="220,*">
             <TextBlock Text="{DynamicResource L.RememberZoom}" VerticalAlignment="Center" />
             <ToggleSwitch Grid.Column="1"
                           IsChecked="{Binding RememberZoom, Mode=TwoWay}"
+                          OnContent="{DynamicResource L.On}"
+                          OffContent="{DynamicResource L.Off}"
                           HorizontalAlignment="Right" />
           </Grid>
           <Grid ColumnDefinitions="160,*">
@@ -126,6 +150,7 @@
             BorderThickness="0,1,0,0"
             Padding="24,12">
       <Button Classes="primary"
+              MinWidth="88"
               Content="{DynamicResource L.Done}"
               HorizontalAlignment="Right"
               Click="OnDoneClick" />

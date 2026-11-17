@@ -19,6 +19,20 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 - 中英文运行时切换。浅色、深色和跟随系统主题；尊重系统高对比度设置。
 - 设置和缩略图只保存在本机。没有账号、没有遥测，也没有网络代码。
 
+## 界面截图
+
+| 浏览 | 胶片条 |
+| --- | --- |
+| ![浮动控件的浏览界面](docs/design/implemented-hover.png) | ![胶片条抽屉](docs/design/implemented-browse.png) |
+
+| 信息面板 | 空状态 |
+| --- | --- |
+| ![信息抽屉](docs/design/implemented-info.png) | ![空状态卡片](docs/design/implemented-empty.png) |
+
+| 暗色主题 | 全屏 |
+| --- | --- |
+| ![暗色主题](docs/design/implemented-dark.png) | ![带 Esc 提示的全屏](docs/design/implemented-fullscreen.png) |
+
 ## 图片格式
 
 文件先按扩展名识别，内容还必须能被 SkiaSharp 解码。支持以下格式：
@@ -100,8 +114,8 @@ tar -xzf AirGlance-0.1.3-linux-x64.tar.gz
 
 | 操作 | 行为 |
 | --- | --- |
-| 滚轮 | 上一张 / 下一张 |
-| Ctrl/Cmd + 滚轮 | 以指针为中心缩放 |
+| 滚轮 | 以指针为中心缩放 |
+| Shift + 滚轮 | 横向平移 |
 | 拖动 | 图片大于视口时平移 |
 | 双击 | 在适应窗口与 100% 之间切换 |
 | 左右边缘按钮 | 上一张 / 下一张 |

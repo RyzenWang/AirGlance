@@ -19,6 +19,20 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - English and Chinese switch at runtime. Light, dark and follow-system themes; the system high-contrast setting is honoured.
 - Settings and thumbnails stay on your machine. There is no account, no telemetry, and no network code.
 
+## Screenshots
+
+| Viewer | Filmstrip |
+| --- | --- |
+| ![Viewer with floating controls](docs/design/implemented-hover.png) | ![Filmstrip drawer](docs/design/implemented-browse.png) |
+
+| Info panel | Empty state |
+| --- | --- |
+| ![Information drawer](docs/design/implemented-info.png) | ![Empty state card](docs/design/implemented-empty.png) |
+
+| Dark theme | Fullscreen |
+| --- | --- |
+| ![Dark theme](docs/design/implemented-dark.png) | ![Fullscreen with Esc hint](docs/design/implemented-fullscreen.png) |
+
 ## Image formats
 
 A file is recognised by its extension, and the content must also decode with SkiaSharp. The supported formats are:
@@ -100,8 +114,8 @@ Mouse and trackpad:
 
 | Action | Behavior |
 | --- | --- |
-| Wheel | Previous / next image |
-| Ctrl/Cmd + wheel | Zoom at the pointer |
+| Wheel | Zoom at the pointer |
+| Shift + wheel | Pan sideways |
 | Drag | Pan when the image is larger than the viewport |
 | Double-click | Toggle fit window and 100% |
 | Left/right edge buttons | Previous / next image |

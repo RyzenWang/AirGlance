@@ -10,6 +10,7 @@ public partial class ShortcutsWindow : Window
     public ShortcutsWindow(LocalizationService localization)
     {
         InitializeComponent();
+        DialogChrome.Apply(this, HeaderGrid, HeaderCloseButton);
     }
 
     private void OnDoneClick(object? sender, RoutedEventArgs e) => Close();

@@ -7,11 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The overlay chrome now follows the measurements in the interaction prototype:
+  18 px top-bar margins, 38 px chips, a 52 px dock with 38 × 40 buttons and 18 px
+  icons, 46 px circular navigation at 72% resting opacity, a 570 px empty card and
+  a 138 px filmstrip with its heading row.
+- Icons moved to one 24 × 24 design grid and are scaled by a new `IconPath` control,
+  so every glyph is centred in its box instead of drifting to the bottom-right and
+  clipping when the box is smaller than the artwork.
+- The window chip has four buttons again, including a light/dark toggle; the file
+  chip is centred on the window; the fullscreen hint and canvas backdrop gradient
+  are back; shadows sit under the chips, dock, filmstrip and info panel.
+- The filmstrip gained its heading row, inset filename labels and dimmed non-current
+  thumbnails. Below 900 px the folder chip hides and the file chip narrows.
+- The wheel now zooms around the pointer; paging stays on the arrow keys,
+  `PgUp` / `PgDn`, `Space` / `Backspace` and the edge buttons. `Shift + wheel`
+  pans sideways.
+- Fit window has its own frame-in-frame icon instead of sharing the fullscreen
+  corner brackets, and the theme button swaps between a sun and a moon and names
+  the theme it switches to.
+- Dialogs share the shell's chrome: Settings, Save a copy, Shortcuts and message
+  dialogs drop the native title bar for a draggable header and a close button.
+- Primary, secondary and link buttons now centre their label vertically; previously
+  the content presenter stretched the text and left it sitting high in the button.
+
 ### Documentation
 
 - Every Markdown file under `docs/` now has a reciprocal language switch. Added
   Simplified Chinese translations for the architecture, format, performance and
   shipping docs, and an English version of the interaction design.
+- Section 8 of the interaction design records the geometry pass and refreshed
+  screenshots for the default, filmstrip, info, empty, dark and fullscreen states.
 
 ## [0.1.3] - 2026-11-17
 

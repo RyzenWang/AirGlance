@@ -12,6 +12,7 @@ public partial class MessageWindow : Window
         Title = title;
         TitleText.Text = title;
         BodyText.Text = body;
+        DialogChrome.Apply(this, HeaderGrid, HeaderCloseButton);
     }
 
     private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();

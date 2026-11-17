@@ -1,51 +1,85 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:AirGlance.App.ViewModels"
+             xmlns:controls="using:AirGlance.App.Controls"
              x:Class="AirGlance.App.Views.FilmstripView"
              x:DataType="vm:MainWindowViewModel">
-  <ListBox x:Name="FilmstripList"
-           Classes="filmstrip"
-           ItemsSource="{Binding Images}"
-           SelectedIndex="{Binding CurrentIndex, Mode=OneWay}"
-           SelectionChanged="OnSelectionChanged"
-           ScrollViewer.HorizontalScrollBarVisibility="Auto"
-           ScrollViewer.VerticalScrollBarVisibility="Disabled">
-    <ListBox.ItemsPanel>
-      <ItemsPanelTemplate>
-        <VirtualizingStackPanel Orientation="Horizontal" />
-      </ItemsPanelTemplate>
-    </ListBox.ItemsPanel>
-    <ListBox.ItemTemplate>
-      <DataTemplate x:DataType="vm:ImageItemViewModel">
-        <StackPanel Width="100" Spacing="3" Margin="2">
-          <Grid>
-            <Border Width="92" Height="56" CornerRadius="6" Background="#20262E" ClipToBounds="True">
-              <Grid>
-                <Path Data="{DynamicResource IconImage}"
-                      Stroke="{DynamicResource InkTertiary}"
-                      StrokeThickness="1.4"
-                      Width="22"
-                      Height="22"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center" />
-                <Image Source="{Binding Thumbnail}"
-                       Stretch="Uniform"
-                       RenderOptions.BitmapInterpolationMode="HighQuality" />
-              </Grid>
+  <Grid RowDefinitions="Auto,*">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*" Height="20" Margin="0,0,0,7">
+      <TextBlock Classes="film-title"
+                 Text="{Binding FilmstripTitle}"
+                 VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1"
+                 Classes="film-count"
+                 Text="{Binding FilmstripSummary}"
+                 Margin="10,0,0,0"
+                 VerticalAlignment="Center" />
+      <Button Grid.Column="2"
+              Classes="film-close"
+              HorizontalAlignment="Right"
+              Click="OnCloseClick"
+              AutomationProperties.Name="{Binding CollapseFilmstripText}"
+              ToolTip.Tip="{Binding CollapseFilmstripText}">
+        <controls:IconPath Data="{DynamicResource IconChevronDown}"
+                           Stroke="#AEA69A"
+                           StrokeThickness="1.7"
+                           Width="14"
+                           Height="14" />
+      </Button>
+    </Grid>
+
+    <ListBox Grid.Row="1"
+             x:Name="FilmstripList"
+             Classes="filmstrip"
+             VerticalAlignment="Top"
+             ItemsSource="{Binding Images}"
+             SelectedIndex="{Binding CurrentIndex, Mode=OneWay}"
+             SelectionChanged="OnSelectionChanged"
+             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+      <ListBox.ItemsPanel>
+        <ItemsPanelTemplate>
+          <VirtualizingStackPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+      </ListBox.ItemsPanel>
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:ImageItemViewModel">
+          <Grid Width="92" Margin="3,2">
+            <Border Classes="thumb-tile"
+                    Classes.current="{Binding IsCurrent}"
+                    CornerRadius="8"
+                    Background="#222A32"
+                    ClipToBounds="True">
+              <StackPanel Spacing="0">
+                <Grid Height="56">
+                  <controls:IconPath Data="{DynamicResource IconImage}"
+                                     Stroke="{DynamicResource InkTertiary}"
+                                     StrokeThickness="1.6"
+                                     Width="22"
+                                     Height="22"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center" />
+                  <Image Source="{Binding Thumbnail}"
+                         Stretch="UniformToFill"
+                         RenderOptions.BitmapInterpolationMode="HighQuality" />
+                </Grid>
+                <Border Background="#E60B0F14" Padding="5,3,5,4">
+                  <TextBlock Text="{Binding FileName}"
+                             Classes="image-name"
+                             Classes.current="{Binding IsCurrent}"
+                             MaxWidth="82"
+                             HorizontalAlignment="Left" />
+                </Border>
+              </StackPanel>
             </Border>
             <Border BorderBrush="{DynamicResource Coral}"
                     BorderThickness="2"
-                    CornerRadius="6"
+                    CornerRadius="8"
                     IsVisible="{Binding IsCurrent}"
                     IsHitTestVisible="False" />
           </Grid>
-          <TextBlock Text="{Binding FileName}"
-                     Classes="image-name"
-                     Classes.current="{Binding IsCurrent}"
-                     MaxWidth="92"
-                     HorizontalAlignment="Left" />
-        </StackPanel>
-      </DataTemplate>
-    </ListBox.ItemTemplate>
-  </ListBox>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  </Grid>
 </UserControl>

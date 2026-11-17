@@ -1,3 +1,4 @@
+using AirGlance.App.Controls;
 using AirGlance.App.Services;
 using AirGlance.App.ViewModels;
 using AirGlance.App.Views;
@@ -7,6 +8,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Xunit;
 
 namespace AirGlance.App.Tests;
@@ -60,6 +62,77 @@ public sealed class MainWindowTests
         var after = fixture.Services.Localization.Language;
         Assert.NotEqual(before, after);
         Assert.True(fixture.Window.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task Canvas_receives_pointer_hits_through_the_overlay_layers()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        window.Show();
+        await WaitUntilAsync(() => window.IsVisible);
+        Dispatcher.UIThread.RunJobs();
+
+        var visuals = window.GetVisualsAt(new Point(300, 260)).ToList();
+        Assert.Contains(visuals, visual => visual is Border border && border.Classes.Contains("canvas"));
+    }
+
+    [AvaloniaFact]
+    public async Task Wheel_zooms_at_the_pointer_and_does_not_page()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+        Dispatcher.UIThread.RunJobs();
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        var index = viewModel.CurrentIndex;
+        Assert.Equal(ViewerZoomMode.FitWindow, viewer.ZoomMode);
+
+        var wheel = new PointerWheelEventArgs(
+            viewer,
+            new Pointer(1, PointerType.Mouse, true),
+            viewer,
+            new Point(620, 430),
+            0,
+            new PointerPointProperties(RawInputModifiers.None, PointerUpdateKind.Other),
+            KeyModifiers.None,
+            new Vector(0, -1));
+        viewer.RaiseEvent(wheel);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(index, viewModel.CurrentIndex);
+        Assert.Equal(ViewerZoomMode.Manual, viewer.ZoomMode);
+    }
+
+    [AvaloniaFact]
+    public async Task Theme_button_swaps_between_sun_and_moon()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        window.Show();
+        await WaitUntilAsync(() => window.IsVisible);
+        Dispatcher.UIThread.RunJobs();
+
+        var button = window.GetVisualDescendants()
+            .OfType<Button>()
+            .First(candidate => candidate.Classes.Contains("window-tool"));
+        var icon = Assert.IsType<IconPath>(button.Content);
+        Assert.Same(window.FindResource("IconTheme"), icon.Data);
+
+        fixture.Services.SetTheme(ThemeService.DarkMode);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Same(window.FindResource("IconMoon"), icon.Data);
+        Assert.Equal("Switch to light", ToolTip.GetTip(button));
+
+        fixture.Services.SetTheme(ThemeService.LightMode);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Same(window.FindResource("IconTheme"), icon.Data);
+        Assert.Equal("Switch to dark", ToolTip.GetTip(button));
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 10_000)

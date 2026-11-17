@@ -17,7 +17,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using ShapePath = Avalonia.Controls.Shapes.Path;
 
 namespace AirGlance.App.Views;
 
@@ -48,6 +47,8 @@ public partial class MainWindow : Window
     private Border WindowChip = null!;
     private Border CanvasBorder = null!;
     private Border Dock = null!;
+    private Grid PrevHost = null!;
+    private Grid NextHost = null!;
     private Border InfoHost = null!;
     private Border FilmstripHost = null!;
     private ContentControl InfoContentHost = null!;
@@ -55,6 +56,7 @@ public partial class MainWindow : Window
     private Border LoadingChip = null!;
     private Border DragOverlay = null!;
     private Border ToastBorder = null!;
+    private Border FullscreenHint = null!;
     private StackPanel CaptionButtons = null!;
     private TextBlock FileNameText = null!;
     private TextBlock FolderNameText = null!;
@@ -69,6 +71,7 @@ public partial class MainWindow : Window
     private TextBlock TransientMessageText = null!;
     private TextBlock DockZoomText = null!;
     private TextBlock InfoTitleText = null!;
+    private TextBlock FullscreenText = null!;
     private Button EmptyOpenFolderButton = null!;
     private Button EmptyOpenImageButton = null!;
     private Button ZoomButton = null!;
@@ -84,10 +87,13 @@ public partial class MainWindow : Window
     private Button SettingsButton = null!;
     private Button PrevButton = null!;
     private Button NextButton = null!;
+    private Button ThemeButton = null!;
     private Button MinimizeButton = null!;
     private Button MaximizeButton = null!;
     private Button CloseButton = null!;
-    private ShapePath MaximizeIcon = null!;
+    private IconPath MaximizeIcon = null!;
+    private TextBlock EmptyOpenFolderText = null!;
+    private TextBlock EmptyOpenImageText = null!;
 
     public MainWindow(
         AppServices services,
@@ -105,6 +111,7 @@ public partial class MainWindow : Window
 
         _viewModel = new MainWindowViewModel(services, preload);
         DataContext = _viewModel;
+        SizeChanged += (_, _) => UpdateTopBarLayout();
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.ImagePresented += OnImagePresented;
         _viewModel.TiledImagePresented += OnTiledImagePresented;
@@ -129,7 +136,6 @@ public partial class MainWindow : Window
         _cursorTimer.Tick += OnCursorTimerTick;
         _chromeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
         _chromeTimer.Tick += OnChromeTimerTick;
-        Viewer.NavigateRequested += OnViewerNavigateRequested;
 
         if (benchmark?.Mode == BenchmarkMode.Startup)
         {
@@ -152,6 +158,7 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         CanvasBorder.PointerPressed += OnCanvasPointerPressed;
         _services.Localization.LanguageChanged += OnLocalizationChanged;
+        _services.Theme.Changed += OnThemeChanged;
 
         PointerMoved += OnWindowPointerMoved;
         PropertyChanged += (_, args) =>
@@ -186,7 +193,7 @@ public partial class MainWindow : Window
         CanvasBorder = new Border
         {
             ClipToBounds = true,
-            Padding = new Thickness(48, 42, 48, 58)
+            Padding = new Thickness(56, 42, 56, 58)
         };
         CanvasBorder.Classes.Add("canvas");
 
@@ -213,7 +220,12 @@ public partial class MainWindow : Window
         var emptyStack = new StackPanel { Spacing = 0 };
         var emptyIcon = new Border();
         emptyIcon.Classes.Add("empty-icon");
-        var emptyGlyph = new ShapePath { Data = FindGeometry("IconFolder") };
+        var emptyGlyph = new IconPath
+        {
+            Data = FindGeometry("IconFolderPlus"),
+            Width = 27,
+            Height = 27
+        };
         emptyGlyph.Classes.Add("empty-glyph");
         emptyIcon.Child = emptyGlyph;
         emptyStack.Children.Add(emptyIcon);
@@ -239,9 +251,11 @@ public partial class MainWindow : Window
         };
         EmptyOpenFolderButton = new Button();
         EmptyOpenFolderButton.Classes.Add("empty-primary");
+        EmptyOpenFolderText = AttachEmptyActionIcon(EmptyOpenFolderButton, "IconFolder");
         EmptyOpenFolderButton.Click += OnOpenFolderClick;
         EmptyOpenImageButton = new Button();
         EmptyOpenImageButton.Classes.Add("empty-secondary");
+        EmptyOpenImageText = AttachEmptyActionIcon(EmptyOpenImageButton, "IconImage");
         EmptyOpenImageButton.Click += OnOpenImageClick;
         emptyActions.Children.Add(EmptyOpenFolderButton);
         emptyActions.Children.Add(EmptyOpenImageButton);
@@ -251,7 +265,7 @@ public partial class MainWindow : Window
         {
             Text = "Ctrl+O  \u00B7  Ctrl+Shift+O",
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 18, 0, 0)
+            Margin = new Thickness(0, 24, 0, 0)
         };
         shortcutHint.Classes.Add("empty-shortcut");
         emptyStack.Children.Add(shortcutHint);
@@ -262,8 +276,8 @@ public partial class MainWindow : Window
         // Top chrome: folder chip, file chip, window controls.
         TopBar = new Border
         {
-            Height = 44,
-            Margin = new Thickness(16, 12, 16, 0),
+            Height = 38,
+            Margin = new Thickness(18, 16, 18, 0),
             VerticalAlignment = VerticalAlignment.Top,
             Background = Brushes.Transparent
         };
@@ -275,25 +289,25 @@ public partial class MainWindow : Window
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto")
         };
 
-        FolderChip = new Border { IsVisible = false };
+        FolderChip = new Border { IsVisible = false, MaxWidth = 300 };
         FolderChip.Classes.Add("overlay-chip");
         var folderRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 8,
+            Spacing = 9,
             VerticalAlignment = VerticalAlignment.Center
         };
-        folderRow.Children.Add(new ShapePath
+        folderRow.Children.Add(new IconPath
         {
             Data = FindGeometry("IconFolder"),
             Stroke = Brushes.White,
-            StrokeThickness = 1.5,
+            StrokeThickness = 1.7,
             Width = 15,
-            Height = 15,
-            Stretch = Stretch.None
+            Height = 15
         });
         FolderNameText = new TextBlock();
         FolderNameText.Classes.Add("chrome-name");
+        FolderNameText.MaxWidth = 180;
         folderRow.Children.Add(FolderNameText);
         FolderCountText = new TextBlock();
         FolderCountText.Classes.Add("chrome-meta");
@@ -311,15 +325,6 @@ public partial class MainWindow : Window
         };
         var brandMark = new Border();
         brandMark.Classes.Add("chrome-icon");
-        brandMark.Child = new ShapePath
-        {
-            Data = FindGeometry("IconBrand"),
-            Stroke = Brushes.White,
-            StrokeThickness = 1.2,
-            Width = 12,
-            Height = 10,
-            Stretch = Stretch.None
-        };
         brandRow.Children.Add(brandMark);
         var brandName = new TextBlock { Text = "AirGlance" };
         brandName.Classes.Add("chrome-name");
@@ -331,42 +336,47 @@ public partial class MainWindow : Window
         {
             IsVisible = false,
             HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            MaxWidth = 520
         };
         FileChip.Classes.Add("overlay-chip");
         var fileRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 12,
+            Spacing = 14,
             VerticalAlignment = VerticalAlignment.Center
         };
         FileNameText = new TextBlock();
         FileNameText.Classes.Add("chrome-file");
+        FileNameText.MaxWidth = 240;
         fileRow.Children.Add(FileNameText);
         fileRow.Children.Add(new Border
         {
             Width = 1,
             Height = 16,
-            Background = new SolidColorBrush(Color.Parse("#22FFFFFF")),
+            Background = new SolidColorBrush(Color.Parse("#24FFFFFF")),
             VerticalAlignment = VerticalAlignment.Center
         });
         FileMetaText = new TextBlock();
         FileMetaText.Classes.Add("chrome-meta");
         fileRow.Children.Add(FileMetaText);
-        FilePositionText = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#FF9A82")) };
+        FilePositionText = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#F4A593")) };
         FilePositionText.Classes.Add("chrome-meta");
         fileRow.Children.Add(FilePositionText);
         FileChip.Child = fileRow;
-        Grid.SetColumn(FileChip, 1);
+        Grid.SetColumn(FileChip, 0);
+        Grid.SetColumnSpan(FileChip, 3);
         topGrid.Children.Add(FileChip);
 
         WindowChip = new Border { IsVisible = OperatingSystem.IsWindows(), Padding = new Thickness(4) };
         WindowChip.Classes.Add("overlay-chip");
-        CaptionButtons = new StackPanel { Orientation = Orientation.Horizontal };
-        MinimizeButton = CreateWindowButton("IconMinimize", "L.Minimize", OnMinimizeClick);
-        MaximizeButton = CreateWindowButton("IconMaximize", "L.Maximize", OnMaximizeClick);
-        MaximizeIcon = (ShapePath)MaximizeButton.Content!;
-        CloseButton = CreateWindowButton("IconClose", "L.Close", OnCloseClick, close: true);
+        CaptionButtons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
+        ThemeButton = CreateWindowButton("IconTheme", "L.ToggleTheme", OnThemeClick, iconSize: 14);
+        MinimizeButton = CreateWindowButton("IconMinimize", "L.Minimize", OnMinimizeClick, iconSize: 14);
+        MaximizeButton = CreateWindowButton("IconMaximize", "L.Maximize", OnMaximizeClick, iconSize: 13);
+        MaximizeIcon = (IconPath)MaximizeButton.Content!;
+        CloseButton = CreateWindowButton("IconClose", "L.Close", OnCloseClick, iconSize: 14, close: true);
+        CaptionButtons.Children.Add(ThemeButton);
         CaptionButtons.Children.Add(MinimizeButton);
         CaptionButtons.Children.Add(MaximizeButton);
         CaptionButtons.Children.Add(CloseButton);
@@ -377,19 +387,35 @@ public partial class MainWindow : Window
         TopBar.Child = topGrid;
         root.Children.Add(TopBar);
 
-        // Side navigation.
+        // Side navigation. Each button gets its own 46 x 46 host so the layer that
+        // fades never covers the canvas, while the buttons keep their resting opacity.
         PrevButton = CreateNavButton("IconChevronLeft", "L.PreviousImage", OnPreviousClick);
         NextButton = CreateNavButton("IconChevronRight", "L.NextImage", OnNextClick);
-        PrevButton.HorizontalAlignment = HorizontalAlignment.Left;
-        NextButton.HorizontalAlignment = HorizontalAlignment.Right;
-        PrevButton.Margin = new Thickness(22, 0, 0, 0);
-        NextButton.Margin = new Thickness(0, 0, 22, 0);
-        PrevButton.VerticalAlignment = VerticalAlignment.Center;
-        NextButton.VerticalAlignment = VerticalAlignment.Center;
-        PrevButton.SetValue(Panel.ZIndexProperty, 35);
-        NextButton.SetValue(Panel.ZIndexProperty, 35);
-        root.Children.Add(PrevButton);
-        root.Children.Add(NextButton);
+
+        PrevHost = new Grid
+        {
+            Width = 46,
+            Height = 46,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(22, 0, 0, 0),
+            IsHitTestVisible = false
+        };
+        NextHost = new Grid
+        {
+            Width = 46,
+            Height = 46,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 22, 0),
+            IsHitTestVisible = false
+        };
+        PrevHost.Children.Add(PrevButton);
+        NextHost.Children.Add(NextButton);
+        PrevHost.SetValue(Panel.ZIndexProperty, 35);
+        NextHost.SetValue(Panel.ZIndexProperty, 35);
+        root.Children.Add(PrevHost);
+        root.Children.Add(NextHost);
 
         // Bottom dock.
         Dock = new Border
@@ -403,7 +429,7 @@ public partial class MainWindow : Window
         var dockRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 0,
+            Spacing = 1,
             VerticalAlignment = VerticalAlignment.Center
         };
 
@@ -431,7 +457,15 @@ public partial class MainWindow : Window
         FitButton = CreateToolButton("IconFit", "L.FitWindow", (_, _) => Viewer.SetZoomMode(ViewerZoomMode.FitWindow));
         dockRow.Children.Add(FitButton);
 
-        ActualButton = new Button { Content = new TextBlock { Text = "1:1" } };
+        ActualButton = new Button
+        {
+            Content = new TextBlock
+            {
+                Text = "1:1",
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            }
+        };
         ((TextBlock)ActualButton.Content).Classes.Add("tool-text");
         ActualButton.Classes.Add("tool");
         ActualButton.Classes.Add("wide");
@@ -479,28 +513,29 @@ public partial class MainWindow : Window
         var infoHeader = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Margin = new Thickness(18, 16, 12, 4)
+            Margin = new Thickness(20, 18, 10, 4)
         };
         InfoTitleText = new TextBlock();
         InfoTitleText.Classes.Add("info-title");
         infoHeader.Children.Add(InfoTitleText);
         var infoClose = new Button
         {
-            Content = new ShapePath
+            Content = new IconPath
             {
                 Data = FindGeometry("IconClose"),
                 Stroke = new SolidColorBrush(Color.Parse("#9A9286")),
-                StrokeThickness = 1.6,
-                Width = 14,
-                Height = 14,
-                Stretch = Stretch.None
+                StrokeThickness = 1.7,
+                Width = 15,
+                Height = 15
             },
             Width = 28,
             Height = 28,
             Padding = new Thickness(0),
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            CornerRadius = new CornerRadius(8)
+            CornerRadius = new CornerRadius(8),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center
         };
         infoClose.Click += OnInfoToggleClick;
         Grid.SetColumn(infoClose, 1);
@@ -542,6 +577,16 @@ public partial class MainWindow : Window
         DragOverlay.Child = dropHintBorder;
         root.Children.Add(DragOverlay);
 
+        // Fullscreen keeps a single quiet hint in the bottom-right corner.
+        FullscreenHint = new Border { IsVisible = false };
+        FullscreenHint.Classes.Add("fullscreen-hint");
+        FullscreenHint.Margin = new Thickness(0, 0, 22, 18);
+        FullscreenHint.SetValue(Panel.ZIndexProperty, 50);
+        FullscreenText = new TextBlock();
+        FullscreenText.Classes.Add("fullscreen-hint-text");
+        FullscreenHint.Child = FullscreenText;
+        root.Children.Add(FullscreenHint);
+
         Content = root;
     }
 
@@ -552,7 +597,12 @@ public partial class MainWindow : Window
     {
         var button = new Button
         {
-            Content = new ShapePath { Data = FindGeometry(iconResource) }
+            Content = new IconPath
+            {
+                Data = FindGeometry(iconResource),
+                Width = 18,
+                Height = 18
+            }
         };
         button.Classes.Add("tool");
         button.Click += handler;
@@ -567,7 +617,12 @@ public partial class MainWindow : Window
     {
         var button = new Button
         {
-            Content = new ShapePath { Data = FindGeometry(iconResource) }
+            Content = new IconPath
+            {
+                Data = FindGeometry(iconResource),
+                Width = 19,
+                Height = 19
+            }
         };
         button.Classes.Add("nav-button");
         button.Click += handler;
@@ -579,11 +634,17 @@ public partial class MainWindow : Window
         string iconResource,
         string automationKey,
         EventHandler<RoutedEventArgs> clickHandler,
+        double iconSize,
         bool close = false)
     {
         var button = new Button
         {
-            Content = new ShapePath { Data = FindGeometry(iconResource) }
+            Content = new IconPath
+            {
+                Data = FindGeometry(iconResource),
+                Width = iconSize,
+                Height = iconSize
+            }
         };
         button.Classes.Add("window-tool");
         if (close)
@@ -594,6 +655,28 @@ public partial class MainWindow : Window
         button.Click += clickHandler;
         button.Tag = automationKey;
         return button;
+    }
+
+    private TextBlock AttachEmptyActionIcon(Button button, string iconResource)
+    {
+        var label = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        row.Children.Add(new IconPath
+        {
+            Data = FindGeometry(iconResource),
+            Width = 15,
+            Height = 15
+        });
+        row.Children.Add(label);
+        button.Content = row;
+        button.HorizontalContentAlignment = HorizontalAlignment.Center;
+        button.VerticalContentAlignment = VerticalAlignment.Center;
+        return label;
     }
 
     private Border CreateDockDivider()
@@ -614,6 +697,7 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(MaximizeButton, _services.Localization.T("L.Maximize"));
         AutomationProperties.SetName(CloseButton, _services.Localization.T("L.Close"));
 
+        UpdateThemeButton();
         ApplyTool(ZoomButton, "L.ZoomLevel");
         ApplyTool(ZoomOutButton, "L.ZoomOut");
         ApplyTool(ZoomInButton, "L.ZoomIn");
@@ -628,9 +712,10 @@ public partial class MainWindow : Window
         ApplyTool(PrevButton, "L.PreviousImage");
         ApplyTool(NextButton, "L.NextImage");
 
-        InfoTitleText.Text = _services.Localization.T("L.InfoPanel");
-        EmptyOpenFolderButton.Content = _services.Localization.T("L.OpenFolder").TrimEnd('…');
-        EmptyOpenImageButton.Content = _services.Localization.T("L.OpenFile").TrimEnd('…');
+        InfoTitleText.Text = _services.Localization.T("L.InfoPanelShort");
+        FullscreenText.Text = _services.Localization.T("L.FullscreenHint");
+        EmptyOpenFolderText.Text = _services.Localization.T("L.OpenFolder").TrimEnd('…');
+        EmptyOpenImageText.Text = _services.Localization.T("L.OpenFile").TrimEnd('…');
     }
 
     private void ApplyTool(Button button, string key)
@@ -640,6 +725,19 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(button, text);
     }
 
+    private void OnThemeChanged(object? sender, EventArgs e) => UpdateThemeButton();
+
+    private void UpdateThemeButton()
+    {
+        var dark = _services.Theme.IsDark;
+        if (ThemeButton.Content is IconPath icon)
+        {
+            icon.Data = FindGeometry(dark ? "IconMoon" : "IconTheme");
+        }
+
+        ApplyTool(ThemeButton, dark ? "L.SwitchToLight" : "L.SwitchToDark");
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
         ApplyViewModelState();
 
@@ -647,8 +745,7 @@ public partial class MainWindow : Window
     {
         Title = _viewModel.WindowTitle;
         FolderNameText.Text = _viewModel.FolderName;
-        FolderChip.IsVisible = !string.IsNullOrWhiteSpace(_viewModel.FolderName);
-        BrandChip.IsVisible = string.IsNullOrWhiteSpace(_viewModel.FolderName);
+        UpdateTopBarLayout();
         FolderCountText.Text = _viewModel.Images.Count > 0
             ? _viewModel.Images.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
             : string.Empty;
@@ -706,7 +803,7 @@ public partial class MainWindow : Window
 
         CanvasBorder.Padding = _viewModel.IsFullscreen
             ? new Thickness(0)
-            : new Thickness(48, 42, 48, 58);
+            : new Thickness(56, 42, 56, 58);
         if (_viewModel.IsFullscreen)
         {
             if (!CanvasBorder.Classes.Contains("fullscreen"))
@@ -720,6 +817,15 @@ public partial class MainWindow : Window
         }
 
         RefreshChromeVisibility();
+    }
+
+    private void UpdateTopBarLayout()
+    {
+        var compact = Bounds.Width > 0 && Bounds.Width < 900;
+        var hasFolder = !string.IsNullOrWhiteSpace(_viewModel.FolderName);
+        FolderChip.IsVisible = !compact && hasFolder;
+        BrandChip.IsVisible = !hasFolder;
+        FileChip.MaxWidth = compact ? Math.Max(220, Bounds.Width * 0.62) : 520;
     }
 
     private void ShowChrome()
@@ -752,10 +858,15 @@ public partial class MainWindow : Window
         var controlsVisible = _chromeVisible && !empty;
         Dock.Opacity = controlsVisible ? 1 : 0;
         Dock.IsHitTestVisible = controlsVisible;
-        PrevButton.Opacity = controlsVisible ? 1 : 0;
-        NextButton.Opacity = controlsVisible ? 1 : 0;
-        PrevButton.IsHitTestVisible = controlsVisible;
-        NextButton.IsHitTestVisible = controlsVisible;
+        var navVisible = controlsVisible && !_viewModel.IsFullscreen;
+        PrevHost.Opacity = navVisible ? 1 : 0;
+        NextHost.Opacity = navVisible ? 1 : 0;
+        PrevHost.IsHitTestVisible = navVisible;
+        NextHost.IsHitTestVisible = navVisible;
+
+        // In fullscreen the hint appears once the dock has faded out, so the two
+        // never share the bottom-right corner on a narrow screen.
+        FullscreenHint.IsVisible = _viewModel.IsFullscreen && !_chromeVisible;
     }
 
     private void OnChromeTimerTick(object? sender, EventArgs e)
@@ -1378,18 +1489,6 @@ public partial class MainWindow : Window
     private async void OnNextClick(object? sender, RoutedEventArgs e) =>
         await _viewModel.NextAsync();
 
-    private async void OnViewerNavigateRequested(object? sender, NavigateRequestedEventArgs e)
-    {
-        if (e.Direction < 0)
-        {
-            await _viewModel.PreviousAsync();
-        }
-        else
-        {
-            await _viewModel.NextAsync();
-        }
-    }
-
     private void OnInfoToggleClick(object? sender, RoutedEventArgs e)
     {
         EnsurePanels();
@@ -1421,6 +1520,9 @@ public partial class MainWindow : Window
 
     private void OnMinimizeClick(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
+
+    private void OnThemeClick(object? sender, RoutedEventArgs e) =>
+        _services.SetTheme(_services.Theme.IsDark ? ThemeService.LightMode : ThemeService.DarkMode);
 
     private void OnMaximizeClick(object? sender, RoutedEventArgs e)
     {
@@ -1689,6 +1791,7 @@ public partial class MainWindow : Window
     {
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _services.Localization.LanguageChanged -= OnLocalizationChanged;
+        _services.Theme.Changed -= OnThemeChanged;
         _cursorTimer.Stop();
         _chromeTimer.Stop();
         _benchmarkTimeout?.Stop();

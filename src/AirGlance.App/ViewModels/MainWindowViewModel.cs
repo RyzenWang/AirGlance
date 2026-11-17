@@ -257,6 +257,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public bool FilmstripShown => FilmstripVisible && !IsFullscreen;
 
+    public string FilmstripTitle => _services.Localization.T("L.Filmstrip");
+
+    public string CollapseFilmstripText => _services.Localization.T("L.CollapseFilmstrip");
+
+    public string FilmstripSummary => Images.Count == 0
+        ? string.Empty
+        : _services.Localization.Format("L.FilmstripSummary", Images.Count);
+
     public bool InfoShown => InfoVisible && !IsFullscreen;
 
     public string CacheSizeText =>
@@ -1086,6 +1094,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         CurrentIndex = index >= 0 && index < Images.Count ? index : 0;
         CurrentItem = Images.Count > 0 ? Images[CurrentIndex] : null;
+        OnPropertyChanged(nameof(FilmstripSummary));
         for (var itemIndex = 0; itemIndex < Images.Count; itemIndex++)
         {
             Images[itemIndex].IsCurrent = itemIndex == CurrentIndex;
@@ -1418,6 +1427,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         RebuildInfo();
         OnPropertyChanged(nameof(CacheSizeText));
+        OnPropertyChanged(nameof(FilmstripTitle));
+        OnPropertyChanged(nameof(CollapseFilmstripText));
+        OnPropertyChanged(nameof(FilmstripSummary));
     }
 
     private void OnSettingsChanged(object? sender, EventArgs e)

@@ -3,7 +3,7 @@
              xmlns:vm="using:AirGlance.App.ViewModels"
              x:Class="AirGlance.App.Views.InfoPanelView"
              x:DataType="vm:MainWindowViewModel">
-  <ScrollViewer Padding="16" VerticalScrollBarVisibility="Auto">
+  <ScrollViewer Padding="20" VerticalScrollBarVisibility="Auto">
     <ItemsControl ItemsSource="{Binding InfoSections}">
       <ItemsControl.ItemTemplate>
         <DataTemplate x:DataType="vm:InfoSection">
@@ -12,16 +12,16 @@
             <ItemsControl ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:InfoRow">
-                  <Grid ColumnDefinitions="92,*" Margin="0,0,0,7">
+                  <Grid ColumnDefinitions="78,*" Margin="0,0,0,7">
                     <TextBlock Text="{Binding Label}"
-                               FontSize="12"
+                               FontSize="11.5"
                                Foreground="{DynamicResource InkSecondary}"
                                TextWrapping="Wrap" />
                     <TextBlock Grid.Column="1"
                                Text="{Binding Value}"
-                               FontSize="13"
-                               TextWrapping="Wrap"
-                               Classes.mono="{Binding IsMono}" />
+                               FontFamily="{DynamicResource MonoFont}"
+                               FontSize="10.5"
+                               TextWrapping="Wrap" />
                   </Grid>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>

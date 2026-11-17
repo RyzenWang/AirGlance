@@ -15,6 +15,7 @@ public partial class SaveCopyDialog : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+        DialogChrome.Apply(this, HeaderGrid, HeaderCloseButton);
         _viewModel.Saved += OnSaved;
         Opened += OnOpened;
         Closed += OnClosed;

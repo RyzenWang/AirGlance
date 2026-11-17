@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         DataContext = new SettingsViewModel(services);
+        DialogChrome.Apply(this, HeaderGrid, HeaderCloseButton);
     }
 
     private void OnDoneClick(object? sender, RoutedEventArgs e) => Close();

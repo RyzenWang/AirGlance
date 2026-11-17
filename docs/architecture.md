@@ -87,7 +87,7 @@ The window is an image-first overlay: the `ImageViewer` fills the canvas, while 
 
 The earlier XAML chrome cost about 370 ms of the first-window time; the same overlay tree built in code is about 15 ms. The filmstrip and information panel remain XAML and are loaded after the first frame. The context menu is built on the first right-click instead of during window construction.
 
-Mouse input is split by modifier: the wheel browses previous/next with a small accumulation threshold for trackpads, `Ctrl/Cmd + wheel` zooms at the pointer, and `Shift + wheel` pans. Left/right keys always browse; after the redesign they no longer become pan commands when the image is wider than the window.
+Mouse input is split by modifier: the wheel zooms at the pointer (no accumulated page jumps), and `Shift + wheel` pans. Left/right keys always browse; after the redesign they no longer become pan commands when the image is wider than the window.
 
 The filmstrip and information panel are separate views (`FilmstripView`, `InfoPanelView`) loaded one frame after the first image is painted. The window therefore appears and shows pixels before those panels exist; this matches the "window first, panels later" startup rule and keeps their XAML out of the first-frame path. The context menu is also built on the first right-click instead of during window construction.
 
