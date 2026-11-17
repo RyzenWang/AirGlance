@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
+using AirGlance.App.Imaging;
 using AirGlance.App.Services;
 using AirGlance.App.Views;
 using AirGlance.Core.Files;
@@ -41,6 +42,7 @@ public partial class App : Application
 
         var options = CommandLineOptions.Parse(desktop.Args);
         var services = new AppServices();
+        TiledImageSource.CleanupStale(TimeSpan.FromDays(1));
         if (options.Benchmark != BenchmarkMode.None)
         {
             services.SaveSettingsOnDispose = false;

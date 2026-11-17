@@ -7,7 +7,7 @@
     <DebugType>portable</DebugType>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Company>AirWorks</Company>
     <Product>AirGlance</Product>
     <Authors>AirWorks</Authors>

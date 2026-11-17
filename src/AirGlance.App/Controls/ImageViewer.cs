@@ -1,3 +1,4 @@
+using AirGlance.App.Imaging;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -82,6 +83,7 @@ public sealed class ImageViewer : Control
     private bool _cursorHidden;
     private bool _hasSource;
     private Size _lastViewport;
+    private TiledImageSource? _tiles;
 
     public ImageViewer()
     {
@@ -178,9 +180,23 @@ public sealed class ImageViewer : Control
         }
     }
 
-    public bool HasImage => Source is not null;
+    public bool HasImage => Source is not null || _tiles is not null;
 
     public double ZoomPercent => CalculateLayout().Zoom * 100;
+
+    public void SetTiles(TiledImageSource? tiles)
+    {
+        _tiles = tiles;
+        if (tiles is not null)
+        {
+            SourcePixelWidth = tiles.PixelWidth;
+            SourcePixelHeight = tiles.PixelHeight;
+        }
+
+        _hasSource = HasImage;
+        UpdateInterpolation();
+        InvalidateVisual();
+    }
 
     public void SetImage(
         WriteableBitmap? bitmap,
@@ -192,6 +208,7 @@ public sealed class ImageViewer : Control
     {
         var animate = animateImage && _hasSource && bitmap is not null && ReferenceEquals(bitmap, Source) == false;
 
+        _tiles = null;
         Source = bitmap;
         SourcePixelWidth = sourcePixelWidth;
         SourcePixelHeight = sourcePixelHeight;
@@ -226,6 +243,7 @@ public sealed class ImageViewer : Control
         SourcePixelWidth = 0;
         SourcePixelHeight = 0;
         _hasSource = false;
+        _tiles = null;
         _panX = 0;
         _panY = 0;
         _fadeTimer.Stop();
@@ -276,7 +294,7 @@ public sealed class ImageViewer : Control
 
     public void PanBy(double x, double y)
     {
-        if (Source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -323,7 +341,7 @@ public sealed class ImageViewer : Control
         base.Render(context);
 
         var source = Source;
-        if (source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -357,7 +375,14 @@ public sealed class ImageViewer : Control
 
         using (context.PushOpacity(opacity))
         {
-            context.DrawImage(source, imageRect);
+            if (_tiles is not null)
+            {
+                DrawTiles(context, layout);
+            }
+            else if (source is not null)
+            {
+                context.DrawImage(source, imageRect);
+            }
         }
 
         if (!_firstFrameRaised && opacity >= 0.99)
@@ -369,11 +394,64 @@ public sealed class ImageViewer : Control
         }
     }
 
+    private void DrawTiles(DrawingContext context, Layout layout)
+    {
+        if (_tiles is null || SourcePixelWidth <= 0 || SourcePixelHeight <= 0)
+        {
+            return;
+        }
+
+        var scale = layout.ImageWidth / SourcePixelWidth;
+        if (scale <= 0)
+        {
+            return;
+        }
+
+        var left = Math.Max(0, (0 - layout.Left) / scale);
+        var top = Math.Max(0, (0 - layout.Top) / scale);
+        var right = Math.Min(SourcePixelWidth, (Bounds.Width - layout.Left) / scale);
+        var bottom = Math.Min(SourcePixelHeight, (Bounds.Height - layout.Top) / scale);
+        if (right <= left || bottom <= top)
+        {
+            return;
+        }
+
+        var firstColumn = Math.Max(0, (int)Math.Floor(left / TiledImageSource.TileSize));
+        var lastColumn = Math.Min(
+            _tiles.TileColumns - 1,
+            (int)Math.Floor((right - 0.01) / TiledImageSource.TileSize));
+        var firstRow = Math.Max(0, (int)Math.Floor(top / TiledImageSource.TileSize));
+        var lastRow = Math.Min(
+            _tiles.TileRows - 1,
+            (int)Math.Floor((bottom - 0.01) / TiledImageSource.TileSize));
+
+        using var clip = context.PushClip(new Rect(Bounds.Size));
+        for (var row = firstRow; row <= lastRow; row++)
+        {
+            for (var column = firstColumn; column <= lastColumn; column++)
+            {
+                var tile = _tiles.GetTile(column, row);
+                var tileWidth = Math.Min(
+                    TiledImageSource.TileSize,
+                    _tiles.PixelWidth - column * TiledImageSource.TileSize);
+                var tileHeight = Math.Min(
+                    TiledImageSource.TileSize,
+                    _tiles.PixelHeight - row * TiledImageSource.TileSize);
+                var destination = new Rect(
+                    layout.Left + column * TiledImageSource.TileSize * scale,
+                    layout.Top + row * TiledImageSource.TileSize * scale,
+                    tileWidth * scale,
+                    tileHeight * scale);
+                context.DrawImage(tile, destination);
+            }
+        }
+    }
+
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
     {
         base.OnPointerWheelChanged(e);
 
-        if (Source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -397,7 +475,7 @@ public sealed class ImageViewer : Control
     {
         base.OnPointerPressed(e);
 
-        if (Source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -430,7 +508,7 @@ public sealed class ImageViewer : Control
     {
         base.OnPointerMoved(e);
 
-        if (Source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -473,7 +551,7 @@ public sealed class ImageViewer : Control
 
     private void OnPinch(object? sender, PinchEventArgs pinch)
     {
-        if (Source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -515,7 +593,7 @@ public sealed class ImageViewer : Control
 
     private void ZoomAt(Point anchor, double factor)
     {
-        if (Source is null || factor <= 0)
+        if (!HasImage || factor <= 0)
         {
             return;
         }
@@ -585,7 +663,7 @@ public sealed class ImageViewer : Control
         }
 
         _lastViewport = viewport;
-        if (Source is null)
+        if (!HasImage)
         {
             return;
         }
@@ -636,7 +714,7 @@ public sealed class ImageViewer : Control
     private Layout CalculateLayout()
     {
         var source = Source;
-        if (source is null || SourcePixelWidth <= 0 || SourcePixelHeight <= 0 ||
+        if (!HasImage || SourcePixelWidth <= 0 || SourcePixelHeight <= 0 ||
             Bounds.Width <= 0 || Bounds.Height <= 0)
         {
             return default;
@@ -778,4 +856,7 @@ public sealed class ImageViewer : Control
         public bool IsValid => Zoom > 0 && ImageWidth > 0 && ImageHeight > 0;
     }
 }
+
+
+
 

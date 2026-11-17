@@ -83,6 +83,8 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _viewModel.ImagePresented += OnImagePresented;
+        _viewModel.TiledImagePresented += OnTiledImagePresented;
+        _viewModel.TiledImageCleared += OnTiledImageCleared;
         _viewModel.CurrentItemChanged += (_, _) => _filmstripView?.ScrollTo(_viewModel.CurrentIndex);
         StartupTrace.Mark("window-ctor-vm");
 
@@ -478,6 +480,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnTiledImagePresented(object? sender, TiledImagePresentedEventArgs e) =>
+        Viewer.SetTiles(e.Tiles);
+
+    private void OnTiledImageCleared(object? sender, EventArgs e) =>
+        Viewer.SetTiles(null);
+
     private void OnImagePresented(object? sender, ImagePresentedEventArgs e)
     {
         if (e.Bitmap is null)
@@ -779,13 +787,23 @@ public partial class MainWindow : Window
 
     private async Task CopyImageAsync()
     {
-        var bitmap = _viewModel.CurrentBitmap;
+        var current = _viewModel.CurrentBitmap;
+        if (current is null)
+        {
+            _viewModel.ShowMessage(_services.Localization.T("L.NoImage"));
+            return;
+        }
+
+        var bitmap = _viewModel.IsTiled
+            ? await _viewModel.GetClipboardBitmapAsync(CancellationToken.None)
+            : current;
         if (bitmap is null)
         {
             _viewModel.ShowMessage(_services.Localization.T("L.NoImage"));
             return;
         }
 
+        var ownsBitmap = !ReferenceEquals(bitmap, current);
         try
         {
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -834,6 +852,13 @@ public partial class MainWindow : Window
             }
 
             _viewModel.ShowMessage(_services.Localization.T("L.CopyFailed"));
+        }
+        finally
+        {
+            if (ownsBitmap)
+            {
+                bitmap.Dispose();
+            }
         }
     }
 

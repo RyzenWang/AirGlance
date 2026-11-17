@@ -49,6 +49,10 @@
     <ProjectReference Include="..\AirGlance.Core\AirGlance.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="AirGlance.App.Tests" />
+  </ItemGroup>
+
   <Target Name="RemovePdbsFromPublish" AfterTargets="Publish">
     <ItemGroup>
       <PublishPdbs Include="$(PublishDir)**\*.pdb" />

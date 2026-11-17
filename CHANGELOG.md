@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-17
+
+Memory patch for very large images at high zoom. A 100 MP JPEG at 100 percent now keeps
+only the visible tiles in memory instead of a full-resolution bitmap.
+
+### Changed
+
+- Images at or above 40 megapixels use a file-backed tile cache when the full-resolution
+  view is requested. The decoded pixels are written once to a temporary tile file, the
+  unmanaged full decode is freed, and the viewer draws 512 px tiles from the file.
+- 100 MP at 100 percent: peak working set is 457.6 MB (was 842.0 MB), steady working set
+  is 85.1 MB (was 836.1 MB), private bytes 55.5 MB. The temporary tile file is about
+  400 MB while the image is open.
+- Rotate and flip at 100 percent rebuild the tile cache from the original file instead
+  of materialising a full bitmap. Peak memory stays at the tile-write level.
+- PNG and other codecs that ignore a requested preview scale are downsampled in software
+  for the fit-window preview, so a large PNG does not keep a full image just to show fit.
+- Clipboard copy from a tiled image decodes a full-resolution bitmap on demand; saving a
+  copy and encoding already used the original file.
+
+### Fixed
+
+- The status bar multiplication sign is written as U+00D7 instead of a mojibake
+  character on systems where the source file was edited with a legacy code page.
+- Abandoned tile files older than one day are removed at startup.
+
 ## [0.1.1] - 2026-11-17
 
 Performance patch. The first frame is now inside the 0.1 budget on the reference machine.
@@ -66,6 +92,7 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.2
 [0.1.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.1
 [0.1.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.0

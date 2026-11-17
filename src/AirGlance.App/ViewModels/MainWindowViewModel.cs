@@ -1,7 +1,8 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using AirGlance.App.Controls;
+using AirGlance.App.Imaging;
 using AirGlance.App.Rendering;
 using AirGlance.App.Services;
 using AirGlance.Core.Files;
@@ -49,6 +50,11 @@ public sealed class ImagePresentedEventArgs : EventArgs
     public bool IsNavigation { get; }
 }
 
+public sealed class TiledImagePresentedEventArgs(TiledImageSource tiles) : EventArgs
+{
+    public TiledImageSource Tiles { get; } = tiles;
+}
+
 /// <summary>
 /// The viewer's state: one folder, one current image, one display-only edit, and the
 /// information panel. Decoding and thumbnail work happen off this class's thread; only
@@ -56,6 +62,8 @@ public sealed class ImagePresentedEventArgs : EventArgs
 /// </summary>
 public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
+    private const long TiledPixelThreshold = 40_000_000;
+
     private readonly AppServices _services;
     private readonly ImageLoadService _loader = new();
     private readonly ImageNavigator _navigator = new([]);
@@ -78,6 +86,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _fullLoaded;
     private DecodedBitmap? _rawDecoded;
     private WriteableBitmap? _currentBitmap;
+    private TiledImageSource? _tiledSource;
     private ImageMetadata? _metadata;
     private EditTransform _edit = EditTransform.None;
     private string? _currentPath;
@@ -118,6 +127,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public event EventHandler<ImagePresentedEventArgs>? ImagePresented;
 
+    public event EventHandler<TiledImagePresentedEventArgs>? TiledImagePresented;
+
+    public event EventHandler? TiledImageCleared;
+
     public event EventHandler? CurrentItemChanged;
 
     public ObservableCollection<ImageItemViewModel> Images { get; } = [];
@@ -125,6 +138,29 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public string? CurrentFilePath => _currentPath;
 
     public WriteableBitmap? CurrentBitmap => _currentBitmap;
+
+    public bool IsTiled => _tiledSource is not null;
+
+    public async Task<WriteableBitmap?> GetClipboardBitmapAsync(CancellationToken cancellationToken)
+    {
+        if (_tiledSource is null)
+        {
+            return _currentBitmap;
+        }
+
+        var path = _currentPath;
+        if (path is null)
+        {
+            return null;
+        }
+
+        var full = await _loader.DecodeFullAsync(path, cancellationToken);
+        var edit = _edit;
+        var display = edit.IsIdentity
+            ? full
+            : await Task.Run(() => ImageTransform.Apply(full, edit), cancellationToken);
+        return BitmapFactory.FromDecoded(display);
+    }
 
     public ImageMetadata? Metadata => _metadata;
 
@@ -555,6 +591,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _services.SettingsChanged -= OnSettingsChanged;
         _currentBitmap?.Dispose();
         _currentBitmap = null;
+        DisposeTiled();
     }
 
     private async Task NavigateToIndexAsync(int index, bool navigation, bool animate, bool forceReload = false)
@@ -694,6 +731,50 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         try
         {
+            var huge = _metadata is { } metadata &&
+                       (long)metadata.DisplayWidth * metadata.DisplayHeight >= TiledPixelThreshold;
+            if (huge && _edit.IsIdentity)
+            {
+                DecodedImageBuffer? raw = null;
+                try
+                {
+                    raw = await Task.Run(
+                        () => ImageDecoder.DecodeFullRaw(path, cancellationToken),
+                        cancellationToken);
+                    if (version != _loadVersion ||
+                        !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    var tiles = await TiledImageSource.CreateAsync(raw, cancellationToken);
+                    if (version != _loadVersion ||
+                        !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase) ||
+                        !_edit.IsIdentity)
+                    {
+                        tiles.Dispose();
+                    }
+                    else
+                    {
+                        _fullLoaded = true;
+                        PublishTiled(tiles);
+                        return;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // A tile-cache failure falls back to the ordinary full bitmap.
+                }
+                finally
+                {
+                    raw?.Dispose();
+                }
+            }
+
             var full = await _loader.DecodeFullAsync(path, cancellationToken);
             if (version != _loadVersion || !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
             {
@@ -736,8 +817,30 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void PublishTiled(TiledImageSource tiles)
+    {
+        var old = _tiledSource;
+        _tiledSource = tiles;
+        TiledImagePresented?.Invoke(this, new TiledImagePresentedEventArgs(tiles));
+        old?.Dispose();
+    }
+
+    private void DisposeTiled()
+    {
+        var old = _tiledSource;
+        _tiledSource = null;
+        TiledImageCleared?.Invoke(this, EventArgs.Empty);
+        old?.Dispose();
+    }
+
     private async Task ApplyEditAsync(EditTransform transform)
     {
+        if (_tiledSource is not null && _currentPath is not null)
+        {
+            await ApplyTiledEditAsync(transform);
+            return;
+        }
+
         if (_rawDecoded is null || _currentPath is null)
         {
             return;
@@ -764,6 +867,56 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    private async Task ApplyTiledEditAsync(EditTransform transform)
+    {
+        var path = _currentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        var version = ++_editVersion;
+        var previous = _edit;
+        _edit = transform;
+        DecodedImageBuffer? raw = null;
+        try
+        {
+            raw = await Task.Run(
+                () => ImageDecoder.DecodeFullRaw(path, _lifetimeCts.Token),
+                _lifetimeCts.Token);
+            var tiles = await TiledImageSource.CreateAsync(
+                raw,
+                transform,
+                _lifetimeCts.Token);
+            if (version != _editVersion ||
+                !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                tiles.Dispose();
+                return;
+            }
+
+            _fullLoaded = true;
+            PublishTiled(tiles);
+            StatusDimensions = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} \u00D7 {1}",
+                tiles.PixelWidth,
+                tiles.PixelHeight);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer edit or navigation.
+        }
+        catch
+        {
+            _edit = previous;
+        }
+        finally
+        {
+            raw?.Dispose();
+        }
+    }
+
     private void Present(
         DecodedBitmap display,
         ImageMetadata? metadata,
@@ -771,6 +924,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         bool animate,
         bool isNavigation)
     {
+        var oldTiles = _tiledSource;
+        _tiledSource = null;
         var bitmap = BitmapFactory.FromDecoded(display);
         var old = _currentBitmap;
         _currentBitmap = bitmap;
@@ -780,10 +935,10 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _folderEmpty = false;
 
         TitleFileName = metadata?.FileName ?? Path.GetFileName(_currentPath) ?? string.Empty;
-        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} — AirGlance";
+        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} 闂?AirGlance";
         StatusDimensions = string.Format(
             CultureInfo.InvariantCulture,
-            "{0} × {1}",
+            "{0} \u00D7 {1}",
             display.SourceWidth,
             display.SourceHeight);
 
@@ -799,6 +954,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 isNavigation));
 
         old?.Dispose();
+        oldTiles?.Dispose();
     }
 
     private async Task<ImageMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken)
@@ -974,7 +1130,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayMessage = LocalizeFailure(failure, extension);
         OverlayHint = _services.Localization.T("L.EmptyLimitations");
         TitleFileName = _currentPath is null ? "AirGlance" : Path.GetFileName(_currentPath);
-        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} — AirGlance";
+        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} 闂?AirGlance";
         _rawDecoded = null;
         _metadata = null;
         _folderEmpty = false;
@@ -1003,6 +1159,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         var old = _currentBitmap;
         _currentBitmap = null;
+        var oldTiles = _tiledSource;
+        _tiledSource = null;
         HasImage = false;
         _rawDecoded = null;
         _metadata = null;
@@ -1011,13 +1169,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             this,
             new ImagePresentedEventArgs(null, 0, 0, 1, true, false, false));
         old?.Dispose();
+        oldTiles?.Dispose();
     }
 
     private void UpdateStatus(ImageMetadata metadata)
     {
         StatusDimensions = string.Format(
             CultureInfo.InvariantCulture,
-            "{0} × {1}",
+            "{0} \u00D7 {1}",
             metadata.DisplayWidth,
             metadata.DisplayHeight);
         StatusPosition = _navigator.Count == 0
@@ -1052,7 +1211,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             new(
                 localization.T("L.InfoDimensions"),
-                string.Format(CultureInfo.InvariantCulture, "{0} × {1}", metadata.DisplayWidth, metadata.DisplayHeight),
+                string.Format(CultureInfo.InvariantCulture, "{0} \u00D7 {1}", metadata.DisplayWidth, metadata.DisplayHeight),
                 isMono: true),
             new(localization.T("L.InfoFormat"), metadata.FormatName),
             new(localization.T("L.InfoBitDepth"), localization.Format("L.BitDepthFormat", metadata.BitDepth), isMono: true)
@@ -1310,3 +1469,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 }
+
+
+
+
