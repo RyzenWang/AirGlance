@@ -939,7 +939,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayTitle = _services.Localization.T("L.EmptyTitle");
         OverlayMessage = string.Empty;
         OverlayHint = _services.Localization.T("L.EmptyLimitations");
-        TitleFileName = "AirGlance";
+        TitleFileName = string.Empty;
         WindowTitle = "AirGlance";
         StatusDimensions = string.Empty;
         StatusPosition = string.Empty;
@@ -956,7 +956,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayTitle = _services.Localization.T("L.EmptyFolderTitle");
         OverlayMessage = string.Empty;
         OverlayHint = _services.Localization.T("L.EmptyFolderHint");
-        TitleFileName = "AirGlance";
+        TitleFileName = string.Empty;
         WindowTitle = "AirGlance";
         StatusDimensions = string.Empty;
         StatusPosition = string.Empty;
