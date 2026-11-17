@@ -41,6 +41,11 @@ public partial class App : Application
 
         var options = CommandLineOptions.Parse(desktop.Args);
         var services = new AppServices();
+        if (options.Benchmark != BenchmarkMode.None)
+        {
+            services.SaveSettingsOnDispose = false;
+        }
+
         StartupTrace.Mark("services-ready");
 
         if (options.Benchmark is BenchmarkMode.Decode or BenchmarkMode.Scan)

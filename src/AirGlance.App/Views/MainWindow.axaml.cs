@@ -53,8 +53,12 @@ public partial class MainWindow : Window
         _viewModel.CurrentItemChanged += (_, _) => _filmstripView?.ScrollTo(_viewModel.CurrentIndex);
         StartupTrace.Mark("window-ctor-vm");
 
-        Width = Math.Clamp(services.Settings.WindowWidth, 720, 8000);
-        Height = Math.Clamp(services.Settings.WindowHeight, 480, 8000);
+        Width = benchmark is null
+            ? Math.Clamp(services.Settings.WindowWidth, 720, 8000)
+            : 1240;
+        Height = benchmark is null
+            ? Math.Clamp(services.Settings.WindowHeight, 480, 8000)
+            : 860;
 
         ConfigureWindowChrome();
         UpdateMaximizeIcon();
@@ -136,7 +140,6 @@ public partial class MainWindow : Window
         {
             WindowState = WindowState.Maximized;
         }
-
         try
         {
             if (_options.ShowHelp || _options.ShowVersion)
@@ -871,6 +874,12 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, WindowClosingEventArgs e)
     {
+        // Benchmarks must not change the settings that the next run will load.
+        if (_benchmark is not null)
+        {
+            return;
+        }
+
         if (!_isFullscreen && WindowState != WindowState.Minimized)
         {
             _services.Settings.WindowWidth = Bounds.Width;

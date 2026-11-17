@@ -114,7 +114,7 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 
 | Artifact | Size | SHA256 |
 | --- | --- | --- |
-| `AirGlance-0.1.0-win-x64.zip` | **14.95 MB** | `E6AD30F72FF264D720F0B10CFF836669A5AC6D75E3F61E31CEDE7CDE14BD7C48` |
+| `AirGlance-0.1.0-win-x64.zip` | **14.95 MB** | `0CA68CA382C82913B3E8B715C9316B8BA8F1D9A46E0649AAD9A68874BAD36402` |
 
 The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md) and unpacks to 37.27 MB. The 30 MB target applies to the
 zip, not the unpacked directory.

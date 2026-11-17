@@ -36,6 +36,9 @@ public sealed class AppServices : IDisposable
 
     public ThumbnailCache Thumbnails { get; }
 
+    /// <summary>Benchmark runs must not leave settings behind for the next run.</summary>
+    public bool SaveSettingsOnDispose { get; set; } = true;
+
     public event EventHandler? SettingsChanged;
 
     public void SaveSettings()
@@ -66,7 +69,11 @@ public sealed class AppServices : IDisposable
         }
 
         _disposed = true;
-        SaveSettings();
+        if (SaveSettingsOnDispose)
+        {
+            SaveSettings();
+        }
+
         Theme.Dispose();
         Localization.Dispose();
     }
