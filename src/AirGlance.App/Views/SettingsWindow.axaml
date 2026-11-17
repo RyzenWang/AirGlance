@@ -1,0 +1,134 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AirGlance.App.ViewModels"
+        x:Class="AirGlance.App.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{DynamicResource L.SettingsTitle}"
+        Width="580"
+        Height="680"
+        MinWidth="520"
+        MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14"
+        Background="{DynamicResource Paper}">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Grid.Row="0" Margin="24,20,24,14" Spacing="14">
+      <TextBlock Text="{DynamicResource L.SettingsTitle}"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 LetterSpacing="-0.4" />
+      <Border Classes="divider" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="22">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.SectionAppearance}" />
+          <Grid ColumnDefinitions="160,*">
+            <TextBlock Text="{DynamicResource L.Language}" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1"
+                      Classes="settings"
+                      SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}">
+              <ComboBoxItem Content="English" />
+              <ComboBoxItem Content="简体中文" />
+            </ComboBox>
+          </Grid>
+          <Grid ColumnDefinitions="160,*">
+            <TextBlock Text="{DynamicResource L.Theme}" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1"
+                      Classes="settings"
+                      SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}">
+              <ComboBoxItem Content="{DynamicResource L.ThemeSystem}" />
+              <ComboBoxItem Content="{DynamicResource L.ThemeLight}" />
+              <ComboBoxItem Content="{DynamicResource L.ThemeDark}" />
+            </ComboBox>
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="10">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.SectionViewing}" />
+          <Grid ColumnDefinitions="220,*">
+            <TextBlock Text="{DynamicResource L.Checkerboard}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <ToggleSwitch Grid.Column="1"
+                          IsChecked="{Binding Checkerboard, Mode=TwoWay}"
+                          HorizontalAlignment="Right" />
+          </Grid>
+          <Grid ColumnDefinitions="220,*">
+            <TextBlock Text="{DynamicResource L.RememberZoom}" VerticalAlignment="Center" />
+            <ToggleSwitch Grid.Column="1"
+                          IsChecked="{Binding RememberZoom, Mode=TwoWay}"
+                          HorizontalAlignment="Right" />
+          </Grid>
+          <Grid ColumnDefinitions="160,*">
+            <TextBlock Text="{DynamicResource L.SlideshowInterval}" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1"
+                      Classes="settings"
+                      SelectedIndex="{Binding SlideshowIndex, Mode=TwoWay}">
+              <ComboBoxItem Content="3 s" />
+              <ComboBoxItem Content="5 s" />
+              <ComboBoxItem Content="10 s" />
+            </ComboBox>
+          </Grid>
+          <Grid ColumnDefinitions="160,*">
+            <TextBlock Text="{DynamicResource L.SortOrder}" VerticalAlignment="Center" />
+            <ComboBox Grid.Column="1"
+                      Classes="settings"
+                      SelectedIndex="{Binding SortIndex, Mode=TwoWay}">
+              <ComboBoxItem Content="{DynamicResource L.SortName}" />
+              <ComboBoxItem Content="{DynamicResource L.SortNameDescending}" />
+            </ComboBox>
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.SectionCache}" />
+          <TextBlock Text="{Binding CacheDescription}"
+                     FontSize="13"
+                     Foreground="{DynamicResource InkSecondary}"
+                     TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+            <TextBlock Text="{Binding CacheSizeText}"
+                       Classes="mono"
+                       FontSize="13"
+                       VerticalAlignment="Center" />
+            <Button Grid.Column="1"
+                    Classes="secondary"
+                    Height="34"
+                    Content="{DynamicResource L.ClearCache}"
+                    Command="{Binding ClearCacheCommand}" />
+          </Grid>
+          <TextBlock Text="{Binding CacheMessage}"
+                     FontSize="12"
+                     Foreground="{DynamicResource Teal}" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.SectionAbout}" />
+          <TextBlock Text="{Binding VersionText}" FontSize="13" />
+          <TextBlock Text="{DynamicResource L.AboutLicense}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
+          <TextBlock Text="{DynamicResource L.AboutNoNetwork}" FontSize="13" Foreground="{DynamicResource InkSecondary}" />
+          <Button Classes="link"
+                  Content="{DynamicResource L.AboutGitHub}"
+                  Click="OnGitHubClick"
+                  HorizontalAlignment="Left" />
+          <Button Classes="link"
+                  Content="{DynamicResource L.AboutThirdParty}"
+                  Click="OnThirdPartyClick"
+                  HorizontalAlignment="Left" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border Grid.Row="2"
+            BorderBrush="{DynamicResource Border}"
+            BorderThickness="0,1,0,0"
+            Padding="24,12">
+      <Button Classes="primary"
+              Content="{DynamicResource L.Done}"
+              HorizontalAlignment="Right"
+              Click="OnDoneClick" />
+    </Border>
+  </Grid>
+</Window>

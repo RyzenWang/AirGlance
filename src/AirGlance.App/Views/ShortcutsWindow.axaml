@@ -1,0 +1,142 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AirGlance.App.Views.ShortcutsWindow"
+        Title="{DynamicResource L.ShortcutsTitle}"
+        Width="600"
+        Height="680"
+        MinWidth="520"
+        MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14"
+        Background="{DynamicResource Paper}"
+        KeyDown="OnKeyDown">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="24,20,24,14" Spacing="14">
+      <TextBlock Text="{DynamicResource L.ShortcutsTitle}"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 LetterSpacing="-0.4" />
+      <Border Classes="divider" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto">
+      <StackPanel Spacing="20">
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupOpen}" />
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl+O" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.OpenFile}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl+Shift+O" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.OpenFolder}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupNavigate}" />
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="← / →" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutArrows}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="PgUp / PgDn" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutPage}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Space / Backspace" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutSpace}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupZoom}" />
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Wheel" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutWheel}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="+ / -" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutZoom}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="0 / 1 / 2" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutPresets}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Double-click" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutDoubleClick}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupView}" />
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="I / C" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutPanels}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="F11" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutFullscreen}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Esc" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutEscape}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="S" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutSlideshow}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="F1" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutShortcuts}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupEdit}" />
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="R / Shift+R" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutRotate}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="H / V" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutFlip}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl+C / Ctrl+Shift+C" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutCopy}" VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl+Shift+S" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutSaveCopy}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupApp}" />
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl+Shift+L" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutLanguage}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Esc" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutCloseList}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border Grid.Row="2"
+            BorderBrush="{DynamicResource Border}"
+            BorderThickness="0,1,0,0"
+            Padding="24,12">
+      <Button Classes="secondary"
+              Content="{DynamicResource L.Done}"
+              HorizontalAlignment="Right"
+              Click="OnDoneClick" />
+    </Border>
+  </Grid>
+</Window>

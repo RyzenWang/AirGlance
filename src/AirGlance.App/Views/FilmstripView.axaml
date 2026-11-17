@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AirGlance.App.ViewModels"
+             x:Class="AirGlance.App.Views.FilmstripView"
+             x:DataType="vm:MainWindowViewModel">
+  <ListBox x:Name="FilmstripList"
+           Classes="filmstrip"
+           ItemsSource="{Binding Images}"
+           SelectedIndex="{Binding CurrentIndex, Mode=OneWay}"
+           SelectionChanged="OnSelectionChanged"
+           ScrollViewer.HorizontalScrollBarVisibility="Auto"
+           ScrollViewer.VerticalScrollBarVisibility="Disabled">
+    <ListBox.ItemsPanel>
+      <ItemsPanelTemplate>
+        <VirtualizingStackPanel Orientation="Horizontal" />
+      </ItemsPanelTemplate>
+    </ListBox.ItemsPanel>
+    <ListBox.ItemTemplate>
+      <DataTemplate x:DataType="vm:ImageItemViewModel">
+        <StackPanel Width="164" Spacing="3" Margin="2">
+          <Border Width="160" Height="68" CornerRadius="6" Background="{DynamicResource Surface}" ClipToBounds="True">
+            <Grid>
+              <Path Data="{DynamicResource IconImage}"
+                    Stroke="{DynamicResource InkTertiary}"
+                    StrokeThickness="1.4"
+                    Width="24"
+                    Height="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center" />
+              <Image Source="{Binding Thumbnail}"
+                     Stretch="Uniform"
+                     RenderOptions.BitmapInterpolationMode="HighQuality" />
+            </Grid>
+          </Border>
+          <TextBlock Text="{Binding FileName}"
+                     Classes="image-name"
+                     MaxWidth="160"
+                     HorizontalAlignment="Left" />
+        </StackPanel>
+      </DataTemplate>
+    </ListBox.ItemTemplate>
+  </ListBox>
+</UserControl>

@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AirGlance.App.ViewModels"
+             x:Class="AirGlance.App.Views.InfoPanelView"
+             x:DataType="vm:MainWindowViewModel">
+  <ScrollViewer Padding="16" VerticalScrollBarVisibility="Auto">
+    <ItemsControl ItemsSource="{Binding InfoSections}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:InfoSection">
+          <StackPanel Margin="0,0,0,18">
+            <TextBlock Classes="sectionLabel" Text="{Binding Title}" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding Rows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:InfoRow">
+                  <Grid ColumnDefinitions="92,*" Margin="0,0,0,7">
+                    <TextBlock Text="{Binding Label}"
+                               FontSize="12"
+                               Foreground="{DynamicResource InkSecondary}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding Value}"
+                               FontSize="13"
+                               TextWrapping="Wrap"
+                               Classes.mono="{Binding IsMono}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

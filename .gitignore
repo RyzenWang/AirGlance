@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+publish/
+artifacts/
+*.user
+*.suo
+
+# IDE
+.vs/
+.idea/
+.vscode/
+
+# Local spike and benchmark data (regenerate with tools/make-test-images.py)
+.spike/
+tools/testdata/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test results
+TestResults/
+*.trx
+
+# Logs
+*.log

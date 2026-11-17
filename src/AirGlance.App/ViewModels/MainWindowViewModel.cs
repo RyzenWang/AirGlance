@@ -1,0 +1,1312 @@
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
+using AirGlance.App.Controls;
+using AirGlance.App.Rendering;
+using AirGlance.App.Services;
+using AirGlance.Core.Files;
+using AirGlance.Core.Imaging;
+using AirGlance.Core.Navigation;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace AirGlance.App.ViewModels;
+
+public sealed class ImagePresentedEventArgs : EventArgs
+{
+    public ImagePresentedEventArgs(
+        WriteableBitmap? bitmap,
+        int sourceWidth,
+        int sourceHeight,
+        double imageScale,
+        bool resetView,
+        bool animate,
+        bool isNavigation)
+    {
+        Bitmap = bitmap;
+        SourceWidth = sourceWidth;
+        SourceHeight = sourceHeight;
+        ImageScale = imageScale;
+        ResetView = resetView;
+        Animate = animate;
+        IsNavigation = isNavigation;
+    }
+
+    public WriteableBitmap? Bitmap { get; }
+
+    public int SourceWidth { get; }
+
+    public int SourceHeight { get; }
+
+    public double ImageScale { get; }
+
+    public bool ResetView { get; }
+
+    public bool Animate { get; }
+
+    public bool IsNavigation { get; }
+}
+
+/// <summary>
+/// The viewer's state: one folder, one current image, one display-only edit, and the
+/// information panel. Decoding and thumbnail work happen off this class's thread; only
+/// the final bitmap copy and property updates run on the UI thread.
+/// </summary>
+public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
+{
+    private readonly AppServices _services;
+    private readonly ImageLoadService _loader = new();
+    private readonly ImageNavigator _navigator = new([]);
+    private readonly Dictionary<string, ImageMetadata> _metadataCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _lifetimeCts = new();
+    private Task<PreloadedImage?>? _startupPreload;
+    private readonly DispatcherTimer _messageTimer;
+    private readonly DispatcherTimer _slideshowTimer;
+    private readonly DispatcherTimer _resizeTimer;
+
+    private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _prefetchCts;
+    private CancellationTokenSource? _fullCts;
+    private ThumbnailService? _thumbnails;
+    private bool _thumbnailsPending;
+    private bool _slideshowBusy;
+    private int _loadVersion;
+    private int _editVersion;
+    private bool _isLoadingFull;
+    private bool _fullLoaded;
+    private DecodedBitmap? _rawDecoded;
+    private WriteableBitmap? _currentBitmap;
+    private ImageMetadata? _metadata;
+    private EditTransform _edit = EditTransform.None;
+    private string? _currentPath;
+    private int _viewportWidth = 1600;
+    private int _viewportHeight = 1000;
+    private string _appliedSort;
+    private ImageLoadFailure? _lastFailure;
+    private string? _lastFailureExtension;
+    private bool _folderEmpty;
+    private bool _disposed;
+
+    public MainWindowViewModel(AppServices services, Task<PreloadedImage?>? startupPreload = null)
+    {
+        _services = services;
+        _startupPreload = startupPreload;
+        _appliedSort = services.Settings.Sort;
+        CheckerboardEnabled = services.Settings.Checkerboard;
+        SlideshowSeconds = services.Settings.SlideshowSeconds;
+
+        _messageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _messageTimer.Tick += (_, _) =>
+        {
+            _messageTimer.Stop();
+            TransientMessage = null;
+        };
+
+        _slideshowTimer = new DispatcherTimer();
+        _slideshowTimer.Tick += OnSlideshowTick;
+
+        _resizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(220) };
+        _resizeTimer.Tick += OnResizeTick;
+
+        services.Localization.LanguageChanged += OnLanguageChanged;
+        services.SettingsChanged += OnSettingsChanged;
+
+        ShowEmptyState();
+    }
+
+    public event EventHandler<ImagePresentedEventArgs>? ImagePresented;
+
+    public event EventHandler? CurrentItemChanged;
+
+    public ObservableCollection<ImageItemViewModel> Images { get; } = [];
+
+    public string? CurrentFilePath => _currentPath;
+
+    public WriteableBitmap? CurrentBitmap => _currentBitmap;
+
+    public ImageMetadata? Metadata => _metadata;
+
+    public EditTransform CurrentEdit => _edit;
+
+    public double LastDecodeMilliseconds { get; private set; }
+
+    public bool RememberZoom => _services.Settings.RememberZoom;
+
+    public string InitialZoomMode => _services.Settings.RememberZoom ? _services.Settings.ZoomMode : "fit";
+
+    public double InitialZoomFactor => _services.Settings.ZoomFactor;
+
+    public string Language => _services.Localization.Language;
+
+    [ObservableProperty]
+    private int _currentIndex;
+
+    [ObservableProperty]
+    private ImageItemViewModel? _currentItem;
+
+    [ObservableProperty]
+    private bool _hasImage;
+
+    [ObservableProperty]
+    private bool _isLoading;
+
+    [ObservableProperty]
+    private bool _infoVisible;
+
+    [ObservableProperty]
+    private bool _filmstripVisible;
+
+    [ObservableProperty]
+    private bool _isDragOver;
+
+    [ObservableProperty]
+    private bool _isFullscreen;
+
+    [ObservableProperty]
+    private bool _isSlideshowRunning;
+
+    [ObservableProperty]
+    private string _titleFileName = "AirGlance";
+
+    [ObservableProperty]
+    private string _windowTitle = "AirGlance";
+
+    [ObservableProperty]
+    private string _statusDimensions = string.Empty;
+
+    [ObservableProperty]
+    private string _statusPosition = string.Empty;
+
+    [ObservableProperty]
+    private string _zoomText = "100%";
+
+    [ObservableProperty]
+    private double _zoomPercent = 100;
+
+    [ObservableProperty]
+    private string? _transientMessage;
+
+    [ObservableProperty]
+    private bool _overlayVisible;
+
+    [ObservableProperty]
+    private string _overlayTitle = string.Empty;
+
+    [ObservableProperty]
+    private string _overlayMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _overlayHint = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
+    private IReadOnlyList<InfoSection> _infoSections = [];
+
+    [ObservableProperty]
+    private bool _checkerboardEnabled = true;
+
+    [ObservableProperty]
+    private int _slideshowSeconds = 5;
+
+    public bool IsChromeVisible => !IsFullscreen;
+
+    public bool ShowTitleBar => OperatingSystem.IsWindows() && !IsFullscreen;
+
+    public bool FilmstripShown => FilmstripVisible && !IsFullscreen;
+
+    public bool InfoShown => InfoVisible && !IsFullscreen;
+
+    public string CacheSizeText =>
+        _services.Localization.Format(
+            "L.CacheSizeFormat",
+            (_services.Thumbnails.GetSizeBytes() / (1024.0 * 1024.0)).ToString("0.0", _services.Localization.Culture));
+
+    public async Task InitializeAsync(string? initialPath)
+    {
+        if (string.IsNullOrWhiteSpace(initialPath))
+        {
+            ShowEmptyState();
+            return;
+        }
+
+        await OpenPathAsync(initialPath);
+    }
+
+    public async Task OpenPathAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        StopSlideshow();
+        CancelWork();
+        IsLoading = true;
+        HasError = false;
+
+        ImageSource source;
+
+        try
+        {
+            source = await Task.Run(
+                () => ImageSourceResolver.Resolve(path, _services.Settings.SortDescending));
+        }
+        catch (DirectoryNotFoundException)
+        {
+            ShowError(ImageLoadFailure.NotFound, null);
+            return;
+        }
+        catch (FileNotFoundException)
+        {
+            ShowError(ImageLoadFailure.NotFound, null);
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            ShowError(ImageLoadFailure.AccessDenied, null);
+            return;
+        }
+        catch (IOException)
+        {
+            ShowError(ImageLoadFailure.Unknown, null);
+            return;
+        }
+
+        if (source.Files.Count == 0)
+        {
+            ApplyFolder(source.FolderPath, source.Files, 0);
+            ShowFolderEmpty();
+            IsLoading = false;
+            return;
+        }
+
+        ApplyFolder(source.FolderPath, source.Files, source.Index);
+        IsLoading = false;
+        await NavigateToIndexAsync(source.Index, navigation: true, animate: false);
+    }
+
+    public async Task OpenDroppedPathAsync(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            await OpenPathAsync(path);
+            return;
+        }
+
+        if (!File.Exists(path))
+        {
+            ShowError(ImageLoadFailure.NotFound, Path.GetExtension(path));
+            return;
+        }
+
+        if (!SupportedFormats.IsSupported(path))
+        {
+            ShowError(ImageLoadFailure.Unsupported, Path.GetExtension(path));
+            return;
+        }
+
+        await OpenPathAsync(path);
+    }
+
+    public async Task NextAsync()
+    {
+        var step = _navigator.MoveNext();
+        if (step is null)
+        {
+            return;
+        }
+
+        if (step.Value.Wrapped)
+        {
+            ShowMessage(_services.Localization.T("L.WrappedFirst"));
+        }
+
+        await NavigateToIndexAsync(step.Value.Index, navigation: true, animate: true);
+    }
+
+    public async Task PreviousAsync()
+    {
+        var step = _navigator.MovePrevious();
+        if (step is null)
+        {
+            return;
+        }
+
+        if (step.Value.Wrapped)
+        {
+            ShowMessage(_services.Localization.T("L.WrappedLast"));
+        }
+
+        await NavigateToIndexAsync(step.Value.Index, navigation: true, animate: true);
+    }
+
+    public async Task GoToAsync(int index)
+    {
+        if (index < 0 || index >= Images.Count || index == _navigator.CurrentIndex)
+        {
+            return;
+        }
+
+        await NavigateToIndexAsync(index, navigation: true, animate: true);
+    }
+
+    public void SetViewport(int pixelWidth, int pixelHeight)
+    {
+        if (pixelWidth <= 0 || pixelHeight <= 0)
+        {
+            return;
+        }
+
+        var changed = Math.Abs(pixelWidth - _viewportWidth) > 48 || Math.Abs(pixelHeight - _viewportHeight) > 48;
+        _viewportWidth = pixelWidth;
+        _viewportHeight = pixelHeight;
+
+        if (!changed || _currentPath is null || _rawDecoded is null || _fullLoaded)
+        {
+            return;
+        }
+
+        _resizeTimer.Stop();
+        _resizeTimer.Start();
+    }
+
+    public void OnZoomChanged(double percent)
+    {
+        ZoomPercent = percent;
+        ZoomText = Math.Round(percent, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture) + "%";
+
+        if (_rawDecoded is { } raw &&
+            !_fullLoaded &&
+            !_isLoadingFull &&
+            raw.Scale < 0.99 &&
+            percent / 100.0 > raw.Scale * 1.15)
+        {
+            _ = LoadFullResolutionAsync();
+        }
+    }
+
+    public async Task RotateClockwiseAsync()
+    {
+        await ApplyEditAsync(_edit.RotateClockwise());
+    }
+
+    public async Task RotateCounterClockwiseAsync()
+    {
+        await ApplyEditAsync(_edit.RotateCounterClockwise());
+    }
+
+    public async Task FlipHorizontalAsync()
+    {
+        await ApplyEditAsync(_edit.FlipHorizontal());
+    }
+
+    public async Task FlipVerticalAsync()
+    {
+        await ApplyEditAsync(_edit.FlipVertical());
+    }
+
+    public void ToggleInfo() => InfoVisible = !InfoVisible;
+
+    public void ToggleFilmstrip() => FilmstripVisible = !FilmstripVisible;
+
+    public void SetFullscreen(bool fullscreen) => IsFullscreen = fullscreen;
+
+    public void ToggleSlideshow()
+    {
+        if (IsSlideshowRunning)
+        {
+            StopSlideshow();
+        }
+        else
+        {
+            StartSlideshow();
+        }
+    }
+
+    public void StartSlideshow()
+    {
+        if (!HasImage)
+        {
+            ShowMessage(_services.Localization.T("L.NoImage"));
+            return;
+        }
+
+        _slideshowTimer.Interval = TimeSpan.FromSeconds(Math.Clamp(_services.Settings.SlideshowSeconds, 3, 10));
+        _slideshowTimer.Start();
+        IsSlideshowRunning = true;
+        ShowMessage(_services.Localization.T("L.SlideshowRunning"));
+    }
+
+    public void StopSlideshow()
+    {
+        if (!IsSlideshowRunning)
+        {
+            return;
+        }
+
+        _slideshowTimer.Stop();
+        IsSlideshowRunning = false;
+        TransientMessage = null;
+    }
+
+    public void ShowMessage(string message)
+    {
+        TransientMessage = message;
+        _messageTimer.Stop();
+        _messageTimer.Start();
+    }
+
+    public async Task ApplySortAsync()
+    {
+        if (_currentPath is null || Images.Count == 0)
+        {
+            return;
+        }
+
+        var currentPath = _currentPath;
+        var folder = Path.GetDirectoryName(currentPath);
+        if (folder is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var files = await Task.Run(
+                () => FolderScanner.EnumerateImages(folder, _services.Settings.SortDescending));
+            if (files.Count == 0)
+            {
+                return;
+            }
+
+            var target = files.ToList().FindIndex(
+                path => string.Equals(path, currentPath, StringComparison.OrdinalIgnoreCase));
+            if (target < 0)
+            {
+                target = 0;
+            }
+
+            ApplyFolder(folder, files, target);
+            await NavigateToIndexAsync(target, navigation: true, animate: false, forceReload: true);
+        }
+        catch
+        {
+            // A sort change must not break the current view.
+        }
+    }
+
+    public async Task<byte[]> EncodeCurrentAsync(ExportFormat format, CancellationToken cancellationToken)
+    {
+        var path = _currentPath ?? throw new InvalidOperationException("No image is open.");
+        var edit = _edit;
+
+        return await Task.Run(
+            () =>
+            {
+                var full = ImageDecoder.DecodeFull(path, cancellationToken);
+                var display = edit.IsIdentity ? full : ImageTransform.Apply(full, edit);
+                return ImageExporter.Encode(display, format);
+            },
+            cancellationToken);
+    }
+
+    public async Task<string?> SaveCopyAsync(string requestedPath, byte[] bytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var written = await Task.Run(
+                () => ImageExporter.WriteNewFile(requestedPath, bytes),
+                cancellationToken);
+            ShowMessage(_services.Localization.Format("L.SaveSucceeded", written));
+            return written;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch
+        {
+            ShowMessage(_services.Localization.T("L.SaveFailed"));
+            return null;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _lifetimeCts.Cancel();
+        _lifetimeCts.Dispose();
+        CancelWork();
+        _thumbnails?.Dispose();
+        _thumbnails = null;
+        _messageTimer.Stop();
+        _slideshowTimer.Stop();
+        _resizeTimer.Stop();
+        _services.Localization.LanguageChanged -= OnLanguageChanged;
+        _services.SettingsChanged -= OnSettingsChanged;
+        _currentBitmap?.Dispose();
+        _currentBitmap = null;
+    }
+
+    private async Task NavigateToIndexAsync(int index, bool navigation, bool animate, bool forceReload = false)
+    {
+        if (index < 0 || index >= _navigator.Count)
+        {
+            return;
+        }
+
+        _navigator.GoTo(index);
+        CurrentIndex = index;
+        CurrentItem = Images[index];
+        _currentPath = _navigator.CurrentPath;
+
+        if (!forceReload && _rawDecoded is not null && _metadata is not null &&
+            string.Equals(_metadata.FilePath, _currentPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await LoadCurrentAsync(navigation, animate);
+        CurrentItemChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task LoadCurrentAsync(bool navigation, bool animate)
+    {
+        var path = _currentPath;
+        if (path is null)
+        {
+            ShowEmptyState();
+            return;
+        }
+
+        var version = ++_loadVersion;
+        CancelLoadTokens();
+        _loadCts = new CancellationTokenSource();
+        var cancellationToken = _loadCts.Token;
+
+        IsLoading = true;
+        HasError = false;
+        _fullLoaded = false;
+        _edit = EditTransform.None;
+        _editVersion++;
+
+        try
+        {
+            var preload = await TakePreloadAsync(path);
+            var metadata = preload?.Metadata ?? await GetMetadataAsync(path, cancellationToken);
+            _metadataCache[path] = metadata;
+            var (targetWidth, targetHeight) = PreviewTarget();
+
+            DecodedBitmap? decoded = null;
+            var decodeMilliseconds = 0.0;
+
+            if (preload is not null)
+            {
+                decoded = preload.Bitmap;
+                decodeMilliseconds = preload.DecodeMilliseconds;
+                _loader.Store(path, targetWidth, targetHeight, decoded);
+            }
+            else if (_loader.TryGet(path, targetWidth, targetHeight, out var cached))
+            {
+                decoded = cached;
+            }
+            else
+            {
+                var stopwatch = Stopwatch.StartNew();
+                decoded = await _loader.DecodePreviewAsync(path, targetWidth, targetHeight, cancellationToken);
+                stopwatch.Stop();
+                decodeMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+                _loader.Store(path, targetWidth, targetHeight, decoded);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (version != _loadVersion)
+            {
+                return;
+            }
+
+            _rawDecoded = decoded;
+            _metadata = metadata;
+            LastDecodeMilliseconds = decodeMilliseconds;
+
+            Present(decoded, metadata, resetView: navigation, animate: navigation && animate, isNavigation: navigation);
+            UpdateStatus(metadata);
+            RebuildInfo();
+
+            if (_thumbnailsPending)
+            {
+                _thumbnailsPending = false;
+                _thumbnails?.Start(Images, _lifetimeCts.Token);
+            }
+
+            StartPrefetch(version, targetWidth, targetHeight);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer navigation.
+        }
+        catch (ImageLoadException exception)
+        {
+            if (version == _loadVersion)
+            {
+                ShowError(exception.Failure, exception.Extension);
+            }
+        }
+        catch
+        {
+            if (version == _loadVersion)
+            {
+                ShowError(ImageLoadFailure.Unknown, Path.GetExtension(path));
+            }
+        }
+        finally
+        {
+            if (version == _loadVersion)
+            {
+                IsLoading = false;
+            }
+        }
+    }
+
+    private async Task LoadFullResolutionAsync()
+    {
+        var path = _currentPath;
+        if (path is null || _fullLoaded || _isLoadingFull)
+        {
+            return;
+        }
+
+        _isLoadingFull = true;
+        _fullCts?.Cancel();
+        _fullCts?.Dispose();
+        _fullCts = new CancellationTokenSource();
+        var cancellationToken = _fullCts.Token;
+        var version = _loadVersion;
+
+        try
+        {
+            var full = await _loader.DecodeFullAsync(path, cancellationToken);
+            if (version != _loadVersion || !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var edit = _edit;
+            var display = edit.IsIdentity
+                ? full
+                : await Task.Run(() => ImageTransform.Apply(full, edit), cancellationToken);
+
+            if (version != _loadVersion)
+            {
+                return;
+            }
+
+            if (edit != _edit)
+            {
+                var currentEdit = _edit;
+                display = currentEdit.IsIdentity
+                    ? full
+                    : await Task.Run(() => ImageTransform.Apply(full, currentEdit), cancellationToken);
+            }
+
+            _rawDecoded = full;
+            _fullLoaded = true;
+            Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by navigation.
+        }
+        catch
+        {
+            // The preview stays usable when a full-resolution decode fails.
+        }
+        finally
+        {
+            _isLoadingFull = false;
+        }
+    }
+
+    private async Task ApplyEditAsync(EditTransform transform)
+    {
+        if (_rawDecoded is null || _currentPath is null)
+        {
+            return;
+        }
+
+        _edit = transform;
+        var version = ++_editVersion;
+        var path = _currentPath;
+        var raw = _rawDecoded;
+
+        try
+        {
+            var display = await Task.Run(() => ImageTransform.Apply(raw, transform));
+            if (version != _editVersion || !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
+        }
+        catch
+        {
+            // Editing is display-only; a failure leaves the previous pixels in place.
+        }
+    }
+
+    private void Present(
+        DecodedBitmap display,
+        ImageMetadata? metadata,
+        bool resetView,
+        bool animate,
+        bool isNavigation)
+    {
+        var bitmap = BitmapFactory.FromDecoded(display);
+        var old = _currentBitmap;
+        _currentBitmap = bitmap;
+        HasImage = true;
+        HasError = false;
+        OverlayVisible = false;
+        _folderEmpty = false;
+
+        TitleFileName = metadata?.FileName ?? Path.GetFileName(_currentPath) ?? string.Empty;
+        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} — AirGlance";
+        StatusDimensions = string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} × {1}",
+            display.SourceWidth,
+            display.SourceHeight);
+
+        ImagePresented?.Invoke(
+            this,
+            new ImagePresentedEventArgs(
+                bitmap,
+                display.SourceWidth,
+                display.SourceHeight,
+                display.Scale,
+                resetView,
+                animate,
+                isNavigation));
+
+        old?.Dispose();
+    }
+
+    private async Task<ImageMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken)
+    {
+        if (_metadataCache.TryGetValue(path, out var cached))
+        {
+            return cached;
+        }
+
+        var metadata = await Task.Run(() => ImageDecoder.ReadMetadata(path), cancellationToken);
+        if (_metadataCache.Count > 64)
+        {
+            _metadataCache.Clear();
+        }
+
+        _metadataCache[path] = metadata;
+        return metadata;
+    }
+
+    private async Task<PreloadedImage?> TakePreloadAsync(string path)
+    {
+        var task = _startupPreload;
+        _startupPreload = null;
+        if (task is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var preload = await task;
+            return preload is not null &&
+                   string.Equals(preload.Path, path, StringComparison.OrdinalIgnoreCase)
+                ? preload
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private (int Width, int Height) PreviewTarget()
+    {
+        var width = Math.Max(640, _viewportWidth);
+        var height = Math.Max(480, _viewportHeight);
+        return (Math.Min(width, 8192), Math.Min(height, 8192));
+    }
+
+    private void StartPrefetch(int version, int targetWidth, int targetHeight)
+    {
+        if (_navigator.Count < 2)
+        {
+            return;
+        }
+
+        _prefetchCts?.Cancel();
+        _prefetchCts?.Dispose();
+        _prefetchCts = new CancellationTokenSource();
+        var cancellationToken = _prefetchCts.Token;
+        var index = _navigator.CurrentIndex;
+        var files = _navigator.Files.ToArray();
+
+        _ = Task.Run(
+            () =>
+            {
+                foreach (var offset in new[] { 1, -1 })
+                {
+                    if (cancellationToken.IsCancellationRequested || version != _loadVersion)
+                    {
+                        return;
+                    }
+
+                    var neighbour = files[(index + offset + files.Length) % files.Length];
+                    if (_loader.TryGet(neighbour, targetWidth, targetHeight, out _))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var bitmap = ImageDecoder.Decode(neighbour, targetWidth, targetHeight, cancellationToken);
+                        if (!cancellationToken.IsCancellationRequested && version == _loadVersion)
+                        {
+                            _loader.Store(neighbour, targetWidth, targetHeight, bitmap);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        return;
+                    }
+                    catch
+                    {
+                        // Prefetch is an optimisation; failures stay silent.
+                    }
+                }
+            },
+            CancellationToken.None);
+    }
+
+    private void ApplyFolder(string folder, IReadOnlyList<string> files, int index)
+    {
+        _navigator.Reset(files, index);
+        Images.Clear();
+
+        foreach (var file in files)
+        {
+            Images.Add(new ImageItemViewModel(file));
+        }
+
+        CurrentIndex = index >= 0 && index < Images.Count ? index : 0;
+        CurrentItem = Images.Count > 0 ? Images[CurrentIndex] : null;
+        _currentPath = _navigator.CurrentPath;
+        _folderEmpty = files.Count == 0;
+        FilmstripVisible = files.Count > 0;
+        _lastFailure = null;
+        _lastFailureExtension = null;
+        OverlayVisible = false;
+        HasError = false;
+        _metadataCache.Clear();
+        _loader.Clear();
+
+        _thumbnails?.Dispose();
+        _thumbnails = new ThumbnailService(_services.Thumbnails);
+        _thumbnailsPending = true;
+
+        StatusPosition = files.Count == 0 ? string.Empty : $"{CurrentIndex + 1}/{files.Count}";
+    }
+
+    private void ShowEmptyState()
+    {
+        ClearPresentedImage();
+        HasError = false;
+        _folderEmpty = false;
+        _lastFailure = null;
+        _lastFailureExtension = null;
+        OverlayVisible = true;
+        OverlayTitle = _services.Localization.T("L.EmptyTitle");
+        OverlayMessage = string.Empty;
+        OverlayHint = _services.Localization.T("L.EmptyLimitations");
+        TitleFileName = "AirGlance";
+        WindowTitle = "AirGlance";
+        StatusDimensions = string.Empty;
+        StatusPosition = string.Empty;
+        InfoSections = [];
+    }
+
+    private void ShowFolderEmpty()
+    {
+        ClearPresentedImage();
+        HasError = false;
+        _folderEmpty = true;
+        _lastFailure = null;
+        OverlayVisible = true;
+        OverlayTitle = _services.Localization.T("L.EmptyFolderTitle");
+        OverlayMessage = string.Empty;
+        OverlayHint = _services.Localization.T("L.EmptyFolderHint");
+        TitleFileName = "AirGlance";
+        WindowTitle = "AirGlance";
+        StatusDimensions = string.Empty;
+        StatusPosition = string.Empty;
+        InfoSections = [];
+    }
+
+    private void ShowError(ImageLoadFailure failure, string? extension)
+    {
+        ClearPresentedImage();
+        _lastFailure = failure;
+        _lastFailureExtension = extension;
+        HasError = true;
+        OverlayVisible = true;
+        OverlayTitle = _services.Localization.T("L.CantOpenTitle");
+        OverlayMessage = LocalizeFailure(failure, extension);
+        OverlayHint = _services.Localization.T("L.EmptyLimitations");
+        TitleFileName = _currentPath is null ? "AirGlance" : Path.GetFileName(_currentPath);
+        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} — AirGlance";
+        _rawDecoded = null;
+        _metadata = null;
+        _folderEmpty = false;
+        StatusDimensions = string.Empty;
+        InfoSections = [];
+        IsLoading = false;
+    }
+
+    private string LocalizeFailure(ImageLoadFailure failure, string? extension)
+    {
+        var localization = _services.Localization;
+
+        return failure switch
+        {
+            ImageLoadFailure.Unsupported => localization.Format(
+                "L.ErrorUnsupportedFormat",
+                string.IsNullOrWhiteSpace(extension) ? string.Empty : extension),
+            ImageLoadFailure.NotFound => localization.T("L.ErrorNotFound"),
+            ImageLoadFailure.AccessDenied => localization.T("L.ErrorAccessDenied"),
+            ImageLoadFailure.Corrupt => localization.T("L.ErrorCorrupt"),
+            _ => localization.T("L.ErrorUnknown")
+        };
+    }
+
+    private void ClearPresentedImage()
+    {
+        var old = _currentBitmap;
+        _currentBitmap = null;
+        HasImage = false;
+        _rawDecoded = null;
+        _metadata = null;
+        _edit = EditTransform.None;
+        ImagePresented?.Invoke(
+            this,
+            new ImagePresentedEventArgs(null, 0, 0, 1, true, false, false));
+        old?.Dispose();
+    }
+
+    private void UpdateStatus(ImageMetadata metadata)
+    {
+        StatusDimensions = string.Format(
+            CultureInfo.InvariantCulture,
+            "{0} × {1}",
+            metadata.DisplayWidth,
+            metadata.DisplayHeight);
+        StatusPosition = _navigator.Count == 0
+            ? string.Empty
+            : $"{_navigator.CurrentIndex + 1}/{_navigator.Count}";
+    }
+
+    private void RebuildInfo()
+    {
+        if (_metadata is not { } metadata)
+        {
+            InfoSections = [];
+            return;
+        }
+
+        var localization = _services.Localization;
+        var sections = new List<InfoSection>();
+
+        var fileRows = new List<InfoRow>
+        {
+            new(localization.T("L.InfoName"), metadata.FileName),
+            new(localization.T("L.InfoPath"), metadata.FilePath),
+            new(localization.T("L.InfoSize"), FormatBytes(metadata.FileSizeBytes), isMono: true),
+            new(
+                localization.T("L.InfoModified"),
+                metadata.LastWriteTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+                isMono: true)
+        };
+        sections.Add(new InfoSection(localization.T("L.SectionFile"), fileRows));
+
+        var imageRows = new List<InfoRow>
+        {
+            new(
+                localization.T("L.InfoDimensions"),
+                string.Format(CultureInfo.InvariantCulture, "{0} × {1}", metadata.DisplayWidth, metadata.DisplayHeight),
+                isMono: true),
+            new(localization.T("L.InfoFormat"), metadata.FormatName),
+            new(localization.T("L.InfoBitDepth"), localization.Format("L.BitDepthFormat", metadata.BitDepth), isMono: true)
+        };
+        sections.Add(new InfoSection(localization.T("L.SectionImage"), imageRows));
+
+        var colorRows = new List<InfoRow>
+        {
+            new(localization.T("L.InfoColorSpace"), metadata.ColorSpaceDisplay)
+        };
+        if (metadata.HasIccProfile)
+        {
+            colorRows.Add(new InfoRow(localization.T("L.InfoIcc"), metadata.IccDescription!));
+        }
+
+        sections.Add(new InfoSection(localization.T("L.SectionColor"), colorRows));
+
+        var exif = metadata.Exif;
+        var exifRows = new List<InfoRow>();
+        AddRow(exifRows, localization.T("L.InfoCamera"), exif.Camera);
+        AddRow(exifRows, localization.T("L.InfoLens"), exif.LensModel);
+        AddRow(exifRows, localization.T("L.InfoExposure"), FormatExposure(exif.ExposureSeconds), isMono: true);
+        AddRow(exifRows, localization.T("L.InfoAperture"), exif.FNumber is { } aperture ? $"f/{aperture:0.#}" : null, isMono: true);
+        AddRow(exifRows, localization.T("L.InfoIso"), exif.Iso?.ToString(CultureInfo.InvariantCulture), isMono: true);
+        AddRow(
+            exifRows,
+            localization.T("L.InfoFocal"),
+            exif.FocalLengthMillimeters is { } focal ? $"{focal:0.#} mm" : null,
+            isMono: true);
+        AddRow(
+            exifRows,
+            localization.T("L.InfoTaken"),
+            exif.TakenAt?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? exif.TakenAtRaw,
+            isMono: true);
+
+        if (exifRows.Count > 0)
+        {
+            sections.Add(new InfoSection(localization.T("L.SectionCamera"), exifRows));
+        }
+
+        InfoSections = sections;
+    }
+
+    private static void AddRow(List<InfoRow> rows, string label, string? value, bool isMono = false)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            rows.Add(new InfoRow(label, value, isMono));
+        }
+    }
+
+    private static string? FormatExposure(double? seconds)
+    {
+        if (seconds is null or <= 0)
+        {
+            return null;
+        }
+
+        return seconds >= 1
+            ? $"{seconds:0.0} s"
+            : $"1/{Math.Round(1 / seconds.Value):0} s";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1024L * 1024L)
+        {
+            return (bytes / (1024.0 * 1024.0)).ToString("0.0", CultureInfo.InvariantCulture) + " MB";
+        }
+
+        if (bytes >= 1024)
+        {
+            return (bytes / 1024.0).ToString("0", CultureInfo.InvariantCulture) + " KB";
+        }
+
+        return bytes.ToString(CultureInfo.InvariantCulture) + " B";
+    }
+
+    private void OnSlideshowTick(object? sender, EventArgs e)
+    {
+        if (!IsSlideshowRunning || _slideshowBusy)
+        {
+            return;
+        }
+
+        _slideshowBusy = true;
+        _ = NextAsync().ContinueWith(
+            _ => _slideshowBusy = false,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private void OnResizeTick(object? sender, EventArgs e)
+    {
+        _resizeTimer.Stop();
+        if (_currentPath is null || _rawDecoded is null || _fullLoaded)
+        {
+            return;
+        }
+
+        var (width, height) = PreviewTarget();
+        if (_rawDecoded.Width >= width * 0.9 && _rawDecoded.Height >= height * 0.9)
+        {
+            return;
+        }
+
+        _ = ReloadPreviewForViewportAsync(width, height);
+    }
+
+    private async Task ReloadPreviewForViewportAsync(int width, int height)
+    {
+        var path = _currentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        var version = ++_loadVersion;
+        CancelLoadTokens();
+        _loadCts = new CancellationTokenSource();
+        var cancellationToken = _loadCts.Token;
+
+        try
+        {
+            var decoded = await _loader.DecodePreviewAsync(path, width, height, cancellationToken);
+            if (version != _loadVersion || !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _loader.Store(path, width, height, decoded);
+            _rawDecoded = decoded;
+            var edit = _edit;
+            var display = edit.IsIdentity ? decoded : ImageTransform.Apply(decoded, edit);
+            Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
+            StartPrefetch(version, width, height);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded.
+        }
+        catch
+        {
+            // Keep the previous preview.
+        }
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        if (_lastFailure is { } failure)
+        {
+            OverlayMessage = LocalizeFailure(failure, _lastFailureExtension);
+            OverlayTitle = _services.Localization.T("L.CantOpenTitle");
+            OverlayHint = _services.Localization.T("L.EmptyLimitations");
+        }
+        else if (_folderEmpty)
+        {
+            OverlayTitle = _services.Localization.T("L.EmptyFolderTitle");
+            OverlayHint = _services.Localization.T("L.EmptyFolderHint");
+        }
+        else if (!HasImage)
+        {
+            OverlayTitle = _services.Localization.T("L.EmptyTitle");
+            OverlayHint = _services.Localization.T("L.EmptyLimitations");
+        }
+
+        RebuildInfo();
+        OnPropertyChanged(nameof(CacheSizeText));
+    }
+
+    private void OnSettingsChanged(object? sender, EventArgs e)
+    {
+        CheckerboardEnabled = _services.Settings.Checkerboard;
+        SlideshowSeconds = _services.Settings.SlideshowSeconds;
+
+        if (IsSlideshowRunning)
+        {
+            _slideshowTimer.Interval = TimeSpan.FromSeconds(SlideshowSeconds);
+        }
+
+        if (!string.Equals(_appliedSort, _services.Settings.Sort, StringComparison.Ordinal))
+        {
+            _appliedSort = _services.Settings.Sort;
+            _ = ApplySortAsync();
+        }
+    }
+
+    private void CancelWork()
+    {
+        CancelLoadTokens();
+        _thumbnails?.Stop();
+    }
+
+    private void CancelLoadTokens()
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _loadCts = null;
+        _prefetchCts?.Cancel();
+        _prefetchCts?.Dispose();
+        _prefetchCts = null;
+        _fullCts?.Cancel();
+        _fullCts?.Dispose();
+        _fullCts = null;
+        _isLoadingFull = false;
+    }
+
+    [RelayCommand]
+    private Task Next() => NextAsync();
+
+    [RelayCommand]
+    private Task Previous() => PreviousAsync();
+
+    [RelayCommand]
+    private Task RotateClockwise() => RotateClockwiseAsync();
+
+    [RelayCommand]
+    private Task RotateCounterClockwise() => RotateCounterClockwiseAsync();
+
+    [RelayCommand]
+    private Task FlipHorizontal() => FlipHorizontalAsync();
+
+    [RelayCommand]
+    private Task FlipVertical() => FlipVerticalAsync();
+
+    [RelayCommand]
+    private void ToggleInfoPanel() => ToggleInfo();
+
+    [RelayCommand]
+    private void ToggleFilmstripPanel() => ToggleFilmstrip();
+
+    partial void OnInfoVisibleChanged(bool value) => OnPropertyChanged(nameof(InfoShown));
+
+    partial void OnFilmstripVisibleChanged(bool value) => OnPropertyChanged(nameof(FilmstripShown));
+
+    partial void OnIsFullscreenChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsChromeVisible));
+        OnPropertyChanged(nameof(ShowTitleBar));
+        OnPropertyChanged(nameof(FilmstripShown));
+        OnPropertyChanged(nameof(InfoShown));
+    }
+
+    partial void OnCurrentIndexChanged(int value)
+    {
+        if (value >= 0 && value < Images.Count)
+        {
+            CurrentItem = Images[value];
+        }
+
+        if (!string.IsNullOrEmpty(StatusDimensions))
+        {
+            StatusPosition = Images.Count == 0 ? string.Empty : $"{value + 1}/{Images.Count}";
+        }
+    }
+}

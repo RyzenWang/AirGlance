@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AirGlance
+Comment=View images
+Exec=AirGlance %f
+Icon=airglance
+Terminal=false
+Categories=Graphics;Viewer;
+MimeType=image/jpeg;image/png;image/webp;image/bmp;image/gif;image/x-icon;

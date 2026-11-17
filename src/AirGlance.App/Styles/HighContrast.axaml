@@ -1,0 +1,44 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!--
+    High contrast is applied on top of the normal palette whenever the operating
+    system reports a high-contrast preference. The system accent colour is injected
+    by ThemeService at runtime; these are the fallbacks.
+  -->
+  <SolidColorBrush x:Key="Paper" Color="#000000" />
+  <SolidColorBrush x:Key="PaperDeep" Color="#000000" />
+  <SolidColorBrush x:Key="Surface" Color="#000000" />
+  <SolidColorBrush x:Key="SurfaceAlt" Color="#000000" />
+  <SolidColorBrush x:Key="SurfaceHover" Color="#1A1A1A" />
+  <SolidColorBrush x:Key="Border" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="BorderStrong" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="Ink" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="InkSecondary" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="InkTertiary" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="Coral" Color="#FFFF00" />
+  <SolidColorBrush x:Key="OnCoral" Color="#000000" />
+  <SolidColorBrush x:Key="Teal" Color="#00FF7F" />
+  <SolidColorBrush x:Key="Caution" Color="#FFFF00" />
+  <SolidColorBrush x:Key="Danger" Color="#FF5555" />
+  <SolidColorBrush x:Key="Canvas" Color="#000000" />
+  <SolidColorBrush x:Key="CanvasFullscreen" Color="#000000" />
+  <SolidColorBrush x:Key="CheckerLight" Color="#000000" />
+  <SolidColorBrush x:Key="CheckerDark" Color="#1A1A1A" />
+  <SolidColorBrush x:Key="Scrim" Color="#00000000" />
+
+  <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="TextControlBackground" Color="#000000" />
+  <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#000000" />
+  <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#000000" />
+  <SolidColorBrush x:Key="TextControlBorderBrush" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FFFF00" />
+  <SolidColorBrush x:Key="TextControlForeground" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="ComboBoxBackground" Color="#000000" />
+  <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="ComboBoxForeground" Color="#FFFFFF" />
+  <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#000000" />
+  <SolidColorBrush x:Key="SystemAccentColorBrush" Color="#FFFF00" />
+</ResourceDictionary>

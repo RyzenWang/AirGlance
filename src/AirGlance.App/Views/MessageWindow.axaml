@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AirGlance.App.Views.MessageWindow"
+        Width="560"
+        Height="440"
+        MinWidth="420"
+        MinHeight="240"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14"
+        Background="{DynamicResource Paper}"
+        KeyDown="OnKeyDown">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="24,20,24,14" Spacing="14">
+      <TextBlock x:Name="TitleText"
+                 FontSize="19"
+                 FontWeight="SemiBold"
+                 LetterSpacing="-0.4"
+                 TextWrapping="Wrap" />
+      <Border Classes="divider" />
+    </StackPanel>
+
+    <ScrollViewer Grid.Row="1" Padding="24,0,24,8" VerticalScrollBarVisibility="Auto">
+      <TextBlock x:Name="BodyText"
+                 FontSize="13"
+                 Foreground="{DynamicResource InkSecondary}"
+                 TextWrapping="Wrap"
+                 LineHeight="22" />
+    </ScrollViewer>
+
+    <Border Grid.Row="2"
+            BorderBrush="{DynamicResource Border}"
+            BorderThickness="0,1,0,0"
+            Padding="24,12">
+      <Button Classes="primary"
+              Content="{DynamicResource L.Close}"
+              HorizontalAlignment="Right"
+              Click="OnCloseClick" />
+    </Border>
+  </Grid>
+</Window>

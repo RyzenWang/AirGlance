@@ -1,0 +1,148 @@
+name: Store MSIX
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  # Bump this for each Store submission. Build-Msix.ps1 normalizes it to four parts.
+  VERSION: "0.1.0"
+
+jobs:
+  msix:
+    name: Build and inspect MSIX
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Publish and pack both architectures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $targets = @(
+            [pscustomobject]@{ Architecture = "x64"; Runtime = "win-x64" },
+            [pscustomobject]@{ Architecture = "arm64"; Runtime = "win-arm64" }
+          )
+
+          foreach ($target in $targets) {
+            $publishDir = Join-Path "publish" $target.Runtime
+            Write-Host "Publishing AirGlance for $($target.Runtime)..."
+
+            & dotnet publish "src/AirGlance.App/AirGlance.App.csproj" `
+              -c Release `
+              -r $target.Runtime `
+              -p:PublishAot=true `
+              -p:StripSymbols=true `
+              -p:Version=$env:VERSION `
+              -o $publishDir
+
+            if ($LASTEXITCODE -ne 0) {
+              throw "dotnet publish failed for $($target.Runtime) with exit code $LASTEXITCODE."
+            }
+
+            Write-Host "Packing $($target.Architecture) MSIX..."
+            & "./packaging/msix/Build-Msix.ps1" `
+              -Version $env:VERSION `
+              -Architecture $target.Architecture `
+              -PublishDir $publishDir `
+              -OutputDir "artifacts/msix"
+          }
+
+          Get-ChildItem "artifacts/msix" -Filter "*.msix" |
+            ForEach-Object { Write-Host "Built: $($_.FullName) ($($_.Length) bytes)" }
+
+      - name: Run WACK when available (informational for unsigned packages)
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $ErrorActionPreference = "Continue"
+          $kitDir = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit'
+          $appcert = $null
+          if (Test-Path -LiteralPath $kitDir -PathType Container) {
+            $appcert = Get-ChildItem -LiteralPath $kitDir -Filter "appcert.exe" -File -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+          }
+
+          if ($null -eq $appcert) {
+            Write-Warning "Windows App Certification Kit (appcert.exe) was not found; skipping WACK."
+            @(
+              "### Windows App Certification Kit",
+              "",
+              "WACK was not available on this runner. No certification report was produced."
+            ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            exit 0
+          }
+
+          $reportDir = Join-Path (Get-Location) "artifacts/msix/wack"
+          New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+
+          Write-Host "Resetting WACK..."
+          & $appcert.FullName reset
+          if ($LASTEXITCODE -ne 0) {
+            Write-Warning "WACK reset exited with code $LASTEXITCODE."
+          }
+
+          $packages = @(Get-ChildItem "artifacts/msix" -Filter "*.msix" -File)
+          if ($packages.Count -eq 0) {
+            Write-Warning "No MSIX packages were found to inspect."
+            exit 0
+          }
+
+          foreach ($package in $packages) {
+            $reportPath = Join-Path $reportDir ("wack-{0}.xml" -f $package.BaseName)
+            Write-Host "Running WACK for $($package.Name) (unsigned preflight; signature failures are expected)..."
+            & $appcert.FullName test -appxpackagepath $package.FullName -reportoutputpath $reportPath
+            if ($LASTEXITCODE -ne 0) {
+              Write-Warning "WACK reported failures for $($package.Name) (exit code $LASTEXITCODE). This is expected for an unsigned package and the report is uploaded for review."
+            }
+            if (Test-Path -LiteralPath $reportPath -PathType Leaf) {
+              Write-Host "WACK report: $reportPath"
+            }
+            else {
+              Write-Warning "WACK did not produce a report for $($package.Name)."
+            }
+          }
+
+          @(
+            "### Windows App Certification Kit",
+            "",
+            "WACK ran against unsigned MSIX packages. Signature-related failures are expected.",
+            'Reports are attached to the `airglance-msix` workflow artifact for manual review.',
+            "Sign the packages with a trusted certificate before using them for Store certification."
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+
+          exit 0
+
+      - name: Upload MSIX packages and WACK reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: airglance-msix
+          path: |
+            artifacts/msix/*.msix
+            artifacts/msix/wack/*.xml
+          if-no-files-found: error
+          retention-days: 14
+
+      # Partner Center submission is intentionally manual. This workflow only
+      # produces unsigned packages for local review and WACK preflight.

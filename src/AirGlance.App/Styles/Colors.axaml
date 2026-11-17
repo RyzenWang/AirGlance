@@ -1,0 +1,93 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.ThemeDictionaries>
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="Paper" Color="#F1EEE7" />
+      <SolidColorBrush x:Key="PaperDeep" Color="#EAE5DC" />
+      <SolidColorBrush x:Key="Surface" Color="#FBFAF7" />
+      <SolidColorBrush x:Key="SurfaceAlt" Color="#F6F2EB" />
+      <SolidColorBrush x:Key="SurfaceHover" Color="#F3EEE5" />
+      <SolidColorBrush x:Key="Border" Color="#E0D9CD" />
+      <SolidColorBrush x:Key="BorderStrong" Color="#C7BEB0" />
+      <SolidColorBrush x:Key="Ink" Color="#1D232C" />
+      <SolidColorBrush x:Key="InkSecondary" Color="#69645C" />
+      <SolidColorBrush x:Key="InkTertiary" Color="#9A9286" />
+      <SolidColorBrush x:Key="Coral" Color="#E3563B" />
+      <SolidColorBrush x:Key="OnCoral" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="Teal" Color="#2E6F63" />
+      <SolidColorBrush x:Key="Caution" Color="#B26B1F" />
+      <SolidColorBrush x:Key="Danger" Color="#B23A2B" />
+      <SolidColorBrush x:Key="Canvas" Color="#EAE5DC" />
+      <SolidColorBrush x:Key="CanvasFullscreen" Color="#0D1116" />
+      <SolidColorBrush x:Key="CheckerLight" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="CheckerDark" Color="#E0D9CD" />
+      <SolidColorBrush x:Key="Scrim" Color="#660D1117" />
+
+      <Color x:Key="SystemAccentColor">#E3563B</Color>
+      <SolidColorBrush x:Key="SystemAccentColorBrush" Color="#E3563B" />
+      <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#1D232C" />
+      <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#69645C" />
+      <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#9A9286" />
+      <SolidColorBrush x:Key="TextControlBackground" Color="#FBFAF7" />
+      <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="TextControlBorderBrush" Color="#E0D9CD" />
+      <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#C7BEB0" />
+      <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#E3563B" />
+      <SolidColorBrush x:Key="TextControlForeground" Color="#1D232C" />
+      <SolidColorBrush x:Key="ComboBoxBackground" Color="#FBFAF7" />
+      <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#E0D9CD" />
+      <SolidColorBrush x:Key="ComboBoxForeground" Color="#1D232C" />
+      <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#FBFAF7" />
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="Paper" Color="#13171C" />
+      <SolidColorBrush x:Key="PaperDeep" Color="#0F1318" />
+      <SolidColorBrush x:Key="Surface" Color="#1C222A" />
+      <SolidColorBrush x:Key="SurfaceAlt" Color="#202831" />
+      <SolidColorBrush x:Key="SurfaceHover" Color="#232C36" />
+      <SolidColorBrush x:Key="Border" Color="#2C343E" />
+      <SolidColorBrush x:Key="BorderStrong" Color="#43505D" />
+      <SolidColorBrush x:Key="Ink" Color="#F3EFE6" />
+      <SolidColorBrush x:Key="InkSecondary" Color="#ABA49A" />
+      <SolidColorBrush x:Key="InkTertiary" Color="#7B756D" />
+      <SolidColorBrush x:Key="Coral" Color="#FF6B4E" />
+      <SolidColorBrush x:Key="OnCoral" Color="#13171C" />
+      <SolidColorBrush x:Key="Teal" Color="#69B3A4" />
+      <SolidColorBrush x:Key="Caution" Color="#D9A35A" />
+      <SolidColorBrush x:Key="Danger" Color="#FF8E79" />
+      <SolidColorBrush x:Key="Canvas" Color="#171E27" />
+      <SolidColorBrush x:Key="CanvasFullscreen" Color="#0D1116" />
+      <SolidColorBrush x:Key="CheckerLight" Color="#1C222A" />
+      <SolidColorBrush x:Key="CheckerDark" Color="#2C343E" />
+      <SolidColorBrush x:Key="Scrim" Color="#99000000" />
+
+      <Color x:Key="SystemAccentColor">#FF6B4E</Color>
+      <SolidColorBrush x:Key="SystemAccentColorBrush" Color="#FF6B4E" />
+      <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#F3EFE6" />
+      <SolidColorBrush x:Key="TextFillColorSecondaryBrush" Color="#ABA49A" />
+      <SolidColorBrush x:Key="TextFillColorTertiaryBrush" Color="#7B756D" />
+      <SolidColorBrush x:Key="TextControlBackground" Color="#1C222A" />
+      <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#202831" />
+      <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#202831" />
+      <SolidColorBrush x:Key="TextControlBorderBrush" Color="#2C343E" />
+      <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="#43505D" />
+      <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="#FF6B4E" />
+      <SolidColorBrush x:Key="TextControlForeground" Color="#F3EFE6" />
+      <SolidColorBrush x:Key="ComboBoxBackground" Color="#1C222A" />
+      <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#2C343E" />
+      <SolidColorBrush x:Key="ComboBoxForeground" Color="#F3EFE6" />
+      <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#1C222A" />
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
+
+  <FontFamily x:Key="UiFont">Inter, Segoe UI, Microsoft YaHei UI, PingFang SC, Noto Sans CJK SC, sans-serif</FontFamily>
+  <FontFamily x:Key="MonoFont">JetBrains Mono, Cascadia Mono, Consolas, DejaVu Sans Mono, monospace</FontFamily>
+
+  <CornerRadius x:Key="PanelCornerRadius">14</CornerRadius>
+  <CornerRadius x:Key="ButtonCornerRadius">10</CornerRadius>
+  <CornerRadius x:Key="IconButtonCornerRadius">9</CornerRadius>
+  <CornerRadius x:Key="ChipCornerRadius">6</CornerRadius>
+  <CornerRadius x:Key="PopupCornerRadius">24</CornerRadius>
+</ResourceDictionary>

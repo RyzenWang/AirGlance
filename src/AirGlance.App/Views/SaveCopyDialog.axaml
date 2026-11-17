@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AirGlance.App.ViewModels"
+        x:Class="AirGlance.App.Views.SaveCopyDialog"
+        x:DataType="vm:SaveCopyViewModel"
+        Title="{DynamicResource L.SaveCopyTitle}"
+        Width="620"
+        Height="400"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        FontFamily="{DynamicResource UiFont}"
+        FontSize="14"
+        Background="{DynamicResource Paper}"
+        KeyDown="OnKeyDown">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <StackPanel Margin="24,20,24,14" Spacing="14">
+      <TextBlock Text="{DynamicResource L.SaveCopyTitle}"
+                 FontSize="20"
+                 FontWeight="SemiBold"
+                 LetterSpacing="-0.4" />
+      <Border Classes="divider" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="1" Margin="24,4,24,16" Spacing="14">
+      <StackPanel Spacing="6">
+        <TextBlock Text="{DynamicResource L.SaveAs}" FontSize="12" Foreground="{DynamicResource InkSecondary}" />
+        <Grid ColumnDefinitions="*,Auto">
+          <TextBox Classes="path" Text="{Binding FilePath, Mode=TwoWay}" />
+          <Button Grid.Column="1"
+                  Classes="secondary"
+                  Height="36"
+                  Margin="8,0,0,0"
+                  Content="{DynamicResource L.Browse}"
+                  Click="OnBrowseClick" />
+        </Grid>
+      </StackPanel>
+
+      <Grid ColumnDefinitions="160,*">
+        <TextBlock Text="{DynamicResource L.Format}" VerticalAlignment="Center" FontSize="13" />
+        <ComboBox Grid.Column="1"
+                  Classes="settings"
+                  Width="160"
+                  HorizontalAlignment="Left"
+                  ItemsSource="{Binding FormatNames}"
+                  SelectedIndex="{Binding FormatIndex, Mode=TwoWay}" />
+      </Grid>
+
+      <Grid ColumnDefinitions="160,*">
+        <TextBlock Text="{DynamicResource L.EstimatedSize}" VerticalAlignment="Center" FontSize="13" />
+        <TextBlock Grid.Column="1"
+                   Text="{Binding EstimateText}"
+                   FontSize="13"
+                   Foreground="{DynamicResource InkSecondary}"
+                   VerticalAlignment="Center" />
+      </Grid>
+
+      <TextBlock Text="{DynamicResource L.SaveCopyHint}"
+                 FontSize="12"
+                 Foreground="{DynamicResource InkTertiary}"
+                 TextWrapping="Wrap" />
+      <TextBlock Text="{Binding ErrorMessage}"
+                 FontSize="12"
+                 Foreground="{DynamicResource Danger}"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Border Grid.Row="2"
+            BorderBrush="{DynamicResource Border}"
+            BorderThickness="0,1,0,0"
+            Padding="24,12">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+        <Button Classes="secondary" Content="{DynamicResource L.Cancel}" Click="OnCancelClick" />
+        <Button Classes="primary"
+                Content="{DynamicResource L.Save}"
+                Command="{Binding SaveCommand}" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>
