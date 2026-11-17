@@ -32,9 +32,9 @@ it instead of reserving fixed rows.
 
 ### Performance
 
-- NativeAOT `win-x64`: 24 MP first window 208.2 ms median, first frame 412.5 ms.
-- 100 MP fit-window first frame 299.8 ms; 100 MP at 100% peaks at 453.6 MB and settles
-  at 84.1 MB working set.
+- NativeAOT `win-x64`: 24 MP first window 195.3 ms median, first frame 325.5 ms.
+- 100 MP fit-window first frame 300.8 ms; 100 MP at 100% peaks at 454.8 MB and settles
+  at 83.4 MB working set.
 
 ## [0.1.2] - 2026-11-17
 

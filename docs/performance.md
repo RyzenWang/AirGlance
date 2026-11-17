@@ -61,25 +61,25 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | ≤ 500 ms | **208.2 ms** (282.3) | pass |
-| First frame | ≤ 500 ms | **412.5 ms** (423.7) | pass |
-| Decode | — | **58.1 ms** (63.8) | — |
-| Peak working set | ≤ 250 MB | **82.4 MB** (82.6) | pass |
+| First window | ≤ 500 ms | **195.3 ms** (200.0) | pass |
+| First frame | ≤ 500 ms | **325.5 ms** (340.4) | pass |
+| Decode | — | **58.0 ms** (61.2) | — |
+| Peak working set | ≤ 250 MB | **78.0 MB** (78.6) | pass |
 
 Raw runs:
 
 ```text
 Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
-  1 282.3           423.7          58.0      24.0     82.5 506.0
-  2 210.4           384.1          57.8      24.0     82.4 456.9
-  3 208.0           397.6          57.3      24.0     82.4 472.7
-  4 208.4           413.4          58.0      24.0     82.3 494.0
-  5 206.5           412.0          58.2      24.0     82.4 487.3
-  6 205.4           414.2          58.3      24.0     82.4 494.5
-  7 203.4           413.0          57.8      24.0     82.4 491.6
-  8 204.5           380.5          63.8      24.0     82.5 461.8
-  9 218.5           410.9          58.1      24.0     82.4 510.0
- 10 213.9           423.4          58.1      24.0     82.4 498.9
+  1 195.3           304.9          58.0      24.0     77.1       372.3
+  2 196.4           310.6          57.9      24.0     77.1       372.5
+  3 200.0           329.1          59.1      24.0     78.0       388.0
+  4 195.2           326.3          58.0      24.0     78.2       386.7
+  5 197.7           340.4          61.2      24.0     78.4       393.5
+  6 190.3           334.1          57.4      24.0     78.6       386.7
+  7 199.8           329.1          57.9      24.0     77.9       388.3
+  8 194.7           324.7          57.5      24.0     78.1       385.1
+  9 192.4           306.0          60.5      24.0     77.3       369.1
+ 10 189.2           303.2          59.0      24.0     77.5       370.5
 ```
 
 ### 100 MP JPEG, fit window
@@ -88,12 +88,12 @@ Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | — | 216.7 ms | — |
-| First frame | ≤ 2.0 s | **299.8 ms** | pass |
-| Decode | — | 143.8 ms | — |
-| Peak working set | — | 78.2 MB | — |
+| First window | — | 194.4 ms | — |
+| First frame | ≤ 2.0 s | **300.8 ms** | pass |
+| Decode | — | 151.0 ms | — |
+| Peak working set | — | 76.8 MB | — |
 
-Raw runs: 299.8, 295.6, 304.7, 318.5, 293.6 ms.
+Raw runs: 295.6, 340.0, 299.1, 307.7, 300.8 ms.
 
 ### 100 MP JPEG at 100%
 
@@ -108,11 +108,11 @@ The workflow was:
 
 | Point | Working set | Private bytes |
 | --- | --- | --- |
-| Fit-window preview | 69.6 MB | 40.2 MB |
-| 1 second after pressing `1` | 453.6 MB | 426.1 MB |
-| 2 seconds after pressing `1` | 84.1 MB | 55.9 MB |
-| Peak during the run | 453.6 MB | — |
-| Steady state at 100% | 84.1 MB | 55.9 MB |
+| Fit-window preview | 72.2 MB | 41.8 MB |
+| 1 second after pressing `1` | 454.8 MB | 426.1 MB |
+| 2 seconds after pressing `1` | 83.4 MB | 52.9 MB |
+| Peak during the run | 454.8 MB | — |
+| Steady state at 100% | 83.4 MB | 52.9 MB |
 
 The temporary tile file is about 400 MB while the image is open. The 400 MB full decode
 is unmanaged and is freed as soon as the 512 px tiles are written; only the visible tile
@@ -146,7 +146,7 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 
 | Artifact | Size | SHA256 |
 | --- | --- | --- |
-| `AirGlance-0.1.3-win-x64.zip` | see release | see `SHA256SUMS.txt` |
+| `AirGlance-0.1.3-win-x64.zip` | **15.55 MB** | `f95a4c1d73c78929c32ffa0048bb6bf14b5c8c80165802c277df696dbffb4658` |
 
 The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md)
 and unpacks to about 37 MB. The 30 MB target applies to the zip, not the unpacked
@@ -175,7 +175,7 @@ image-initialized=200.7
 ```
 
 The window content now takes about 14 ms (`window-ctor-ui`). The old MainWindow XAML
-build cost about 370 ms; 0.1.1 and 0.1.2 build the same chrome in C# and leaves the filmstrip,
+build cost about 370 ms; 0.1.1–0.1.3 build the same chrome in C# and leaves the filmstrip,
 information panel and context menu in XAML, loaded after the first frame. The 24 MP
 decode (about 57 ms) overlaps window construction and image initialisation. The
 remaining gap from `image-initialized` to the first painted frame is about 100 ms.
