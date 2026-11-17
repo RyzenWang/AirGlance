@@ -42,6 +42,21 @@ tar -xzf AirGlance-0.1.1-linux-x64.tar.gz
 
 The archive also contains `airglance.desktop` and PNG icons. Copy them into `~/.local/share/applications/` and `~/.local/share/icons/hicolor/` for a menu entry. The portable build registers no default handler.
 
+### Platform status
+
+The release publishes six archives. Runtime verification is narrower than that:
+
+| Platform | Archive | NativeAOT binary actually run |
+| --- | --- | --- |
+| Windows x64 | `win-x64.zip` | **Verified** on the reference machine (0.1.1) |
+| Linux x64 | `linux-x64.tar.gz` | **Verified** by the maintainer |
+| Windows arm64 | `win-arm64.zip` | Unverified |
+| macOS arm64 | `osx-arm64.zip` | Unverified |
+| macOS x64 | `osx-x64.zip` | Unverified |
+| Linux arm64 | `linux-arm64.tar.gz` | Unverified |
+
+"Verified" means the AOT binary was launched and displayed an image. The other archives are produced by CI but have not been run on their platform. Clipboard paste into other applications and Windows display scaling above 100% are also unverified; see [shipping](docs/shipping.md).
+
 ## Keyboard
 
 | Key | Action |
@@ -88,7 +103,7 @@ These are limitations, not a promise list.
 - No tabs. The viewer is one folder per window. No tray icon and no single-instance forwarding.
 - No cropping and no lossless JPEG rotation. Rotate and flip only change what is on screen.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
-- 100 MP images can be viewed at fit-window size comfortably, but zooming to 100% decodes the full image and can use a lot of memory.
+- 100 MP images can be viewed at fit-window size comfortably, but zooming to 100% decodes the full image. Measured peak working set for a 10000 × 10000 JPEG at 100% is about **842 MB** on Windows x64; it did not crash on the 32 GB reference machine, but it is heavy on smaller machines.
 - The 0.1 Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
 
 ## Build from source

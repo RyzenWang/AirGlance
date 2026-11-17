@@ -21,6 +21,27 @@ Archive names use the three-part product version `0.1.1`. MSIX names use the fou
 
 The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for review and Partner Center.
 
+## Runtime verification status
+
+The release matrix is about artifacts, not runtime coverage. The v0.1.1 status is:
+
+| Target | Artifact built | AOT binary run |
+| --- | --- | --- |
+| Windows x64 | yes | **yes** — release zip checksum verified, launched, benchmarked, 100 MP image viewed |
+| Linux x64 | yes | **yes** — verified by the maintainer outside this repository's CI |
+| Windows arm64 | yes | unverified |
+| macOS arm64 | yes | unverified |
+| macOS x64 | yes | unverified |
+| Linux arm64 | yes | unverified |
+
+Two further gaps are recorded rather than claimed as passing:
+
+- Clipboard copy is implemented for image bytes, a bitmap and plain-text paths, but pasting the original bytes into a second application was not exercised on a real desktop in 0.1.1.
+- Windows display scaling at 125%, 150% and 200% was not tested. The reference machine runs at 100% (96 DPI); text clipping at higher scaling is unverified.
+- No WACK pass or Store installation has been recorded for 0.1.1. The MSIX packages are unsigned.
+
+The macOS and arm64 archives remain published because they are useful for testing, but treat them as unverified until someone runs them on that platform.
+
 ## Build prerequisites
 
 - .NET SDK 10.0.100. `global.json` uses `rollForward: latestFeature` with `allowPrerelease: false`.

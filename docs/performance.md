@@ -95,6 +95,32 @@ Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
 
 Raw runs: 323.3, 297.4, 303.9, 294.3, 332.5 ms.
 
+### 100 MP JPEG at 100%
+
+This is a known heavy path, not a budget target. The workflow was:
+
+1. Launch the published `v0.1.1` `win-x64` artifact with
+   `tools/testdata/photo-100mp.jpg`.
+2. Wait for the fit-window preview.
+3. Press `1` (actual size) and sample `WorkingSet64` once a second.
+
+| Point | Working set |
+| --- | --- |
+| Fit-window preview | 78.8 MB |
+| 1 second after pressing `1` | 435.7 MB |
+| 2 seconds after pressing `1` | 836.1 MB |
+| Peak during the run | 842.0 MB |
+| Steady state at 100% | 836.1 MB |
+
+The window stayed responsive, showed `10000 × 10000 · 100%`, and did not crash. The
+full image is 10000 × 10000 BGRA: about 400 MB for the decoded pixels, about 400 MB
+for the Avalonia bitmap, plus the preview and cache. The 250 MB fit-window budget does
+not apply to this path.
+
+The 0.1.1 full-resolution decode has no time-to-first-pixel stopwatch in the app. The
+memory samples show the image was present within the first two seconds on this machine;
+the exact latency was not measured.
+
 ### 500-image folder
 
 `AirGlance.exe --bench=scan <folder>` enumerates the folder and decodes the first eight
