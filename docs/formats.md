@@ -40,6 +40,7 @@ The info panel reads the profile separately from the file header:
 | AVIF | Not listed and not opened |
 | RAW (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2 and others) | Not listed and not opened |
 | TIFF (`.tif`, `.tiff`) | Not listed and not opened |
+| SVG | Not listed and not opened; SkiaSharp does not decode SVG without a separate package |
 | Animated GIF beyond frame 1 | Frame 1 is shown; there is no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 

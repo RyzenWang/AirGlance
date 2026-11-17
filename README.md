@@ -6,7 +6,7 @@
 
 AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.1.2 is the current build; 0.1.0 was the first public build. It is deliberately small.
 
-- [Download](#install) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
+- [Download](#install) · [Image formats](#image-formats) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
 
 ## What it does
 
@@ -18,6 +18,30 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - Fullscreen, a 3 / 5 / 10 second slideshow, and an information panel with file, image, ICC and EXIF fields.
 - English and Chinese switch at runtime. Light, dark and follow-system themes; the system high-contrast setting is honoured.
 - Settings and thumbnails stay on your machine. There is no account, no telemetry, and no network code.
+
+## Image formats
+
+A file is recognised by its extension, and the content must also decode with SkiaSharp. The supported formats are:
+
+| Format | Extensions | Notes |
+| --- | --- | --- |
+| JPEG | `.jpg`, `.jpeg`, `.jfif` | EXIF orientation and embedded ICC to sRGB. JPEG copies flatten transparency onto white. |
+| PNG | `.png` | Alpha and embedded ICC are preserved. A 16-bit PNG is reported as 16-bit but displayed and saved at 8-bit. |
+| WebP | `.webp` | Still images with alpha; embedded ICC to sRGB. |
+| BMP | `.bmp` | Decoded through SkiaSharp. |
+| GIF | `.gif` | First frame only; there is no animation playback. |
+| ICO | `.ico` | One image is selected from the icon by the codec. |
+
+Not supported:
+
+- HEIC / HEIF
+- AVIF
+- TIFF (`.tif`, `.tiff`)
+- RAW camera formats such as CR2, CR3, NEF, ARW, DNG, RAF, ORF and RW2
+- SVG
+- Video files such as MP4, MOV, WebM and MKV
+
+The formats above are deliberately absent; there is no platform-codec fallback. Renaming a file to a supported extension does not help: the content check still fails, and the file is reported as corrupt rather than opened. Files with an unsupported extension are rejected even if their content happens to be a supported image.
 
 ## Install
 
