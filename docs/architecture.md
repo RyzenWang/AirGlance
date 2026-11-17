@@ -1,6 +1,6 @@
 # Architecture
 
-AirGlance 0.1.2 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
+AirGlance 0.1.3 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
 
@@ -81,7 +81,11 @@ The rule is deliberate:
 
 `MainWindow` is intentionally thin. It handles the keyboard map, drag and drop, file and folder pickers, the context menu, fullscreen, clipboard writes, settings and help dialogs, and window/zoom persistence. It creates one `MainWindowViewModel`, which owns the folder and current image.
 
-The window chrome (title bar, canvas host, status bar and drag overlay) is built in C#. The earlier XAML version cost about 370 ms of the first-window time; the same tree built in code is about 15 ms. The filmstrip and information panel remain XAML and are loaded after the first frame. The window subscribes to `MainWindowViewModel.PropertyChanged` and applies visibility, text and fullscreen state imperatively; static labels are refreshed from `LocalizationService.LanguageChanged`.
+The window is an image-first overlay: the `ImageViewer` fills the canvas, while the top folder/file chips, bottom dock, side navigation, filmstrip and information drawer are separate overlay controls. The dock and side buttons fade after 2.5 seconds of idle and return on pointer movement. The filmstrip and information panel are mutually exclusive drawers, so opening one does not shrink or cover the other. The window subscribes to `MainWindowViewModel.PropertyChanged` and applies visibility, text and fullscreen state imperatively; static labels are refreshed from `LocalizationService.LanguageChanged`.
+
+The earlier XAML chrome cost about 370 ms of the first-window time; the same overlay tree built in code is about 15 ms. The filmstrip and information panel remain XAML and are loaded after the first frame. The context menu is built on the first right-click instead of during window construction.
+
+Mouse input is split by modifier: the wheel browses previous/next with a small accumulation threshold for trackpads, `Ctrl/Cmd + wheel` zooms at the pointer, and `Shift + wheel` pans. Left/right keys always browse; after the redesign they no longer become pan commands when the image is wider than the window.
 
 The filmstrip and information panel are separate views (`FilmstripView`, `InfoPanelView`) loaded one frame after the first image is painted. The window therefore appears and shows pixels before those panels exist; this matches the "window first, panels later" startup rule and keeps their XAML out of the first-frame path. The context menu is also built on the first right-click instead of during window construction.
 
@@ -97,7 +101,7 @@ The filmstrip and information panel are separate views (`FilmstripView`, `InfoPa
 ### App services
 
 - `AppServices` is created once per process. It loads settings, applies the saved language and theme, opens the thumbnail cache and starts the 30-day cleanup on the thread pool. It saves settings when a setting changes and again on exit. It also exposes the assembly version and a shell helper for the project links. It has no network client.
-- `LocalizationService` keeps a catalog of roughly 150 English/Chinese key pairs (153 at 0.1.2). XAML text uses `{DynamicResource L.*}`; text built in code uses `T` and `Format`. Applying a language builds a merged `ResourceDictionary`, removes the previous language dictionary and adds the new one. `LanguageChanged` refreshes view models and windows, so switching English/Chinese does not restart the app. The default follows the OS UI culture: a `zh*` culture selects Simplified Chinese, everything else English.
+- `LocalizationService` keeps a catalog of roughly 150 English/Chinese key pairs (153 at 0.1.3). XAML text uses `{DynamicResource L.*}`; text built in code uses `T` and `Format`. Applying a language builds a merged `ResourceDictionary`, removes the previous language dictionary and adds the new one. `LanguageChanged` refreshes view models and windows, so switching English/Chinese does not restart the app. The default follows the OS UI culture: a `zh*` culture selects Simplified Chinese, everything else English.
 - `ThemeService` normalizes `System`, `Light` or `Dark` and sets `Application.RequestedThemeVariant`. System mode follows `PlatformSettings.ColorValuesChanged`. When the OS reports high contrast, the service adds a high-contrast `ResourceDictionary` on top of the selected light/dark theme and maps the system accent to the `Coral` and `Teal` marks used for selection and focus. High contrast follows the OS even when light/dark is an explicit choice.
 - `BenchmarkRecorder` measures from the operating system's process start time. Startup mode records first window, first frame, decode time, image megapixels and peak working set, then exits after the first frame. Decode mode exits after a 1600 × 1000 decode. Scan mode times folder enumeration and the first eight 160 px thumbnails, and reports `scan_ms`, `thumbnail_ms`, `total_ms`, `files` and `peak_ws_mb`. All modes write `key=value` lines to stdout and exit 1 with `error=<message>` on failure.
 - `StartupTrace` reads `AIRGLANCE_STARTUP_TRACE` once. When it is `1`, it writes marks to stderr relative to the process start time. Normal runs only pay for the environment read.

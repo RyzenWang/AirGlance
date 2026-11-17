@@ -21,4 +21,7 @@ public partial class ImageItemViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _thumbnailFailed;
+
+    [ObservableProperty]
+    private bool _isCurrent;
 }

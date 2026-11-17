@@ -49,13 +49,17 @@
             <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Space / Backspace" /></Border>
             <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutSpace}" VerticalAlignment="Center" />
           </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Wheel" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutWheel}" VerticalAlignment="Center" />
+          </Grid>
         </StackPanel>
 
         <StackPanel Spacing="8">
           <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupZoom}" />
           <Grid ColumnDefinitions="190,*">
-            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Wheel" /></Border>
-            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutWheel}" VerticalAlignment="Center" />
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl + Wheel" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutCtrlWheel}" VerticalAlignment="Center" />
           </Grid>
           <Grid ColumnDefinitions="190,*">
             <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="+ / -" /></Border>
@@ -78,7 +82,7 @@
             <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutPanels}" VerticalAlignment="Center" />
           </Grid>
           <Grid ColumnDefinitions="190,*">
-            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="F11" /></Border>
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="F / F11" /></Border>
             <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutFullscreen}" VerticalAlignment="Center" />
           </Grid>
           <Grid ColumnDefinitions="190,*">

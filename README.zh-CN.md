@@ -4,7 +4,7 @@
 
 **一个文件夹，一眼看完。**
 
-AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.1.2，0.1.0 是首个公开版本。它刻意保持小巧。
+AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.1.3，0.1.0 是首个公开版本。它刻意保持小巧。
 
 - [下载](#安装) · [图片格式](#图片格式) · [键盘](#键盘) · [性能](#性能) · [已知限制](#已知限制) · [从源码构建](#从源码构建)
 
@@ -56,24 +56,24 @@ AirGlance 刻意在所有平台使用同一个解码器，不回退到系统编�
 
 ## 安装
 
-0.1.2 尚未上产品站。请从 [v0.1.2 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.2) 下载。
+0.1.3 尚未上产品站。请从 [v0.1.3 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.3) 下载。
 
 ### Windows
 
-1. 下载 `AirGlance-0.1.2-win-x64.zip`（或 `win-arm64`）。
+1. 下载 `AirGlance-0.1.3-win-x64.zip`（或 `win-arm64`）。
 2. 解压到任意位置，运行 `AirGlance.exe`。
 
 0.1 便携版没有代码签名，首次运行会出现 SmartScreen 警告。选择 **更多信息 → 仍要运行**。可执行文件是 NativeAOT 构建，不需要安装 .NET 运行时。
 
 ### macOS
 
-1. 下载 `AirGlance-0.1.2-osx-arm64.zip` 或 `-osx-x64.zip`。
+1. 下载 `AirGlance-0.1.3-osx-arm64.zip` 或 `-osx-x64.zip`。
 2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.1 尚未公证。
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.1.2-linux-x64.tar.gz
+tar -xzf AirGlance-0.1.3-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -85,7 +85,7 @@ tar -xzf AirGlance-0.1.2-linux-x64.tar.gz
 
 | 平台 | 压缩包 | 实际运行过 NativeAOT 二进制 |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **已验证**（参考机器，0.1.2） |
+| Windows x64 | `win-x64.zip` | **已验证**（参考机器，0.1.3） |
 | Linux x64 | `linux-x64.tar.gz` | **已验证**（维护者） |
 | Windows arm64 | `win-arm64.zip` | 未验证 |
 | macOS arm64 | `osx-arm64.zip` | 未验证 |
@@ -96,17 +96,27 @@ tar -xzf AirGlance-0.1.2-linux-x64.tar.gz
 
 ## 键盘
 
+鼠标 / 触控板：
+
+| 操作 | 行为 |
+| --- | --- |
+| 滚轮 | 上一张 / 下一张 |
+| Ctrl/Cmd + 滚轮 | 以指针为中心缩放 |
+| 拖动 | 图片大于视口时平移 |
+| 双击 | 在适应窗口与 100% 之间切换 |
+| 左右边缘按钮 | 上一张 / 下一张 |
+
 | 按键 | 操作 |
 | --- | --- |
 | `Ctrl+O` / `Ctrl+Shift+O` | 打开图片 / 文件夹 |
-| `←` `→` | 上一张 / 下一张；图片比窗口宽时平移 |
+| `←` `→` | 上一张 / 下一张 |
 | `PgUp` `PgDn` | 上一张 / 下一张（始终） |
 | `Space` / `Backspace` | 下一张 / 上一张 |
 | `+` `-` | 以指针为中心放大 / 缩小 |
 | `0` `1` `2` | 适应窗口 / 100% / 适应宽度 |
 | `R` / `Shift+R` | 顺时针 / 逆时针旋转 |
 | `H` / `V` | 水平 / 垂直翻转 |
-| `F11` / `Esc` | 全屏；退出全屏或关闭窗口 |
+| `F` / `F11` / `Esc` | 全屏；退出全屏或关闭浮层 |
 | `S` | 开始或停止幻灯片；任意键停止 |
 | `I` / `C` | 信息面板 / 胶片条 |
 | `Ctrl+C` / `Ctrl+Shift+C` | 复制图片 / 复制路径 |
@@ -120,15 +130,15 @@ tar -xzf AirGlance-0.1.2-linux-x64.tar.gz
 
 在 Windows 10 Pro 22H2 (19045)、Intel Xeon E5-2697 v4、32 GB 内存、.NET 10.0.14、NativeAOT `win-x64` 上测量。每行十个全新进程，取 `tools/bench.ps1` 的中位数；完整方法和原始数据见 [docs/performance.md](docs/performance.md)。
 
-| 指标 | 目标 | 0.1.2 |
+| 指标 | 目标 | 0.1.3 |
 | --- | --- | --- |
-| 冷启动到首窗 | ≤ 500 ms | 188.8 ms |
-| 24 MP JPEG 首帧 | ≤ 500 ms | 302.4 ms |
-| 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 293.1 ms |
-| 24 MP 适应窗口内存峰值 | ≤ 250 MB | 76.5 MB |
+| 冷启动到首窗 | ≤ 500 ms | 208.2 ms |
+| 24 MP JPEG 首帧 | ≤ 500 ms | 412.5 ms |
+| 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 299.8 ms |
+| 24 MP 适应窗口内存峰值 | ≤ 250 MB | 82.4 MB |
 | Windows x64 便携 zip | ≤ 30 MB | 15.52 MB |
 
-0.1.2 在参考机器上达到启动和首帧目标：窗口约 189 ms 出现，24 MP 图片约 302 ms 上屏。窗口外壳用 C# 构建而不是 XAML，移除了最大的一项首帧开销；解码与建窗重叠。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
+0.1.3 在参考机器上达到启动和首帧目标：窗口约 208 ms 出现，24 MP 图片约 413 ms 上屏。窗口外壳用 C# 构建而不是 XAML，移除了最大的一项首帧开销；解码与建窗重叠。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
 
 ## 已知限制
 
@@ -140,7 +150,7 @@ tar -xzf AirGlance-0.1.2-linux-x64.tar.gz
 - 没有标签页。一个窗口对应一个文件夹。没有托盘图标，也没有单实例转发。
 - 没有裁剪，也没有无损 JPEG 旋转。旋转和翻转只改变屏幕显示。
 - 16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。
-- 100 MP 图片在 100% 时使用基于文件的分块缓存：10000 × 10000 JPEG 的实测工作集峰值约 **452 MB**，分块写完后稳定在约 **83 MB**。图片打开期间临时分块文件约 400 MB。48 MP PNG 仍可能峰值接近 300 MB，因为 PNG 预览解码无法由编解码器缩放；内存较小的机器查看超大 PNG 时建议使用适应窗口。
+- 100 MP 图片在 100% 时使用基于文件的分块缓存：10000 × 10000 JPEG 的实测工作集峰值约 **454 MB**，分块写完后稳定在约 **84 MB**。图片打开期间临时分块文件约 400 MB。48 MP PNG 仍可能峰值接近 300 MB，因为 PNG 预览解码无法由编解码器缩放；内存较小的机器查看超大 PNG 时建议使用适应窗口。
 - 0.1 Windows 便携版未签名，macOS 版未公证。MSIX 包尚未发布。
 
 ## 从源码构建

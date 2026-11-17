@@ -129,8 +129,8 @@ public sealed class MainWindowViewModelTests : IDisposable
 
         _viewModel.ToggleInfo();
         _viewModel.ToggleFilmstrip();
-        Assert.True(_viewModel.InfoVisible);
-        Assert.False(_viewModel.FilmstripVisible);
+        Assert.False(_viewModel.InfoVisible);
+        Assert.True(_viewModel.FilmstripVisible);
 
         _services.Settings.Checkerboard = false;
         _services.SaveSettings();
@@ -141,8 +141,8 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.False(_viewModel.InfoShown);
 
         _viewModel.SetFullscreen(false);
-        Assert.False(_viewModel.FilmstripShown);
-        Assert.True(_viewModel.InfoShown);
+        Assert.True(_viewModel.FilmstripShown);
+        Assert.False(_viewModel.InfoShown);
     }
 
     [AvaloniaFact]

@@ -17,24 +17,32 @@
     </ListBox.ItemsPanel>
     <ListBox.ItemTemplate>
       <DataTemplate x:DataType="vm:ImageItemViewModel">
-        <StackPanel Width="164" Spacing="3" Margin="2">
-          <Border Width="160" Height="68" CornerRadius="6" Background="{DynamicResource Surface}" ClipToBounds="True">
-            <Grid>
-              <Path Data="{DynamicResource IconImage}"
-                    Stroke="{DynamicResource InkTertiary}"
-                    StrokeThickness="1.4"
-                    Width="24"
-                    Height="24"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center" />
-              <Image Source="{Binding Thumbnail}"
-                     Stretch="Uniform"
-                     RenderOptions.BitmapInterpolationMode="HighQuality" />
-            </Grid>
-          </Border>
+        <StackPanel Width="100" Spacing="3" Margin="2">
+          <Grid>
+            <Border Width="92" Height="56" CornerRadius="6" Background="#20262E" ClipToBounds="True">
+              <Grid>
+                <Path Data="{DynamicResource IconImage}"
+                      Stroke="{DynamicResource InkTertiary}"
+                      StrokeThickness="1.4"
+                      Width="22"
+                      Height="22"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center" />
+                <Image Source="{Binding Thumbnail}"
+                       Stretch="Uniform"
+                       RenderOptions.BitmapInterpolationMode="HighQuality" />
+              </Grid>
+            </Border>
+            <Border BorderBrush="{DynamicResource Coral}"
+                    BorderThickness="2"
+                    CornerRadius="6"
+                    IsVisible="{Binding IsCurrent}"
+                    IsHitTestVisible="False" />
+          </Grid>
           <TextBlock Text="{Binding FileName}"
                      Classes="image-name"
-                     MaxWidth="160"
+                     Classes.current="{Binding IsCurrent}"
+                     MaxWidth="92"
                      HorizontalAlignment="Left" />
         </StackPanel>
       </DataTemplate>

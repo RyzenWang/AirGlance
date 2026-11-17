@@ -29,6 +29,12 @@ public sealed class ViewportChangedEventArgs(int pixelWidth, int pixelHeight) : 
     public int PixelHeight { get; } = pixelHeight;
 }
 
+public sealed class NavigateRequestedEventArgs(int direction) : EventArgs
+{
+    /// <summary>-1 for previous, +1 for next.</summary>
+    public int Direction { get; } = direction;
+}
+
 /// <summary>
 /// The image canvas. It owns zoom and pan so wheel anchoring stays correct, draws the
 /// checkerboard and the nearest/high-quality choice, and reports the visible zoom so the
@@ -84,6 +90,8 @@ public sealed class ImageViewer : Control
     private bool _hasSource;
     private Size _lastViewport;
     private TiledImageSource? _tiles;
+    private double _wheelAccumulator;
+    private DateTime _lastWheelNavigation;
 
     public ImageViewer()
     {
@@ -103,6 +111,8 @@ public sealed class ImageViewer : Control
     public event EventHandler<ZoomChangedEventArgs>? ZoomChanged;
 
     public event EventHandler<ViewportChangedEventArgs>? ViewportChanged;
+
+    public event EventHandler<NavigateRequestedEventArgs>? NavigateRequested;
 
     /// <summary>Raised once, after the first image has actually been painted.</summary>
     public event EventHandler? FirstFramePresented;
@@ -456,16 +466,34 @@ public sealed class ImageViewer : Control
             return;
         }
 
-        var position = e.GetPosition(this);
-
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        var zoomModifier = e.KeyModifiers.HasFlag(KeyModifiers.Control) ||
+                           e.KeyModifiers.HasFlag(KeyModifiers.Meta);
+        if (zoomModifier)
+        {
+            var factor = Math.Pow(1.25, e.Delta.Y);
+            ZoomAt(e.GetPosition(this), factor);
+        }
+        else if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             PanBy(e.Delta.Y * 80 + e.Delta.X * 80, 0);
         }
         else
         {
-            var factor = Math.Pow(1.25, e.Delta.Y);
-            ZoomAt(position, factor);
+            var delta = Math.Abs(e.Delta.Y) >= Math.Abs(e.Delta.X) ? e.Delta.Y : e.Delta.X;
+            var now = DateTime.UtcNow;
+            if ((now - _lastWheelNavigation).TotalMilliseconds > 500)
+            {
+                _wheelAccumulator = 0;
+            }
+
+            _wheelAccumulator += delta;
+            if (Math.Abs(_wheelAccumulator) >= 1.0)
+            {
+                var direction = _wheelAccumulator > 0 ? -1 : 1;
+                _wheelAccumulator = 0;
+                _lastWheelNavigation = now;
+                NavigateRequested?.Invoke(this, new NavigateRequestedEventArgs(direction));
+            }
         }
 
         e.Handled = true;

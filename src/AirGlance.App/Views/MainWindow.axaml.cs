@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private readonly BenchmarkRecorder? _benchmark;
     private readonly MainWindowViewModel _viewModel;
     private readonly DispatcherTimer _cursorTimer;
+    private readonly DispatcherTimer _chromeTimer;
     private readonly DispatcherTimer? _benchmarkTimeout;
     private readonly ImageViewer Viewer = new();
     private WindowState _stateBeforeFullscreen = WindowState.Normal;
@@ -38,28 +39,51 @@ public partial class MainWindow : Window
     private bool _isFullscreen;
     private bool _initialZoomApplied;
     private bool _cursorHidden;
+    private bool _chromeVisible = true;
 
-    private Border TitleBar = null!;
+    private Border TopBar = null!;
+    private Border FolderChip = null!;
+    private Border BrandChip = null!;
+    private Border FileChip = null!;
+    private Border WindowChip = null!;
     private Border CanvasBorder = null!;
+    private Border Dock = null!;
     private Border InfoHost = null!;
     private Border FilmstripHost = null!;
-    private Border StatusBar = null!;
+    private ContentControl InfoContentHost = null!;
+    private Border EmptyCard = null!;
     private Border LoadingChip = null!;
     private Border DragOverlay = null!;
+    private Border ToastBorder = null!;
     private StackPanel CaptionButtons = null!;
-    private StackPanel OverlayPanel = null!;
-    private StackPanel StatusLeft = null!;
     private TextBlock FileNameText = null!;
+    private TextBlock FolderNameText = null!;
+    private TextBlock FolderCountText = null!;
+    private TextBlock FileMetaText = null!;
+    private TextBlock FilePositionText = null!;
     private TextBlock OverlayTitle = null!;
     private TextBlock OverlayMessage = null!;
     private TextBlock OverlayHint = null!;
     private TextBlock LoadingText = null!;
     private TextBlock DropHintText = null!;
-    private TextBlock StatusDimensions = null!;
-    private TextBlock StatusPosition = null!;
     private TextBlock TransientMessageText = null!;
+    private TextBlock DockZoomText = null!;
+    private TextBlock InfoTitleText = null!;
+    private Button EmptyOpenFolderButton = null!;
+    private Button EmptyOpenImageButton = null!;
     private Button ZoomButton = null!;
-    private Button GitHubButton = null!;
+    private Button ZoomInButton = null!;
+    private Button ZoomOutButton = null!;
+    private Button FitButton = null!;
+    private Button ActualButton = null!;
+    private Button RotateButton = null!;
+    private Button InfoToggle = null!;
+    private Button FilmstripToggle = null!;
+    private Button SlideshowButton = null!;
+    private Button FullscreenButton = null!;
+    private Button SettingsButton = null!;
+    private Button PrevButton = null!;
+    private Button NextButton = null!;
     private Button MinimizeButton = null!;
     private Button MaximizeButton = null!;
     private Button CloseButton = null!;
@@ -103,6 +127,9 @@ public partial class MainWindow : Window
 
         _cursorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _cursorTimer.Tick += OnCursorTimerTick;
+        _chromeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        _chromeTimer.Tick += OnChromeTimerTick;
+        Viewer.NavigateRequested += OnViewerNavigateRequested;
 
         if (benchmark?.Mode == BenchmarkMode.Startup)
         {
@@ -153,66 +180,14 @@ public partial class MainWindow : Window
         Title = "AirGlance";
         Classes.Add("shell");
 
-        var root = new Grid
+        var root = new Grid();
+
+        // The image owns the whole window. Overlay chrome floats above it.
+        CanvasBorder = new Border
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto")
+            ClipToBounds = true,
+            Padding = new Thickness(48, 42, 48, 58)
         };
-
-        // Title row.
-        TitleBar = new Border { Height = 44 };
-        TitleBar.Classes.Add("titlebar");
-        TitleBar.PointerPressed += OnTitleBarPointerPressed;
-
-        var titleGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto")
-        };
-
-        var brand = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 9,
-            Margin = new Thickness(14, 0, 0, 0),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        var brandMark = new Border();
-        brandMark.Classes.Add("brandmark");
-        var brandGlyph = new ShapePath { Data = FindGeometry("IconBrand") };
-        brandGlyph.Classes.Add("brand-glyph");
-        brandMark.Child = brandGlyph;
-        brand.Children.Add(brandMark);
-        var brandName = new TextBlock { Text = "AirGlance" };
-        brandName.Classes.Add("brand-name");
-        brand.Children.Add(brandName);
-        titleGrid.Children.Add(brand);
-
-        FileNameText = new TextBlock { Margin = new Thickness(16, 0) };
-        FileNameText.Classes.Add("filename");
-        Grid.SetColumn(FileNameText, 1);
-        titleGrid.Children.Add(FileNameText);
-
-        CaptionButtons = new StackPanel { Orientation = Orientation.Horizontal };
-        MinimizeButton = CreateCaptionButton("IconMinimize", "L.Minimize", OnMinimizeClick);
-        MaximizeButton = CreateCaptionButton("IconMaximize", "L.Maximize", OnMaximizeClick);
-        MaximizeIcon = (ShapePath)MaximizeButton.Content!;
-        CloseButton = CreateCaptionButton("IconClose", "L.Close", OnCloseClick, close: true);
-        CaptionButtons.Children.Add(MinimizeButton);
-        CaptionButtons.Children.Add(MaximizeButton);
-        CaptionButtons.Children.Add(CloseButton);
-        Grid.SetColumn(CaptionButtons, 2);
-        titleGrid.Children.Add(CaptionButtons);
-
-        TitleBar.Child = titleGrid;
-        Grid.SetRow(TitleBar, 0);
-        root.Children.Add(TitleBar);
-
-        // Content row.
-        var contentGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto")
-        };
-
-        CanvasBorder = new Border { ClipToBounds = true };
         CanvasBorder.Classes.Add("canvas");
 
         var canvasGrid = new Grid();
@@ -221,25 +196,6 @@ public partial class MainWindow : Window
         Viewer.ViewportChanged += OnViewerViewportChanged;
         canvasGrid.Children.Add(Viewer);
 
-        OverlayPanel = new StackPanel
-        {
-            IsVisible = false,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            MaxWidth = 480,
-            Spacing = 8
-        };
-        OverlayTitle = new TextBlock();
-        OverlayTitle.Classes.Add("overlay-title");
-        OverlayMessage = new TextBlock();
-        OverlayMessage.Classes.Add("overlay-message");
-        OverlayHint = new TextBlock { Margin = new Thickness(0, 6, 0, 0) };
-        OverlayHint.Classes.Add("overlay-hint");
-        OverlayPanel.Children.Add(OverlayTitle);
-        OverlayPanel.Children.Add(OverlayMessage);
-        OverlayPanel.Children.Add(OverlayHint);
-        canvasGrid.Children.Add(OverlayPanel);
-
         LoadingChip = new Border();
         LoadingChip.Classes.Add("loading-chip");
         LoadingText = new TextBlock { Foreground = Brushes.White, FontSize = 12 };
@@ -247,80 +203,332 @@ public partial class MainWindow : Window
         canvasGrid.Children.Add(LoadingChip);
 
         CanvasBorder.Child = canvasGrid;
-        contentGrid.Children.Add(CanvasBorder);
+        root.Children.Add(CanvasBorder);
 
-        InfoHost = new Border
-        {
-            Width = 300,
-            Margin = new Thickness(0, 12, 12, 12)
-        };
-        InfoHost.Classes.Add("panel");
-        Grid.SetColumn(InfoHost, 1);
-        contentGrid.Children.Add(InfoHost);
+        // Empty / error card.
+        EmptyCard = new Border { IsVisible = false };
+        EmptyCard.Classes.Add("empty-card");
+        EmptyCard.SetValue(Panel.ZIndexProperty, 20);
 
-        Grid.SetRow(contentGrid, 1);
-        root.Children.Add(contentGrid);
+        var emptyStack = new StackPanel { Spacing = 0 };
+        var emptyIcon = new Border();
+        emptyIcon.Classes.Add("empty-icon");
+        var emptyGlyph = new ShapePath { Data = FindGeometry("IconFolder") };
+        emptyGlyph.Classes.Add("empty-glyph");
+        emptyIcon.Child = emptyGlyph;
+        emptyStack.Children.Add(emptyIcon);
 
-        // Filmstrip host.
-        FilmstripHost = new Border { Height = 108 };
-        FilmstripHost.Classes.Add("filmstrip-host");
-        Grid.SetRow(FilmstripHost, 2);
-        root.Children.Add(FilmstripHost);
+        OverlayTitle = new TextBlock();
+        OverlayTitle.Classes.Add("empty-title");
+        emptyStack.Children.Add(OverlayTitle);
 
-        // Status row.
-        StatusBar = new Border { Height = 28 };
-        StatusBar.Classes.Add("statusbar");
-        var statusGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            Margin = new Thickness(12, 0)
-        };
+        OverlayMessage = new TextBlock { Margin = new Thickness(0, 9, 0, 0) };
+        OverlayMessage.Classes.Add("empty-message");
+        emptyStack.Children.Add(OverlayMessage);
 
-        StatusLeft = new StackPanel
+        OverlayHint = new TextBlock { Margin = new Thickness(0, 5, 0, 0) };
+        OverlayHint.Classes.Add("empty-hint");
+        emptyStack.Children.Add(OverlayHint);
+
+        var emptyActions = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Spacing = 10,
+            Margin = new Thickness(0, 22, 0, 0)
+        };
+        EmptyOpenFolderButton = new Button();
+        EmptyOpenFolderButton.Classes.Add("empty-primary");
+        EmptyOpenFolderButton.Click += OnOpenFolderClick;
+        EmptyOpenImageButton = new Button();
+        EmptyOpenImageButton.Classes.Add("empty-secondary");
+        EmptyOpenImageButton.Click += OnOpenImageClick;
+        emptyActions.Children.Add(EmptyOpenFolderButton);
+        emptyActions.Children.Add(EmptyOpenImageButton);
+        emptyStack.Children.Add(emptyActions);
+
+        var shortcutHint = new TextBlock
+        {
+            Text = "Ctrl+O  \u00B7  Ctrl+Shift+O",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 18, 0, 0)
+        };
+        shortcutHint.Classes.Add("empty-shortcut");
+        emptyStack.Children.Add(shortcutHint);
+
+        EmptyCard.Child = emptyStack;
+        root.Children.Add(EmptyCard);
+
+        // Top chrome: folder chip, file chip, window controls.
+        TopBar = new Border
+        {
+            Height = 44,
+            Margin = new Thickness(16, 12, 16, 0),
+            VerticalAlignment = VerticalAlignment.Top,
+            Background = Brushes.Transparent
+        };
+        TopBar.PointerPressed += OnTitleBarPointerPressed;
+        TopBar.SetValue(Panel.ZIndexProperty, 40);
+
+        var topGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto")
+        };
+
+        FolderChip = new Border { IsVisible = false };
+        FolderChip.Classes.Add("overlay-chip");
+        var folderRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
             VerticalAlignment = VerticalAlignment.Center
         };
-        StatusDimensions = new TextBlock();
-        StatusDimensions.Classes.Add("mono");
-        StatusDimensions.Classes.Add("status-text");
-        StatusLeft.Children.Add(StatusDimensions);
-        StatusLeft.Children.Add(CreateStatusDot());
+        folderRow.Children.Add(new ShapePath
+        {
+            Data = FindGeometry("IconFolder"),
+            Stroke = Brushes.White,
+            StrokeThickness = 1.5,
+            Width = 15,
+            Height = 15,
+            Stretch = Stretch.None
+        });
+        FolderNameText = new TextBlock();
+        FolderNameText.Classes.Add("chrome-name");
+        folderRow.Children.Add(FolderNameText);
+        FolderCountText = new TextBlock();
+        FolderCountText.Classes.Add("chrome-meta");
+        folderRow.Children.Add(FolderCountText);
+        FolderChip.Child = folderRow;
+        topGrid.Children.Add(FolderChip);
 
-        ZoomButton = new Button { Content = string.Empty };
-        ZoomButton.Classes.Add("link");
-        ZoomButton.Classes.Add("zoom-link");
+        BrandChip = new Border { IsVisible = false };
+        BrandChip.Classes.Add("overlay-chip");
+        var brandRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var brandMark = new Border();
+        brandMark.Classes.Add("chrome-icon");
+        brandMark.Child = new ShapePath
+        {
+            Data = FindGeometry("IconBrand"),
+            Stroke = Brushes.White,
+            StrokeThickness = 1.2,
+            Width = 12,
+            Height = 10,
+            Stretch = Stretch.None
+        };
+        brandRow.Children.Add(brandMark);
+        var brandName = new TextBlock { Text = "AirGlance" };
+        brandName.Classes.Add("chrome-name");
+        brandRow.Children.Add(brandName);
+        BrandChip.Child = brandRow;
+        topGrid.Children.Add(BrandChip);
+
+        FileChip = new Border
+        {
+            IsVisible = false,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        FileChip.Classes.Add("overlay-chip");
+        var fileRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        FileNameText = new TextBlock();
+        FileNameText.Classes.Add("chrome-file");
+        fileRow.Children.Add(FileNameText);
+        fileRow.Children.Add(new Border
+        {
+            Width = 1,
+            Height = 16,
+            Background = new SolidColorBrush(Color.Parse("#22FFFFFF")),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        FileMetaText = new TextBlock();
+        FileMetaText.Classes.Add("chrome-meta");
+        fileRow.Children.Add(FileMetaText);
+        FilePositionText = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#FF9A82")) };
+        FilePositionText.Classes.Add("chrome-meta");
+        fileRow.Children.Add(FilePositionText);
+        FileChip.Child = fileRow;
+        Grid.SetColumn(FileChip, 1);
+        topGrid.Children.Add(FileChip);
+
+        WindowChip = new Border { IsVisible = OperatingSystem.IsWindows(), Padding = new Thickness(4) };
+        WindowChip.Classes.Add("overlay-chip");
+        CaptionButtons = new StackPanel { Orientation = Orientation.Horizontal };
+        MinimizeButton = CreateWindowButton("IconMinimize", "L.Minimize", OnMinimizeClick);
+        MaximizeButton = CreateWindowButton("IconMaximize", "L.Maximize", OnMaximizeClick);
+        MaximizeIcon = (ShapePath)MaximizeButton.Content!;
+        CloseButton = CreateWindowButton("IconClose", "L.Close", OnCloseClick, close: true);
+        CaptionButtons.Children.Add(MinimizeButton);
+        CaptionButtons.Children.Add(MaximizeButton);
+        CaptionButtons.Children.Add(CloseButton);
+        WindowChip.Child = CaptionButtons;
+        Grid.SetColumn(WindowChip, 2);
+        topGrid.Children.Add(WindowChip);
+
+        TopBar.Child = topGrid;
+        root.Children.Add(TopBar);
+
+        // Side navigation.
+        PrevButton = CreateNavButton("IconChevronLeft", "L.PreviousImage", OnPreviousClick);
+        NextButton = CreateNavButton("IconChevronRight", "L.NextImage", OnNextClick);
+        PrevButton.HorizontalAlignment = HorizontalAlignment.Left;
+        NextButton.HorizontalAlignment = HorizontalAlignment.Right;
+        PrevButton.Margin = new Thickness(22, 0, 0, 0);
+        NextButton.Margin = new Thickness(0, 0, 22, 0);
+        PrevButton.VerticalAlignment = VerticalAlignment.Center;
+        NextButton.VerticalAlignment = VerticalAlignment.Center;
+        PrevButton.SetValue(Panel.ZIndexProperty, 35);
+        NextButton.SetValue(Panel.ZIndexProperty, 35);
+        root.Children.Add(PrevButton);
+        root.Children.Add(NextButton);
+
+        // Bottom dock.
+        Dock = new Border
+        {
+            IsVisible = false,
+            Margin = new Thickness(0, 0, 0, 22)
+        };
+        Dock.Classes.Add("dock");
+        Dock.SetValue(Panel.ZIndexProperty, 50);
+
+        var dockRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        ZoomOutButton = CreateToolButton("IconMinus", "L.ZoomOut", (_, _) => Viewer.ZoomOut());
+        dockRow.Children.Add(ZoomOutButton);
+
+        DockZoomText = new TextBlock { Text = "100%" };
+        DockZoomText.Classes.Add("dock-zoom");
+        ZoomButton = new Button
+        {
+            Content = DockZoomText,
+            Width = 48,
+            Height = 40,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0)
+        };
         ZoomButton.Click += OnZoomPresetClick;
-        StatusLeft.Children.Add(ZoomButton);
-        StatusLeft.Children.Add(CreateStatusDot());
+        dockRow.Children.Add(ZoomButton);
 
-        StatusPosition = new TextBlock();
-        StatusPosition.Classes.Add("mono");
-        StatusPosition.Classes.Add("status-text");
-        StatusLeft.Children.Add(StatusPosition);
-        statusGrid.Children.Add(StatusLeft);
+        ZoomInButton = CreateToolButton("IconPlus", "L.ZoomIn", (_, _) => Viewer.ZoomIn());
+        dockRow.Children.Add(ZoomInButton);
 
-        TransientMessageText = new TextBlock { Margin = new Thickness(12, 0) };
-        TransientMessageText.Classes.Add("transient");
-        Grid.SetColumn(TransientMessageText, 1);
-        statusGrid.Children.Add(TransientMessageText);
+        dockRow.Children.Add(CreateDockDivider());
+        FitButton = CreateToolButton("IconFit", "L.FitWindow", (_, _) => Viewer.SetZoomMode(ViewerZoomMode.FitWindow));
+        dockRow.Children.Add(FitButton);
 
-        GitHubButton = new Button { Content = "GitHub", FontSize = 12 };
-        GitHubButton.Classes.Add("link");
-        GitHubButton.Click += OnGitHubClick;
-        AutomationProperties.SetName(GitHubButton, "GitHub");
-        Grid.SetColumn(GitHubButton, 2);
-        statusGrid.Children.Add(GitHubButton);
+        ActualButton = new Button { Content = new TextBlock { Text = "1:1" } };
+        ((TextBlock)ActualButton.Content).Classes.Add("tool-text");
+        ActualButton.Classes.Add("tool");
+        ActualButton.Classes.Add("wide");
+        ActualButton.Click += (_, _) => Viewer.SetZoomMode(ViewerZoomMode.Actual);
+        dockRow.Children.Add(ActualButton);
 
-        StatusBar.Child = statusGrid;
-        Grid.SetRow(StatusBar, 3);
-        root.Children.Add(StatusBar);
+        dockRow.Children.Add(CreateDockDivider());
+        RotateButton = CreateToolButton(
+            "IconRotate",
+            "L.RotateClockwise",
+            async (_, _) => await _viewModel.RotateClockwiseAsync());
+        dockRow.Children.Add(RotateButton);
 
-        // Drag and drop overlay.
+        InfoToggle = CreateToolButton("IconInfo", "L.InfoPanel", OnInfoToggleClick);
+        dockRow.Children.Add(InfoToggle);
+
+        FilmstripToggle = CreateToolButton("IconFilmstrip", "L.Filmstrip", OnFilmstripToggleClick);
+        dockRow.Children.Add(FilmstripToggle);
+
+        SlideshowButton = CreateToolButton("IconPlay", "L.Slideshow", (_, _) => _viewModel.ToggleSlideshow());
+        dockRow.Children.Add(SlideshowButton);
+
+        dockRow.Children.Add(CreateDockDivider());
+        FullscreenButton = CreateToolButton("IconFullscreen", "L.Fullscreen", OnFullscreenClick);
+        dockRow.Children.Add(FullscreenButton);
+
+        SettingsButton = CreateToolButton("IconSettings", "L.Settings", OnSettingsClick);
+        dockRow.Children.Add(SettingsButton);
+
+        Dock.Child = dockRow;
+        root.Children.Add(Dock);
+
+        // Filmstrip is an overlay drawer, not a layout row.
+        FilmstripHost = new Border { IsVisible = false };
+        FilmstripHost.Classes.Add("filmstrip-overlay");
+        FilmstripHost.SetValue(Panel.ZIndexProperty, 30);
+        root.Children.Add(FilmstripHost);
+
+        // Information drawer.
+        InfoHost = new Border { IsVisible = false };
+        InfoHost.Classes.Add("info-overlay");
+        InfoHost.SetValue(Panel.ZIndexProperty, 36);
+
+        var infoGrid = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
+        var infoHeader = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(18, 16, 12, 4)
+        };
+        InfoTitleText = new TextBlock();
+        InfoTitleText.Classes.Add("info-title");
+        infoHeader.Children.Add(InfoTitleText);
+        var infoClose = new Button
+        {
+            Content = new ShapePath
+            {
+                Data = FindGeometry("IconClose"),
+                Stroke = new SolidColorBrush(Color.Parse("#9A9286")),
+                StrokeThickness = 1.6,
+                Width = 14,
+                Height = 14,
+                Stretch = Stretch.None
+            },
+            Width = 28,
+            Height = 28,
+            Padding = new Thickness(0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(8)
+        };
+        infoClose.Click += OnInfoToggleClick;
+        Grid.SetColumn(infoClose, 1);
+        infoHeader.Children.Add(infoClose);
+        infoGrid.Children.Add(infoHeader);
+
+        InfoContentHost = new ContentControl();
+        Grid.SetRow(InfoContentHost, 1);
+        infoGrid.Children.Add(InfoContentHost);
+        InfoHost.Child = infoGrid;
+        root.Children.Add(InfoHost);
+
+        // Transient toast.
+        ToastBorder = new Border { IsVisible = false };
+        ToastBorder.Classes.Add("toast");
+        TransientMessageText = new TextBlock
+        {
+            Foreground = new SolidColorBrush(Color.Parse("#F7F3EA")),
+            FontSize = 11
+        };
+        ToastBorder.Child = TransientMessageText;
+        ToastBorder.SetValue(Panel.ZIndexProperty, 55);
+        root.Children.Add(ToastBorder);
+
+        // Drop hint on top of everything.
         DragOverlay = new Border { IsVisible = false };
         DragOverlay.Classes.Add("dragover");
-        Grid.SetRowSpan(DragOverlay, 4);
+        DragOverlay.SetValue(Panel.ZIndexProperty, 60);
         var dropHintBorder = new Border
         {
             Padding = new Thickness(18, 12),
@@ -337,7 +545,37 @@ public partial class MainWindow : Window
         Content = root;
     }
 
-    private Button CreateCaptionButton(
+    private Button CreateToolButton(
+        string iconResource,
+        string tooltipKey,
+        EventHandler<RoutedEventArgs> handler)
+    {
+        var button = new Button
+        {
+            Content = new ShapePath { Data = FindGeometry(iconResource) }
+        };
+        button.Classes.Add("tool");
+        button.Click += handler;
+        button.Tag = tooltipKey;
+        return button;
+    }
+
+    private Button CreateNavButton(
+        string iconResource,
+        string tooltipKey,
+        EventHandler<RoutedEventArgs> handler)
+    {
+        var button = new Button
+        {
+            Content = new ShapePath { Data = FindGeometry(iconResource) }
+        };
+        button.Classes.Add("nav-button");
+        button.Click += handler;
+        button.Tag = tooltipKey;
+        return button;
+    }
+
+    private Button CreateWindowButton(
         string iconResource,
         string automationKey,
         EventHandler<RoutedEventArgs> clickHandler,
@@ -347,7 +585,7 @@ public partial class MainWindow : Window
         {
             Content = new ShapePath { Data = FindGeometry(iconResource) }
         };
-        button.Classes.Add("caption");
+        button.Classes.Add("window-tool");
         if (close)
         {
             button.Classes.Add("close");
@@ -358,11 +596,11 @@ public partial class MainWindow : Window
         return button;
     }
 
-    private TextBlock CreateStatusDot()
+    private Border CreateDockDivider()
     {
-        var dot = new TextBlock { Text = "\u00B7" };
-        dot.Classes.Add("status-dot");
-        return dot;
+        var divider = new Border();
+        divider.Classes.Add("dock-divider");
+        return divider;
     }
 
     private Geometry FindGeometry(string key) =>
@@ -375,8 +613,31 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(MinimizeButton, _services.Localization.T("L.Minimize"));
         AutomationProperties.SetName(MaximizeButton, _services.Localization.T("L.Maximize"));
         AutomationProperties.SetName(CloseButton, _services.Localization.T("L.Close"));
-        ToolTip.SetTip(ZoomButton, _services.Localization.T("L.ZoomLevel"));
-        AutomationProperties.SetName(ZoomButton, _services.Localization.T("L.ZoomLevel"));
+
+        ApplyTool(ZoomButton, "L.ZoomLevel");
+        ApplyTool(ZoomOutButton, "L.ZoomOut");
+        ApplyTool(ZoomInButton, "L.ZoomIn");
+        ApplyTool(FitButton, "L.FitWindow");
+        ApplyTool(ActualButton, "L.ActualSize");
+        ApplyTool(RotateButton, "L.RotateClockwise");
+        ApplyTool(InfoToggle, "L.InfoPanel");
+        ApplyTool(FilmstripToggle, "L.Filmstrip");
+        ApplyTool(SlideshowButton, "L.Slideshow");
+        ApplyTool(FullscreenButton, "L.Fullscreen");
+        ApplyTool(SettingsButton, "L.Settings");
+        ApplyTool(PrevButton, "L.PreviousImage");
+        ApplyTool(NextButton, "L.NextImage");
+
+        InfoTitleText.Text = _services.Localization.T("L.InfoPanel");
+        EmptyOpenFolderButton.Content = _services.Localization.T("L.OpenFolder").TrimEnd('…');
+        EmptyOpenImageButton.Content = _services.Localization.T("L.OpenFile").TrimEnd('…');
+    }
+
+    private void ApplyTool(Button button, string key)
+    {
+        var text = _services.Localization.T(key);
+        ToolTip.SetTip(button, text);
+        AutomationProperties.SetName(button, text);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
@@ -385,23 +646,67 @@ public partial class MainWindow : Window
     private void ApplyViewModelState()
     {
         Title = _viewModel.WindowTitle;
+        FolderNameText.Text = _viewModel.FolderName;
+        FolderChip.IsVisible = !string.IsNullOrWhiteSpace(_viewModel.FolderName);
+        BrandChip.IsVisible = string.IsNullOrWhiteSpace(_viewModel.FolderName);
+        FolderCountText.Text = _viewModel.Images.Count > 0
+            ? _viewModel.Images.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : string.Empty;
+
+        FileChip.IsVisible = _viewModel.HasImage;
         FileNameText.Text = _viewModel.TitleFileName;
-        TitleBar.IsVisible = _viewModel.ShowTitleBar;
-        OverlayPanel.IsVisible = _viewModel.OverlayVisible;
+        var meta = new List<string>(2);
+        if (!string.IsNullOrEmpty(_viewModel.StatusDimensions))
+        {
+            meta.Add(_viewModel.StatusDimensions);
+        }
+
+        if (!string.IsNullOrEmpty(_viewModel.ZoomText))
+        {
+            meta.Add(_viewModel.ZoomText);
+        }
+
+        FileMetaText.Text = string.Join(" · ", meta);
+        var count = _viewModel.Images.Count;
+        FilePositionText.Text = count == 0
+            ? string.Empty
+            : $"{_viewModel.CurrentIndex + 1:D2} / {count:D2}";
+
+        DockZoomText.Text = _viewModel.ZoomText;
+        EmptyCard.IsVisible = _viewModel.OverlayVisible;
         OverlayTitle.Text = _viewModel.OverlayTitle;
         OverlayMessage.Text = _viewModel.OverlayMessage;
+        OverlayMessage.IsVisible = !string.IsNullOrEmpty(_viewModel.OverlayMessage);
         OverlayHint.Text = _viewModel.OverlayHint;
+        OverlayHint.IsVisible = !string.IsNullOrEmpty(_viewModel.OverlayHint);
+
         LoadingChip.IsVisible = _viewModel.IsLoading;
         InfoHost.IsVisible = _viewModel.InfoShown;
+        InfoHost.Margin = _viewModel.FilmstripShown
+            ? new Thickness(0, 82, 22, 150)
+            : new Thickness(0, 82, 22, 92);
         FilmstripHost.IsVisible = _viewModel.FilmstripShown;
-        StatusBar.IsVisible = _viewModel.IsChromeVisible;
-        StatusLeft.IsVisible = _viewModel.HasImage;
-        StatusDimensions.Text = _viewModel.StatusDimensions;
-        ZoomButton.Content = _viewModel.ZoomText;
-        StatusPosition.Text = _viewModel.StatusPosition;
+        Dock.IsVisible = !_viewModel.OverlayVisible;
+        Dock.Margin = _viewModel.FilmstripShown
+            ? new Thickness(0, 0, 0, 150)
+            : new Thickness(0, 0, 0, 22);
+
+        var showNavigation = _viewModel.HasImage && count > 1 && !_viewModel.OverlayVisible;
+        PrevButton.IsVisible = showNavigation;
+        NextButton.IsVisible = showNavigation;
+
+        InfoToggle.Classes.Set("active", _viewModel.InfoShown);
+        FilmstripToggle.Classes.Set("active", _viewModel.FilmstripShown);
+        FullscreenButton.Classes.Set("active", _viewModel.IsFullscreen);
+        TopBar.IsVisible = !_viewModel.IsFullscreen;
+
         TransientMessageText.Text = _viewModel.TransientMessage ?? string.Empty;
+        ToastBorder.IsVisible = !string.IsNullOrWhiteSpace(_viewModel.TransientMessage);
         DragOverlay.IsVisible = _viewModel.IsDragOver;
 
+        CanvasBorder.Padding = _viewModel.IsFullscreen
+            ? new Thickness(0)
+            : new Thickness(48, 42, 48, 58);
         if (_viewModel.IsFullscreen)
         {
             if (!CanvasBorder.Classes.Contains("fullscreen"))
@@ -413,8 +718,64 @@ public partial class MainWindow : Window
         {
             CanvasBorder.Classes.Remove("fullscreen");
         }
+
+        RefreshChromeVisibility();
     }
 
+    private void ShowChrome()
+    {
+        _chromeVisible = true;
+        RefreshChromeVisibility();
+        _chromeTimer.Stop();
+        _chromeTimer.Start();
+    }
+
+    private void HideChrome()
+    {
+        _chromeVisible = false;
+        RefreshChromeVisibility();
+    }
+
+    private void RefreshChromeVisibility()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        var empty = _viewModel.OverlayVisible;
+        var topVisible = _chromeVisible || empty;
+        TopBar.IsVisible = !_viewModel.IsFullscreen;
+        TopBar.Opacity = topVisible ? 1 : 0;
+        TopBar.IsHitTestVisible = topVisible;
+
+        var controlsVisible = _chromeVisible && !empty;
+        Dock.Opacity = controlsVisible ? 1 : 0;
+        Dock.IsHitTestVisible = controlsVisible;
+        PrevButton.Opacity = controlsVisible ? 1 : 0;
+        NextButton.Opacity = controlsVisible ? 1 : 0;
+        PrevButton.IsHitTestVisible = controlsVisible;
+        NextButton.IsHitTestVisible = controlsVisible;
+    }
+
+    private void OnChromeTimerTick(object? sender, EventArgs e)
+    {
+        _chromeTimer.Stop();
+        if (_viewModel.OverlayVisible)
+        {
+            return;
+        }
+
+        if (TopBar.IsPointerOver || Dock.IsPointerOver ||
+            PrevButton.IsPointerOver || NextButton.IsPointerOver ||
+            InfoHost.IsPointerOver || FilmstripHost.IsPointerOver)
+        {
+            _chromeTimer.Start();
+            return;
+        }
+
+        HideChrome();
+    }
 
     private void ConfigureWindowChrome()
     {
@@ -438,6 +799,7 @@ public partial class MainWindow : Window
     {
         StartupTrace.Mark("window-opened");
         _benchmark?.MarkWindowShown();
+        ShowChrome();
         if (_benchmarkTimeout is not null)
         {
             _benchmarkTimeout.Start();
@@ -513,6 +875,7 @@ public partial class MainWindow : Window
         }
 
         _viewModel.OnZoomChanged(Viewer.ZoomPercent);
+        ShowChrome();
     }
 
     private void OnViewerZoomChanged(object? sender, ZoomChangedEventArgs e)
@@ -573,7 +936,7 @@ public partial class MainWindow : Window
         _filmstripView.ScrollTo(_viewModel.CurrentIndex);
 
         _infoPanel = new InfoPanelView();
-        InfoHost.Child = _infoPanel;
+        InfoContentHost.Content = _infoPanel;
     }
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)
@@ -638,26 +1001,10 @@ public partial class MainWindow : Window
             switch (e.Key)
             {
                 case Key.Left:
-                    if (Viewer.CanPanHorizontally)
-                    {
-                        Viewer.PanBy(80, 0);
-                    }
-                    else
-                    {
-                        await _viewModel.PreviousAsync();
-                    }
-
+                    await _viewModel.PreviousAsync();
                     break;
                 case Key.Right:
-                    if (Viewer.CanPanHorizontally)
-                    {
-                        Viewer.PanBy(-80, 0);
-                    }
-                    else
-                    {
-                        await _viewModel.NextAsync();
-                    }
-
+                    await _viewModel.NextAsync();
                     break;
                 case Key.PageUp:
                     await _viewModel.PreviousAsync();
@@ -707,6 +1054,7 @@ public partial class MainWindow : Window
                     await _viewModel.FlipVerticalAsync();
                     break;
                 case Key.F11:
+                case Key.F:
                     ToggleFullscreen();
                     break;
                 case Key.Escape:
@@ -714,9 +1062,19 @@ public partial class MainWindow : Window
                     {
                         ExitFullscreen();
                     }
+                    else if (_viewModel.InfoVisible)
+                    {
+                        _viewModel.ToggleInfo();
+                        ShowChrome();
+                    }
+                    else if (_viewModel.FilmstripVisible)
+                    {
+                        _viewModel.ToggleFilmstrip();
+                        ShowChrome();
+                    }
                     else
                     {
-                        Close();
+                        return;
                     }
 
                     break;
@@ -725,11 +1083,25 @@ public partial class MainWindow : Window
                     break;
                 case Key.I:
                     EnsurePanels();
+                    if (!_viewModel.InfoVisible && _viewModel.FilmstripVisible)
+                    {
+                        _viewModel.ToggleFilmstrip();
+                    }
+
                     _viewModel.ToggleInfo();
+                    ApplyViewModelState();
+                    ShowChrome();
                     break;
                 case Key.C:
                     EnsurePanels();
+                    if (!_viewModel.FilmstripVisible && _viewModel.InfoVisible)
+                    {
+                        _viewModel.ToggleInfo();
+                    }
+
                     _viewModel.ToggleFilmstrip();
+                    ApplyViewModelState();
+                    ShowChrome();
                     break;
                 case Key.F1:
                     ShowShortcuts();
@@ -997,6 +1369,56 @@ public partial class MainWindow : Window
 
     private void OnZoomPresetClick(object? sender, RoutedEventArgs e) => Viewer.CycleZoomPreset();
 
+    private async void OnOpenImageClick(object? sender, RoutedEventArgs e) =>
+        await OpenFileAsync();
+
+    private async void OnPreviousClick(object? sender, RoutedEventArgs e) =>
+        await _viewModel.PreviousAsync();
+
+    private async void OnNextClick(object? sender, RoutedEventArgs e) =>
+        await _viewModel.NextAsync();
+
+    private async void OnViewerNavigateRequested(object? sender, NavigateRequestedEventArgs e)
+    {
+        if (e.Direction < 0)
+        {
+            await _viewModel.PreviousAsync();
+        }
+        else
+        {
+            await _viewModel.NextAsync();
+        }
+    }
+
+    private void OnInfoToggleClick(object? sender, RoutedEventArgs e)
+    {
+        EnsurePanels();
+        if (!_viewModel.InfoVisible && _viewModel.FilmstripVisible)
+        {
+            _viewModel.ToggleFilmstrip();
+        }
+
+        _viewModel.ToggleInfo();
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private void OnFilmstripToggleClick(object? sender, RoutedEventArgs e)
+    {
+        EnsurePanels();
+        if (!_viewModel.FilmstripVisible && _viewModel.InfoVisible)
+        {
+            _viewModel.ToggleInfo();
+        }
+
+        _viewModel.ToggleFilmstrip();
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private void OnFullscreenClick(object? sender, RoutedEventArgs e) =>
+        ToggleFullscreen();
+
     private void OnMinimizeClick(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
 
@@ -1050,6 +1472,10 @@ public partial class MainWindow : Window
         _isFullscreen = true;
         WindowState = WindowState.FullScreen;
         _viewModel.SetFullscreen(true);
+        _chromeVisible = false;
+        RefreshChromeVisibility();
+        _chromeTimer.Stop();
+        _chromeTimer.Start();
         _cursorTimer.Start();
     }
 
@@ -1060,7 +1486,11 @@ public partial class MainWindow : Window
             ? WindowState.Normal
             : _stateBeforeFullscreen;
         _viewModel.SetFullscreen(false);
+        _chromeVisible = true;
+        RefreshChromeVisibility();
         _cursorTimer.Stop();
+        _chromeTimer.Stop();
+        _chromeTimer.Start();
         _cursorHidden = false;
         Viewer.ShowCursor();
     }
@@ -1078,6 +1508,8 @@ public partial class MainWindow : Window
             _cursorTimer.Stop();
             _cursorTimer.Start();
         }
+
+        ShowChrome();
     }
 
     private void OnCursorTimerTick(object? sender, EventArgs e)
@@ -1258,7 +1690,9 @@ public partial class MainWindow : Window
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _services.Localization.LanguageChanged -= OnLocalizationChanged;
         _cursorTimer.Stop();
+        _chromeTimer.Stop();
         _benchmarkTimeout?.Stop();
         _viewModel.Dispose();
     }
 }
+

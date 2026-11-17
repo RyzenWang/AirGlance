@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using AirGlance.App.Controls;
@@ -205,6 +205,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _titleFileName = "AirGlance";
+
+    [ObservableProperty]
+    private string _folderName = string.Empty;
 
     [ObservableProperty]
     private string _windowTitle = "AirGlance";
@@ -445,9 +448,25 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         await ApplyEditAsync(_edit.FlipVertical());
     }
 
-    public void ToggleInfo() => InfoVisible = !InfoVisible;
+    public void ToggleInfo()
+    {
+        if (!InfoVisible)
+        {
+            FilmstripVisible = false;
+        }
 
-    public void ToggleFilmstrip() => FilmstripVisible = !FilmstripVisible;
+        InfoVisible = !InfoVisible;
+    }
+
+    public void ToggleFilmstrip()
+    {
+        if (!FilmstripVisible)
+        {
+            InfoVisible = false;
+        }
+
+        FilmstripVisible = !FilmstripVisible;
+    }
 
     public void SetFullscreen(bool fullscreen) => IsFullscreen = fullscreen;
 
@@ -1067,9 +1086,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         CurrentIndex = index >= 0 && index < Images.Count ? index : 0;
         CurrentItem = Images.Count > 0 ? Images[CurrentIndex] : null;
+        for (var itemIndex = 0; itemIndex < Images.Count; itemIndex++)
+        {
+            Images[itemIndex].IsCurrent = itemIndex == CurrentIndex;
+        }
+
         _currentPath = _navigator.CurrentPath;
         _folderEmpty = files.Count == 0;
-        FilmstripVisible = files.Count > 0;
+        FolderName = DescribeFolder(folder);
         _lastFailure = null;
         _lastFailureExtension = null;
         OverlayVisible = false;
@@ -1092,6 +1116,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _lastFailure = null;
         _lastFailureExtension = null;
         OverlayVisible = true;
+        FolderName = string.Empty;
         OverlayTitle = _services.Localization.T("L.EmptyTitle");
         OverlayMessage = string.Empty;
         OverlayHint = _services.Localization.T("L.EmptyLimitations");
@@ -1100,6 +1125,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         StatusDimensions = string.Empty;
         StatusPosition = string.Empty;
         InfoSections = [];
+    }
+
+    private static string DescribeFolder(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var name = Path.GetFileName(trimmed);
+        return string.IsNullOrEmpty(name) ? folder : name;
     }
 
     private void ShowFolderEmpty()
@@ -1458,6 +1495,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     partial void OnCurrentIndexChanged(int value)
     {
+        for (var index = 0; index < Images.Count; index++)
+        {
+            Images[index].IsCurrent = index == value;
+        }
+
         if (value >= 0 && value < Images.Count)
         {
             CurrentItem = Images[value];

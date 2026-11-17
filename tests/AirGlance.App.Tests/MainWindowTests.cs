@@ -1,6 +1,7 @@
 using AirGlance.App.Services;
 using AirGlance.App.ViewModels;
 using AirGlance.App.Views;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
@@ -28,7 +29,8 @@ public sealed class MainWindowTests
         window.KeyPressQwerty(PhysicalKey.I, RawInputModifiers.None);
         Assert.True(viewModel.InfoVisible);
         window.KeyPressQwerty(PhysicalKey.C, RawInputModifiers.None);
-        Assert.False(viewModel.FilmstripVisible);
+        Assert.True(viewModel.FilmstripVisible);
+        Assert.False(viewModel.InfoVisible);
 
         window.KeyPressQwerty(PhysicalKey.R, RawInputModifiers.None);
         await WaitUntilAsync(() => viewModel.CurrentEdit.QuarterTurns == 1 && viewModel.StatusDimensions == "40 × 80");

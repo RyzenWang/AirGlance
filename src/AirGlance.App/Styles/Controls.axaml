@@ -364,4 +364,343 @@
   <Style Selector="Border.canvas.fullscreen">
     <Setter Property="Background" Value="{DynamicResource CanvasFullscreen}" />
   </Style>
+
+  <!-- Image-first overlay chrome. Dark translucent surfaces sit over any photo. -->
+  <Style Selector="Border.overlay-chip">
+    <Setter Property="Background" Value="#B80D1218" />
+    <Setter Property="BorderBrush" Value="#24FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="MinHeight" Value="38" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.chrome-icon">
+    <Setter Property="Width" Value="16" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="TextBlock.chrome-name">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#F7F3EA" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.chrome-meta">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="#B9B1A5" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.chrome-file">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#F7F3EA" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.window-tool">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="#B9B1A5" />
+  </Style>
+
+  <Style Selector="Button.window-tool:pointerover">
+    <Setter Property="Background" Value="#18FFFFFF" />
+    <Setter Property="Foreground" Value="#FFF9EF" />
+  </Style>
+
+  <Style Selector="Button.window-tool.close:pointerover">
+    <Setter Property="Background" Value="#C94A38" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.window-tool Path">
+    <Setter Property="Stroke" Value="{Binding $parent[Button].Foreground}" />
+    <Setter Property="StrokeThickness" Value="1.4" />
+    <Setter Property="Width" Value="12" />
+    <Setter Property="Height" Value="12" />
+    <Setter Property="Stretch" Value="None" />
+  </Style>
+
+  <Style Selector="Border.dock">
+    <Setter Property="Background" Value="#E60A0E13" />
+    <Setter Property="BorderBrush" Value="#22FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="16" />
+    <Setter Property="Padding" Value="6" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.tool">
+    <Setter Property="Width" Value="38" />
+    <Setter Property="Height" Value="40" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Foreground" Value="#DAD4C8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.tool:pointerover">
+    <Setter Property="Background" Value="#18FFFFFF" />
+    <Setter Property="Foreground" Value="#FFF9EF" />
+  </Style>
+
+  <Style Selector="Button.tool.active">
+    <Setter Property="Background" Value="#26E3563B" />
+    <Setter Property="Foreground" Value="#FF9A82" />
+  </Style>
+
+  <Style Selector="Button.tool Path">
+    <Setter Property="Stroke" Value="{Binding $parent[Button].Foreground}" />
+    <Setter Property="StrokeThickness" Value="1.6" />
+    <Setter Property="StrokeLineCap" Value="Round" />
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="Stretch" Value="None" />
+  </Style>
+
+  <Style Selector="Button.tool.wide">
+    <Setter Property="Width" Value="44" />
+  </Style>
+
+  <Style Selector="Button.tool TextBlock.tool-text">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+  </Style>
+
+  <Style Selector="TextBlock.dock-zoom">
+    <Setter Property="Width" Value="48" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="Foreground" Value="#F5F0E6" />
+  </Style>
+
+  <Style Selector="Border.dock-divider">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Margin" Value="5,0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Background" Value="#22FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.nav-button">
+    <Setter Property="Width" Value="46" />
+    <Setter Property="Height" Value="46" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="23" />
+    <Setter Property="Background" Value="#B30D1218" />
+    <Setter Property="BorderBrush" Value="#22FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="#F7F3EA" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.nav-button:pointerover">
+    <Setter Property="Background" Value="#E60A0E13" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.nav-button Path">
+    <Setter Property="Stroke" Value="{Binding $parent[Button].Foreground}" />
+    <Setter Property="StrokeThickness" Value="1.8" />
+    <Setter Property="Width" Value="19" />
+    <Setter Property="Height" Value="19" />
+    <Setter Property="Stretch" Value="None" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay">
+    <Setter Property="Height" Value="138" />
+    <Setter Property="Padding" Value="10,8,22,12" />
+    <Setter Property="Background" Value="#E60A0E13" />
+    <Setter Property="BorderBrush" Value="#22FFFFFF" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip ListBoxItem">
+    <Setter Property="Margin" Value="2" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip ListBoxItem:selected">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay TextBlock.image-name.current">
+    <Setter Property="Foreground" Value="#FFB4A2" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip ListBoxItem /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip ListBoxItem:selected">
+    <Setter Property="FocusAdorner" Value="{x:Null}" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay TextBlock.image-name">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="#BEB6A9" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="Border.filmstrip-overlay ListBox.filmstrip ListBoxItem:selected TextBlock.image-name">
+    <Setter Property="Foreground" Value="#FFB4A2" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="Border.info-overlay">
+    <Setter Property="Width" Value="334" />
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="Margin" Value="0,82,22,92" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+
+  <Style Selector="TextBlock.info-title">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="0.12" />
+    <Setter Property="Foreground" Value="{DynamicResource InkTertiary}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Path.empty-glyph">
+    <Setter Property="Stroke" Value="{DynamicResource Coral}" />
+    <Setter Property="StrokeThickness" Value="1.5" />
+    <Setter Property="StrokeLineCap" Value="Round" />
+    <Setter Property="Width" Value="27" />
+    <Setter Property="Height" Value="27" />
+    <Setter Property="Stretch" Value="None" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.empty-title">
+    <Setter Property="FontSize" Value="24" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="LetterSpacing" Value="-0.4" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.empty-message">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.empty-hint">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource InkTertiary}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <Style Selector="TextBlock.empty-shortcut">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="{DynamicResource InkTertiary}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.empty-card">
+    <Setter Property="Width" Value="560" />
+    <Setter Property="Padding" Value="38,34,38,28" />
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="24" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.empty-icon">
+    <Setter Property="Width" Value="58" />
+    <Setter Property="Height" Value="58" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="Background" Value="#1AE3563B" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="Margin" Value="0,0,0,16" />
+  </Style>
+
+  <Style Selector="Button.empty-primary">
+    <Setter Property="Height" Value="38" />
+    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnCoral}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="Button.empty-secondary">
+    <Setter Property="Height" Value="38" />
+    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Background" Value="{DynamicResource SurfaceAlt}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+
+  <Style Selector="Border.toast">
+    <Setter Property="Background" Value="#E60A0E13" />
+    <Setter Property="BorderBrush" Value="#22FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="Padding" Value="10,7" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+    <Setter Property="Margin" Value="22,0,0,84" />
+  </Style>
 </Styles>
+

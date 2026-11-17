@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-17
+
+Interaction overhaul. The image now owns the whole window, and the controls float over
+it instead of reserving fixed rows.
+
+### Changed
+
+- The window chrome is an overlay: top folder/file chips, a centered bottom dock with
+  zoom, fit, 1:1, rotate, info, filmstrip, slideshow, fullscreen and settings, and
+  left/right navigation buttons.
+- Controls fade out after 2.5 seconds of idle and return when the pointer moves.
+- The filmstrip is a bottom overlay drawer, collapsed by default; it no longer shrinks
+  the image. The information panel is a right overlay drawer. The two panels are
+  mutually exclusive.
+- The empty/error state is a card with Open folder / Open image actions and keyboard
+  hints.
+- Mouse wheel browses previous/next; `Ctrl/Cmd + wheel` zooms at the pointer. The wheel
+  accumulates small trackpad deltas so one gesture does not skip several images.
+- `Left`/`Right` always browse; panning is drag or `Shift + wheel`. `Esc` closes an open
+  panel or leaves fullscreen instead of closing the window. `F` toggles fullscreen in
+  addition to `F11`.
+- Fullscreen uses a chrome-less black canvas; moving the pointer reveals the dock.
+
+### Performance
+
+- NativeAOT `win-x64`: 24 MP first window 208.2 ms median, first frame 412.5 ms.
+- 100 MP fit-window first frame 299.8 ms; 100 MP at 100% peaks at 453.6 MB and settles
+  at 84.1 MB working set.
+
 ## [0.1.2] - 2026-11-17
 
 Memory patch for very large images at high zoom. A 100 MP JPEG at 100 percent now keeps
@@ -92,7 +121,8 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.3
 [0.1.2]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.2
 [0.1.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.1
 [0.1.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.0
