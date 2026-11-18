@@ -57,6 +57,7 @@ public partial class MainWindow : Window
     private ContentControl InfoContentHost = null!;
     private Border EmptyCard = null!;
     private Border LoadingChip = null!;
+    private Border TileLoadingChip = null!;
     private Border DragOverlay = null!;
     private Border ToastBorder = null!;
     private Border FullscreenHint = null!;
@@ -70,6 +71,7 @@ public partial class MainWindow : Window
     private TextBlock OverlayMessage = null!;
     private TextBlock OverlayHint = null!;
     private TextBlock LoadingText = null!;
+    private TextBlock TileLoadingText = null!;
     private TextBlock DropHintText = null!;
     private TextBlock TransientMessageText = null!;
     private TextBlock DockZoomText = null!;
@@ -207,6 +209,27 @@ public partial class MainWindow : Window
         Viewer.ZoomChanged += OnViewerZoomChanged;
         Viewer.ViewportChanged += OnViewerViewportChanged;
         canvasGrid.Children.Add(Viewer);
+
+        TileLoadingChip = new Border
+        {
+            IsVisible = false,
+            IsHitTestVisible = false,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = new SolidColorBrush(Color.Parse("#E60A0E13")),
+            BorderBrush = new SolidColorBrush(Color.Parse("#24FFFFFF")),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(16, 10)
+        };
+        TileLoadingChip.SetValue(Panel.ZIndexProperty, 30);
+        TileLoadingText = new TextBlock
+        {
+            Foreground = Brushes.White,
+            FontSize = 12
+        };
+        TileLoadingChip.Child = TileLoadingText;
+        canvasGrid.Children.Add(TileLoadingChip);
 
         LoadingChip = new Border();
         LoadingChip.Classes.Add("loading-chip");
@@ -719,6 +742,7 @@ public partial class MainWindow : Window
     private void ApplyLanguage()
     {
         LoadingText.Text = _services.Localization.T("L.Loading");
+        TileLoadingText.Text = _services.Localization.T("L.LoadingRegion");
         DropHintText.Text = _services.Localization.T("L.DropHint");
         AutomationProperties.SetName(MinimizeButton, _services.Localization.T("L.Minimize"));
         AutomationProperties.SetName(MaximizeButton, _services.Localization.T("L.Maximize"));
@@ -806,6 +830,7 @@ public partial class MainWindow : Window
         OverlayHint.IsVisible = !string.IsNullOrEmpty(_viewModel.OverlayHint);
 
         LoadingChip.IsVisible = _viewModel.IsLoading;
+        TileLoadingChip.IsVisible = _viewModel.ShowRegionLoading;
         InfoHost.IsVisible = _viewModel.InfoShown;
         InfoHost.Margin = _viewModel.FilmstripShown
             ? new Thickness(0, 82, 22, 150)

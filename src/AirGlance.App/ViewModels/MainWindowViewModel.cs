@@ -87,6 +87,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isRegionOpening;
     private bool _regionActive;
     private bool _regionLoading;
+
+    [ObservableProperty]
+    private bool _showRegionLoading;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
     private bool _slideshowBusy;
@@ -580,6 +583,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             _regionActive = true;
             _regionLoading = true;
+            ShowRegionLoading = true;
             PublishTiled(tiles);
             UpdateStatus(metadata);
         }
@@ -825,6 +829,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _fullLoaded = false;
         _regionActive = false;
         _isRegionOpening = false;
+        ShowRegionLoading = false;
         _edit = EditTransform.None;
         _editVersion++;
 
@@ -1068,6 +1073,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _regionLoading = _tiledSource?.PendingTileCount > 0;
+        ShowRegionLoading = _regionLoading;
         UpdateStatus(metadata);
     }
 
@@ -1176,6 +1182,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _tiledSource = null;
+        _regionActive = false;
+        _regionLoading = false;
+        ShowRegionLoading = false;
         var oldBitmap = _currentBitmap;
         var oldAnimation = _currentAnimation;
 
@@ -1534,8 +1543,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             ? string.Concat(
                 dimensions,
                 " · ",
-                _services.Localization.T("L.Region"),
-                _regionLoading ? " · " + _services.Localization.T("L.LoadingRegion") : string.Empty)
+                _services.Localization.T("L.Region"))
             : _rawDecoded?.IsProxy == true
                 ? string.Concat(
                     dimensions,
