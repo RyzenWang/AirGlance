@@ -1,8 +1,8 @@
-# 发布 AirGlance 0.4.0
+# 发布 AirGlance 0.4.1
 
 [English](shipping.md) · **简体中文**
 
-本文档是 AirGlance 0.4.0（2026-11-18）的发布流程。它涵盖打包脚本、NativeAOT 构建、签名方面的限制，以及仅用于 Partner Center、WACK 和 Store 上架信息的 MSIX 包。
+本文档是 AirGlance 0.4.1（2026-11-18）的发布流程。它涵盖打包脚本、NativeAOT 构建、签名方面的限制，以及仅用于 Partner Center、WACK 和 Store 上架信息的 MSIX 包。
 
 0.1 版本是一个便携、未签名的桌面版本。它没有安装程序、更新程序、托盘图标或单实例转发。打包脚本和 CI 工作流存在于代码库中，但 0.1 不包含任何签名证书或 Store 提交。
 
@@ -10,26 +10,26 @@
 
 | 目标平台 | 公开产物 | 签名 | 构建者 | 分发渠道 |
 | --- | --- | --- | --- | --- |
-| Windows x64 | `AirGlance-0.4.0-win-x64.zip` | 无 | `packaging/scripts/pack.ps1` | GitHub release |
-| Windows arm64 | `AirGlance-0.4.0-win-arm64.zip` | 无 | `windows-latest` 上的 `packaging/scripts/pack.ps1` | GitHub release |
-| macOS arm64 | `AirGlance-0.4.0-osx-arm64.zip`（包含 `AirGlance.app`） | 无 | `macos-15` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| macOS x64 | `AirGlance-0.4.0-osx-x64.zip`（包含 `AirGlance.app`） | 无 | `macos-15-intel` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| Linux x64 | `AirGlance-0.4.0-linux-x64.tar.gz` | 无 | `ubuntu-22.04` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| Linux arm64 | `AirGlance-0.4.0-linux-arm64.tar.gz` | 无 | `ubuntu-24.04-arm` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| Windows x64 MSIX | `AirGlance_0.4.0.0_x64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | 仅 Partner Center |
-| Windows arm64 MSIX | `AirGlance_0.4.0.0_arm64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | 仅 Partner Center |
+| Windows x64 | `AirGlance-0.4.1-win-x64.zip` | 无 | `packaging/scripts/pack.ps1` | GitHub release |
+| Windows arm64 | `AirGlance-0.4.1-win-arm64.zip` | 无 | `windows-latest` 上的 `packaging/scripts/pack.ps1` | GitHub release |
+| macOS arm64 | `AirGlance-0.4.1-osx-arm64.zip`（包含 `AirGlance.app`） | 无 | `macos-15` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| macOS x64 | `AirGlance-0.4.1-osx-x64.zip`（包含 `AirGlance.app`） | 无 | `macos-15-intel` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| Linux x64 | `AirGlance-0.4.1-linux-x64.tar.gz` | 无 | `ubuntu-22.04` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| Linux arm64 | `AirGlance-0.4.1-linux-arm64.tar.gz` | 无 | `ubuntu-24.04-arm` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| Windows x64 MSIX | `AirGlance_0.4.1.0_x64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | 仅 Partner Center |
+| Windows arm64 MSIX | `AirGlance_0.4.1.0_arm64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | 仅 Partner Center |
 
-归档文件名使用三段式产品版本 `0.4.0`。MSIX 文件名使用四段式包版本 `0.4.0.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
+归档文件名使用三段式产品版本 `0.4.1`。MSIX 文件名使用四段式包版本 `0.4.1.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
 
 发布工作流只发布六个便携归档：Windows 的 x64/arm64 zip、macOS 的 x64/arm64 zip 和 Linux 的 x64/arm64 tar.gz。它会拒绝 MSIX 文件，因此 Store 包绝不会出现在公开的 GitHub 发布中。MSIX 文件由 `store.yml` 构建，用于审核和 Partner Center。
 
 ## 运行时验证状态
 
-发布矩阵关注的是产物，而非运行时覆盖情况。v0.4.0 的状态如下：
+发布矩阵关注的是产物，而非运行时覆盖情况。v0.4.1 的状态如下：
 
 | 目标平台 | 产物已构建 | AOT 二进制已运行 |
 | --- | --- | --- |
-| Windows x64 | 是 | **是** — 0.4.0 AOT 已启动；已冒烟测试双画布、100 MP 分块路径、动画 GIF 和 SVG |
+| Windows x64 | 是 | **是** — 0.4.1 AOT 已启动；已冒烟测试双画布、100 MP 分块路径、动画 GIF 和 SVG |
 | Linux x64 | 是 | **是** — 由维护者在本仓库 CI 之外对照 0.1.1 验证 |
 | Windows arm64 | 是 | 未验证 |
 | macOS arm64 | 是 | 未验证 |
@@ -40,7 +40,7 @@
 
 - 剪贴板图像复制已在 Windows x64 上用未修改的 PNG 和 JPEG 进行检查。Windows 剪贴板中包含 `image/png` 或 `image/jpeg`，同时还有 `CF_DIB`、`CF_DIBV5`、`CF_BITMAP` 和一个位图载荷。复制路径操作以及将原始字节粘贴到第二个应用程序中这两项没有单独测试。
 - 125%、150% 和 200% 的 Windows 显示缩放未测试。参照机以 100%（96 DPI）运行；更高缩放下的文本截断情况未验证。
-- 0.4.0 没有记录到 WACK 通过或 Store 安装。MSIX 包未签名。
+- 0.4.1 没有记录到 WACK 通过或 Store 安装。MSIX 包未签名。
 
 macOS 和 arm64 归档仍然会发布，因为它们在测试中有用；但在有人于相应平台上运行它们之前，请将其视为未验证。
 
@@ -75,17 +75,17 @@ NativeAOT 无法在操作系统族之间交叉编译。`pack.sh` 在非 Darwin �
 Windows x64 或 arm64：
 
 ```powershell
-./packaging/scripts/pack.ps1 -Version 0.4.0 -Runtime win-x64 -Aot
-./packaging/scripts/pack.ps1 -Version 0.4.0 -Runtime win-x64 -Aot -Msix
+./packaging/scripts/pack.ps1 -Version 0.4.1 -Runtime win-x64 -Aot
+./packaging/scripts/pack.ps1 -Version 0.4.1 -Runtime win-x64 -Aot -Msix
 ```
 
 macOS 或 Linux，在匹配的主机上：
 
 ```sh
-./packaging/scripts/pack.sh 0.4.0 osx-arm64
-./packaging/scripts/pack.sh 0.4.0 osx-x64
-./packaging/scripts/pack.sh 0.4.0 linux-x64
-./packaging/scripts/pack.sh 0.4.0 linux-arm64
+./packaging/scripts/pack.sh 0.4.1 osx-arm64
+./packaging/scripts/pack.sh 0.4.1 osx-x64
+./packaging/scripts/pack.sh 0.4.1 linux-x64
+./packaging/scripts/pack.sh 0.4.1 linux-arm64
 ```
 
 这些脚本会调用 `dotnet publish -c Release -r <rid> -p:PublishAot=true -p:StripSymbols=true -p:Version=<version>`。`pack.ps1` 还会移除所有残留的 PDB，并强制执行 30 MB 的 zip 大小上限。`pack.sh` 会在打包前移除 PDB、DBG 和 MDB 文件。
@@ -123,7 +123,7 @@ AirGlance.app/Contents/
 - `CFBundleExecutable` = `AirGlance`；
 - `CFBundleIdentifier` = `dev.airworks.AirGlance`；
 - `CFBundleName` 和 `CFBundleDisplayName` = `AirGlance`；
-- `CFBundleShortVersionString` = `0.4.0`，由 `pack.sh` 根据版本参数写入；
+- `CFBundleShortVersionString` = `0.4.1`，由 `pack.sh` 根据版本参数写入；
 - `CFBundleVersion` = `1`，不按每次构建写入；
 - `CFBundleIconFile` = `airglance.icns`；
 - `LSMinimumSystemVersion` = `12.0`；
@@ -151,13 +151,13 @@ icons/airglance-512.png
 
 ```powershell
 ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.4.0 `
+  -Version 0.4.1 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
 ```
 
-输出为 `AirGlance_0.4.0.0_x64.msix`，若指定 `-Architecture arm64` 则为 `AirGlance_0.4.0.0_arm64.msix`。`store.yml` 会为两种架构运行此脚本。这些包未签名。
+输出为 `AirGlance_0.4.1.0_x64.msix`，若指定 `-Architecture arm64` 则为 `AirGlance_0.4.1.0_arm64.msix`。`store.yml` 会为两种架构运行此脚本。这些包未签名。
 
 ## 冒烟测试
 
@@ -219,7 +219,7 @@ ad-hoc 签名无法满足 Gatekeeper 或公证要求。0.1 中没有 Developer I
 解压归档并运行二进制：
 
 ```sh
-tar -xzf AirGlance-0.4.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.4.1-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -251,8 +251,8 @@ gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || tr
 
 MSIX 包仅用于 Microsoft Store 提交：
 
-- `AirGlance_0.4.0.0_x64.msix`
-- `AirGlance_0.4.0.0_arm64.msix`
+- `AirGlance_0.4.1.0_x64.msix`
+- `AirGlance_0.4.1.0_arm64.msix`
 
 它们不是公开发布的资产。`store.yml` 按需构建它们，并将其作为工作流产物上传。
 
@@ -264,7 +264,7 @@ MSIX 包仅用于 Microsoft Store 提交：
 <Identity
   Name="AirWorks.AirGlance"
   Publisher="CN=AirWorks"
-  Version="0.4.0.0"
+  Version="0.4.1.0"
   ProcessorArchitecture="x64" />
 ```
 
@@ -293,7 +293,7 @@ Store MSIX 需要其主体与清单发布者匹配的代码签名证书。自签
 ```powershell
 makeappx.exe pack `
   /d artifacts/msix/x64 `
-  /p AirGlance_0.4.0.0_x64.msix `
+  /p AirGlance_0.4.1.0_x64.msix `
   /o
 ```
 
@@ -303,9 +303,9 @@ makeappx.exe pack `
 signtool.exe sign /fd SHA256 /a `
   /f publisher-certificate.pfx `
   /p "<password>" `
-  AirGlance_0.4.0.0_x64.msix
+  AirGlance_0.4.1.0_x64.msix
 
-signtool.exe verify /pa /v AirGlance_0.4.0.0_x64.msix
+signtool.exe verify /pa /v AirGlance_0.4.1.0_x64.msix
 ```
 
 生产签名中请使用时间戳服务器。不要提交 `.pfx` 或其密码。arm64 包请针对其架构单独构建和签名。
@@ -326,14 +326,14 @@ $appcert = Get-ChildItem `
 & $appcert.FullName reset
 
 & $appcert.FullName test `
-  -appxpackagepath (Resolve-Path '.\AirGlance_0.4.0.0_x64.msix').Path `
+  -appxpackagepath (Resolve-Path '.\AirGlance_0.4.1.0_x64.msix').Path `
   -reportoutputpath (Join-Path (Get-Location) 'wack-x64.xml')
 ```
 
 4. 查看 `wack-x64.xml` 和 WACK 日志。修复所有会阻止 Store 认证的失败或警告。
 5. 在 arm64 Windows 上对 arm64 包重复上述步骤。
 
-`store.yml` 会对未签名包运行 WACK 作为信息性预检，并上传报告。对于未签名包，与签名相关的失败是预期之中的。有意义的 WACK 通过需要受信任的已签名包，而 0.4.0 没有记录到任何已签名包或通过的 WACK 报告。
+`store.yml` 会对未签名包运行 WACK 作为信息性预检，并上传报告。对于未签名包，与签名相关的失败是预期之中的。有意义的 WACK 通过需要受信任的已签名包，而 0.4.1 没有记录到任何已签名包或通过的 WACK 报告。
 
 ## Store 上架信息
 
@@ -361,7 +361,7 @@ $appcert = Get-ChildItem `
 
 类别在 Partner Center 中选择。中文上架信息请使用 **照片与视频**；英文 Store 界面显示对应的 Photos & video 类别。
 
-0.4.0 的上架信息、截图、隐私政策和提交尚未完成。
+0.4.1 的上架信息、截图、隐私政策和提交尚未完成。
 
 ## 无网络、无遥测
 
@@ -374,12 +374,12 @@ AirGlance 不包含任何 HTTP 客户端、套接字、分析 SDK、崩溃上传
 发布工作流会写入名为 `SHA256SUMS.txt` 的校验和文件。它以标准 `sha256sum` 格式包含全部六个公开归档，并按文件名排序。它有意排除 MSIX 包。
 
 ```text
-<64 lowercase hex characters>  AirGlance-0.4.0-linux-arm64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.4.0-linux-x64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.4.0-osx-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.4.0-osx-x64.zip
-<64 lowercase hex characters>  AirGlance-0.4.0-win-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.4.0-win-x64.zip
+<64 lowercase hex characters>  AirGlance-0.4.1-linux-arm64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.4.1-linux-x64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.4.1-osx-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.4.1-osx-x64.zip
+<64 lowercase hex characters>  AirGlance-0.4.1-win-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.4.1-win-x64.zip
 ```
 
 已签入的工作流使用 `.txt` 后缀；它就是该发布所用的 SHA256SUMS 文件。当前工作流不会生成不带后缀的约定名称 `SHA256SUMS`。
@@ -389,11 +389,11 @@ AirGlance 不包含任何 HTTP 客户端、套接字、分析 SDK、崩溃上传
 验证下载内容：
 
 ```powershell
-Get-FileHash .\AirGlance-0.4.0-win-x64.zip -Algorithm SHA256
+Get-FileHash .\AirGlance-0.4.1-win-x64.zip -Algorithm SHA256
 ```
 
 ```sh
-shasum -a 256 AirGlance-0.4.0-osx-arm64.zip
+shasum -a 256 AirGlance-0.4.1-osx-arm64.zip
 sha256sum -c SHA256SUMS.txt
 ```
 
@@ -416,7 +416,7 @@ sha256sum -c SHA256SUMS.txt
 3. 下载恰好六个归档，并拒绝发布集合中的任何 MSIX。
 4. 对归档名称排序并写入 `SHA256SUMS.txt`。
 5. 根据 `CHANGELOG.md` 为标签版本生成发布说明，若不可用则回退到标签消息。
-6. 使用六个归档和 `SHA256SUMS.txt` 创建或更新 GitHub release `v0.4.0`。
+6. 使用六个归档和 `SHA256SUMS.txt` 创建或更新 GitHub release `v0.4.1`。
 
 `store.yml` 不向 Partner Center 提交任何内容。它构建 MSIX 文件，在存在该工具包时运行 WACK，并上传包和报告以供人工审核。在发布者被替换且包完成签名后，向 Partner Center 提交仍然是手动操作。
 
@@ -425,7 +425,7 @@ sha256sum -c SHA256SUMS.txt
 - Windows 便携归档、macOS 应用包和 MSIX 包均未签名。没有 Authenticode 证书、Developer ID 身份、公证、强化运行时、MSIX 发布者证书或时间戳。
 - macOS 发布归档也没有 ad-hoc 签名。`pack.sh` 不调用 `codesign`。可选的 ad-hoc 签名命令仅在文档中用于本地测试。
 - MSIX 发布者仍是占位符 `CN=AirWorks`，包标识 `AirWorks.AirGlance` 也是占位符。两者都必须在提交到 Partner Center 之前替换。
-- 0.4.0 没有安装过已签名 MSIX，没有记录到 WACK 通过，也没有完成任何 Store 提交或上架审批。
+- 0.4.1 没有安装过已签名 MSIX，没有记录到 WACK 通过，也没有完成任何 Store 提交或上架审批。
 - Windows arm64 在 x64 的 `windows-latest` 运行器上构建。没有记录到 Windows arm64 硬件上的启动测试。Linux arm64 和 macOS x64 在原生运行器上构建，但 CI 中没有记录任何打包产物的冒烟测试。
 - 工作流中不包含打包产物的启动测试或 `--bench` 运行。发布工作流测试的是源码树，而不是解压后的 zip、tar.gz 或应用包。
 - Windows zip、macOS 应用和 Linux tar.gz 不包含 `LICENSE`、`THIRD-PARTY-NOTICES.md` 或 `README.md`。仓库中存在这些文件，但打包脚本不会将它们复制到归档中。

@@ -4,7 +4,7 @@
 
 **Whole folders, one glance.** · 「一个文件夹，一眼看完。」
 
-AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.4.0 is the current development build; 0.3.0 is the latest public release. It is deliberately small.
+AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.4.1 is the current build; 0.3.0 is the latest public binary release. It is deliberately small.
 
 - [Download](#install) · [Image formats](#image-formats) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
 
@@ -43,7 +43,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 
 ## Image formats
 
-A file is recognised by its extension. Raster formats must also decode with SkiaSharp; SVG is parsed and rasterized with Svg.Skia. The supported formats are:
+A file is recognised by its extension. Ordinary raster formats decode with SkiaSharp; TIFF and AVIF use the libvips path, and SVG is parsed and rasterized with Svg.Skia. The supported formats are:
 
 | Format | Extensions | Notes |
 | --- | --- | --- |
@@ -69,13 +69,13 @@ Why these are absent:
 - **RAW** files are not display-ready pixels. Opening one requires demosaicing, white balance, a camera colour matrix, tone mapping and often lens corrections. That is a separate LibRaw-class engine, not a decoder switch.
 - **Video** needs demuxing, a video decoder, audio/video synchronisation and a media stack such as FFmpeg or the OS media APIs. That is outside a still-image viewer, and the codec licensing and package size are significant.
 
-AirGlance deliberately uses SkiaSharp for raster formats and Svg.Skia for SVG on every platform instead of falling back to OS codecs. Adding native codecs would make Windows, macOS and Linux behave differently, add per-platform native libraries and licensing, and could push the AOT packages toward or past the 30 MB size budget.
+AirGlance uses SkiaSharp for ordinary raster formats, LibTiff/NetVips for TIFF, NetVips for AVIF, and Svg.Skia for SVG. The Windows x64 package bundles libvips; the other platforms currently have no AVIF/large-TIFF native payload.
 
 The formats above are deliberately absent; there is no platform-codec fallback. Renaming a file to a supported extension does not help: the content check still fails, and the file is reported as corrupt rather than opened. Files with an unsupported extension are rejected even if their content happens to be a supported image.
 
 ## Install
 
-0.3.0 is not on the product site yet. Download it from the [v0.3.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0).
+0.3.0 is the latest packaged binary release; download it from the [v0.3.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0). The `v0.4.1` tag contains the current source build, including AVIF and large-TIFF support.
 
 ### Windows
 

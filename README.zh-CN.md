@@ -4,7 +4,7 @@
 
 **一个文件夹，一眼看完。**
 
-AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前开发版本是 0.4.0，0.3.0 是最新公开版本。它刻意保持小巧。
+AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.4.1，0.3.0 是最新公开二进制版本。它刻意保持小巧。
 
 - [下载](#安装) · [图片格式](#图片格式) · [键盘](#键盘) · [性能](#性能) · [已知限制](#已知限制) · [从源码构建](#从源码构建)
 
@@ -43,7 +43,7 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 
 ## 图片格式
 
-文件先按扩展名识别。位图格式还必须能被 SkiaSharp 解码；SVG 由 Svg.Skia 解析并光栅化。支持以下格式：
+文件先按扩展名识别。普通位图格式由 SkiaSharp 解码；TIFF 和 AVIF 走 libvips，SVG 由 Svg.Skia 解析并光栅化。支持以下格式：
 
 | 格式 | 扩展名 | 说明 |
 | --- | --- | --- |
@@ -65,17 +65,17 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 
 不支持的原因：
 
-- **HEIC / HEIF 和 AVIF** 需要原生 HEVC/AV1 编解码库，而 AirGlance 使用的 SkiaSharp 构建不包含这些库。HEIC 还涉及 HEVC 专利授权；两者也都需要各自的容器、方向和颜色处理。
+- **HEIC / HEIF** 需要当前 Windows x64 libvips 包未包含的 HEVC 解码器。AVIF 通过内置 libvips 的 AV1 解码器支持；HEIC 仍不在当前包内。
 - **RAW** 不是可直接显示的像素。打开 RAW 需要去马赛克、白平衡、相机色彩矩阵、色调映射，通常还需要镜头校正；这需要一套 LibRaw 级别的引擎，而不是切换一个解码器。
 - **视频** 需要解复用、视频解码、音画同步，以及 FFmpeg 或系统媒体 API 之类的媒体栈。这超出了静态看图工具的范围，编解码授权和包体大小也是显著成本。
 
-AirGlance 刻意在所有平台使用 SkiaSharp 处理位图、使用 Svg.Skia 处理 SVG，不回退到系统编解码器。加入原生编解码器会让 Windows、macOS 和 Linux 的行为不一致，增加各平台原生库和授权成本，并可能让 AOT 包接近或超过 30 MB 的体积预算。
+AirGlance 使用 SkiaSharp 处理普通位图、LibTiff/NetVips 处理 TIFF、NetVips 处理 AVIF、Svg.Skia 处理 SVG。Windows x64 包内置 libvips；其他平台目前还没有 AVIF/大 TIFF 的原生包。
 
 以上格式是刻意不支持的，也不会回退到系统编解码器。把文件改成受支持的扩展名没有用：内容检查仍会失败，文件会按损坏文件报错，而不是被打开。扩展名不受支持的文件也会被拒绝，即使它的内容恰好是受支持的图片。
 
 ## 安装
 
-0.3.0 尚未上产品站。请从 [v0.3.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0) 下载。
+0.3.0 是最新的已打包二进制版本，请从 [v0.3.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0) 下载。`v0.4.1` tag 包含当前源码构建，包括 AVIF 和大 TIFF 支持。
 
 ### Windows
 
@@ -169,7 +169,7 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 
 这些是限制，不是承诺清单。
 
-- 不支持 HEIC 或 RAW；AVIF 在 Windows 上通过 libvips 支持。SkiaSharp 无法解码这些格式，AirGlance 也不附带平台编解码器。
+- 不支持 HEIC 或 RAW；AVIF 在 Windows 上通过 libvips 支持。
 - 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
 - TIFF 只显示第一页。CMYK、多页和部分特殊压缩变体不在首版支持范围内。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。

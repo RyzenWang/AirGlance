@@ -1,7 +1,7 @@
 # 大 TIFF 方案 A：NetVips 预览分支
 
 > 分支：`spike/netvips-large-tiff`  
-> 状态：实验性本地验证，不合并 `main`，不推送远程。
+> 状态：已合并到 `main`，随 `v0.4.0` tag 提供；`v0.4.1` 继续包含。
 
 ## 目标
 

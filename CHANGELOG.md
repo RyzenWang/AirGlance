@@ -5,12 +5,25 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-11-18
+## [0.4.1] - 2026-11-18
 
 ### Added
 
 - AVIF still-image decoding through the bundled libvips native codec. The first
   frame is shown; HEIC remains unsupported because its HEVC codec is not bundled.
+
+### Changed
+
+- Project and documentation metadata now report 0.4.1.
+
+## [0.4.0] - 2026-11-18
+
+### Added
+
+- Large TIFF preview and 100% region viewing through NetVips. TIFFs above the
+  managed decoder threshold get an 8192 px proxy, then 512 px region tiles above
+  the proxy's native scale. Files that libvips cannot open still fall back to a
+  clear unsupported/too-large message.
 - Side-by-side dual-canvas mode in the same window. Press `D` or click the split-view
   button in the dock to enter or leave it. The left canvas keeps the current image,
   the right canvas opens the next image in the same folder, and each canvas keeps

@@ -5,7 +5,7 @@
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.
-2. Raster formats decode with SkiaSharp's `SKCodec`, except TIFF (LibTiff) and SVG (Svg.Skia), which have their own first-page/rasterization path. A supported extension with unreadable content is reported as corrupt, not unsupported.
+2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff/libvips, AVIF uses NetVips/libvips, and SVG uses Svg.Skia. A supported extension with unreadable content is reported as corrupt, not unsupported.
 
 A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension.
 

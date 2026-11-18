@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-AirGlance 0.4.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
+AirGlance 0.4.1 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
 

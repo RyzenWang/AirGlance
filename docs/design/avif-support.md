@@ -1,6 +1,6 @@
 # AVIF 支持验证
 
-> 分支：`spike/avif-support`
+> 状态：已合并到 `main`，随 `v0.4.1` tag 提供。
 
 ## 结果
 
