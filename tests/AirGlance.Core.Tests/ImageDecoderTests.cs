@@ -202,6 +202,12 @@ public sealed class ImageDecoderTests
     [Fact]
     public void Tiff_region_reader_returns_bgra_tile()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            // The Plan A native libvips package is currently Windows-only.
+            return;
+        }
+
         using var reader = TiffRegionReader.Open(Asset("rgb-lzw.tif"));
         var width = Math.Min(4, reader.PixelWidth);
         var height = Math.Min(4, reader.PixelHeight);
