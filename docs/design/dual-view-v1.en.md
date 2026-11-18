@@ -3,12 +3,14 @@
 **English** · [简体中文](dual-view-v1.md)
 
 > Interaction design draft. This document describes behaviour, layout and states only; it does not change application code.
+>
+> **Confirmed (2026-11-18):** two side-by-side canvases in one window; the right canvas shows the next image when entering from a folder; v1 does not include pair stepping; viewing two 100 MP images at 100% simultaneously is not an acceptance requirement.
 
 ![Same-folder dual canvas](dual-view-same.png)
 
 ## 0. Scope and assumptions
 
-Here, “dual screen” means **two side-by-side canvases inside one AirGlance window**, not a window spread across two physical monitors.
+Here, “dual screen” is confirmed to mean **two side-by-side canvases inside one AirGlance window**, not a window spread across two physical monitors.
 
 - Each canvas shows one image.
 - The two images can come from the same folder or from different folders.
@@ -71,8 +73,7 @@ Opening a new folder never changes the other pane. Opening an image makes its pa
 - Default pair: left `N`, right `N+1`.
 - Left navigation does not move the right pane, and vice versa.
 - To compare two specific images, activate the right pane and choose a thumbnail.
-- v1 does **not** add “pair stepping”. The user can choose any second image, so forcing both indexes to move together would break the expected model.
-- Possible later feature: `Pair step`, only for the adjacent `N / N+1` pair.
+- v1 does **not** add “pair stepping”. The user can choose any second image, so forcing both indexes to move together would break the expected model. The product has confirmed it is not needed for now and it is not in Phase 2.
 
 ### Filmstrip in the same folder
 
@@ -184,7 +185,7 @@ Each pane's top-left contains:
 - File deleted externally: the affected pane shows an error and the other pane does not jump.
 - Drag hover: the target pane shows a 2 px identity border and a “Drop on B” hint.
 - Animated GIF: panes animate independently; changing active does not reset the other animation.
-- Two 100 MP images: each pane has its own tile cache. A shared memory budget is required; v1 may allow only one pane in 100% tile mode while the other stays on preview.
+- Two 100 MP images: viewing both at 100% is not required. v1 only guarantees full resolution for the active pane; an inactive huge image may stay on preview. Ordinary images can still both be at 100%.
 
 ## 8. Visual specification
 
@@ -225,7 +226,6 @@ Each pane's top-left contains:
 
 - Synchronised zoom percentage;
 - drag thumbnails between panes;
-- pair stepping for adjacent images;
 - independent per-pane window title/status;
 - restore the last dual layout.
 
@@ -235,13 +235,14 @@ Each pane's top-left contains:
 - independent GPU/compositor paths;
 - per-monitor fullscreen.
 
-## 11. Open questions
+## 11. Confirmed decisions
 
-1. Does “dual screen” mean two canvases in one window? If it means physical monitors, the design needs a two-window model.
-2. Should the right pane automatically open the next image when entering from a folder?
-3. Is pair stepping (left N / right N+1) required?
-4. Should slideshow be available in dual view, or disabled as proposed?
-5. Is viewing two 100 MP images at 100% simultaneously a hard requirement? It determines the tile-cache budget.
+- “Dual screen” means two side-by-side canvases in one window, not two physical monitors.
+- The right canvas opening the next image when entering from a folder matches the expectation.
+- v1 does not need pair stepping (left N / right N+1).
+- Viewing two 100 MP images at 100% simultaneously is not a v1 acceptance requirement.
+
+The v1 interaction scope is settled; there are no open interaction questions. Only Phase 1 start approval remains.
 
 ## 12. Interactive prototype
 
