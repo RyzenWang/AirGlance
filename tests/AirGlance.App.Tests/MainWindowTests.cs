@@ -430,6 +430,9 @@ public sealed class MainWindowTests
         Assert.NotNull(maximizeLeft);
         Assert.True(headerRight.Value.X <= maximizeLeft.Value.X,
             $"B header ends at {headerRight.Value.X}, Maximize starts at {maximizeLeft.Value.X}");
+        Assert.Contains(
+            dualView.GetVisualDescendants().OfType<TextBlock>(),
+            text => text.Text == "02 / 02" && text.IsEffectivelyVisible);
     }
 
     [AvaloniaFact]

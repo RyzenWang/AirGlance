@@ -369,8 +369,8 @@ public sealed class DualCanvasView : UserControl, IDisposable
         content.Children.Add(activeFrame);
 
         var header = BuildHeader(index, out var badge, out var folderName, out var folderCount,
-            out var fileName, out var fileMeta, out var filePosition, out var folderChip, out var fileChip,
-            out var fileSeparator1, out var fileSeparator2);
+            out var fileName, out var fileMeta, out var fileZoom, out var filePosition,
+            out var folderChip, out var fileChip, out var fileSeparator1, out var fileSeparator2);
         content.Children.Add(header);
 
         var navGroup = BuildPaneNav(index, out var navBadge, out var navPrev, out var navNext);
@@ -413,8 +413,9 @@ public sealed class DualCanvasView : UserControl, IDisposable
         };
 
         return new PaneSlot(index, viewer, host, activeFrame, header, badge, folderName, folderCount,
-            fileName, fileMeta, filePosition, folderChip, fileChip, fileSeparator1, fileSeparator2,
-            loading, empty, emptyTitle, emptyDetail, navGroup, navBadge, navPrev, navNext);
+            fileName, fileMeta, fileZoom, filePosition, folderChip, fileChip, fileSeparator1,
+            fileSeparator2, loading, empty, emptyTitle, emptyDetail, navGroup, navBadge, navPrev,
+            navNext);
     }
 
     private StackPanel BuildHeader(
@@ -424,6 +425,7 @@ public sealed class DualCanvasView : UserControl, IDisposable
         out TextBlock folderCount,
         out TextBlock fileName,
         out TextBlock fileMeta,
+        out TextBlock fileZoom,
         out TextBlock filePosition,
         out Border folderChip,
         out Border fileChip,
@@ -474,38 +476,55 @@ public sealed class DualCanvasView : UserControl, IDisposable
         folderChip.Child = folderRow;
         row.Children.Add(folderChip);
 
-        fileChip = new Border { Classes = { "overlay-chip" }, MaxWidth = 430, ClipToBounds = true };
-        var fileRow = new StackPanel
+        fileChip = new Border
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 9,
+            Classes = { "overlay-chip" },
+            MaxWidth = 430,
+            Padding = new Thickness(9, 0),
+            ClipToBounds = true
+        };
+        var fileRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,Auto,Auto,46"),
             VerticalAlignment = VerticalAlignment.Center
         };
-        fileName = new TextBlock { MaxWidth = 180 };
+        fileName = new TextBlock { MaxWidth = 180, TextTrimming = TextTrimming.CharacterEllipsis };
         fileName.Classes.Add("chrome-file");
         fileRow.Children.Add(fileName);
         fileSeparator1 = new Border
         {
             Width = 1,
             Height = 15,
+            Margin = new Thickness(4, 0),
             Background = new SolidColorBrush(Color.Parse("#24FFFFFF"))
         };
+        Grid.SetColumn(fileSeparator1, 1);
         fileRow.Children.Add(fileSeparator1);
-        fileMeta = new TextBlock();
+        fileMeta = new TextBlock { Margin = new Thickness(0, 0, 4, 0) };
         fileMeta.Classes.Add("chrome-meta");
+        Grid.SetColumn(fileMeta, 2);
         fileRow.Children.Add(fileMeta);
+        fileZoom = new TextBlock { Margin = new Thickness(0, 0, 6, 0) };
+        fileZoom.Classes.Add("chrome-meta");
+        Grid.SetColumn(fileZoom, 3);
+        fileRow.Children.Add(fileZoom);
         fileSeparator2 = new Border
         {
             Width = 1,
             Height = 15,
+            Margin = new Thickness(1, 0, 4, 0),
             Background = new SolidColorBrush(Color.Parse("#24FFFFFF"))
         };
+        Grid.SetColumn(fileSeparator2, 4);
         fileRow.Children.Add(fileSeparator2);
         filePosition = new TextBlock
         {
+            Width = 46,
+            TextAlignment = TextAlignment.Right,
             Foreground = new SolidColorBrush(Color.Parse(index == 0 ? "#F4A593" : "#8BC8BB"))
         };
         filePosition.Classes.Add("chrome-meta");
+        Grid.SetColumn(filePosition, 5);
         fileRow.Children.Add(filePosition);
         fileChip.Child = fileRow;
         row.Children.Add(fileChip);
@@ -1367,18 +1386,20 @@ public sealed class DualCanvasView : UserControl, IDisposable
 
     private void UpdatePaneLabels(PaneSlot pane)
     {
-        pane.FolderName.Text = pane.Folder is null ? string.Empty : Path.GetFileName(pane.Folder);
         pane.FolderCount.Text = pane.Files.Count > 0
             ? pane.Files.Count.ToString(CultureInfo.InvariantCulture)
             : string.Empty;
-        pane.FileName.Text = pane.CurrentPath is null ? string.Empty : Path.GetFileName(pane.CurrentPath);
         pane.FileMeta.Text = pane.Metadata is null
             ? string.Empty
-            : $"{pane.Metadata.DisplayWidth} × {pane.Metadata.DisplayHeight} · {pane.Viewer.ZoomPercent:0}%";
+            : $"{pane.Metadata.DisplayWidth} × {pane.Metadata.DisplayHeight}";
+        pane.FileZoom.Text = pane.Metadata is null
+            ? string.Empty
+            : $"· {pane.Viewer.ZoomPercent:0}%";
         pane.FileChip.IsVisible = pane.CurrentPath is not null;
         pane.FilePosition.Text = pane.CurrentPath is not null && pane.Files.Count > 0
             ? $"{pane.FileIndex + 1:D2} / {pane.Files.Count:D2}"
             : string.Empty;
+        ApplyPaneHeaderLayout(pane);
         ApplyChrome();
     }
 
@@ -1651,25 +1672,70 @@ public sealed class DualCanvasView : UserControl, IDisposable
 
         var compact = Bounds.Width > 0 && Bounds.Width < 1120;
         var rightReserve = pane.PaneNumber == 1 ? 166 : 16;
-        var available = Math.Max(120, paneWidth - 16 - rightReserve);
+        var available = Math.Max(160, paneWidth - 16 - rightReserve);
         pane.Header.MaxWidth = available;
-        var remaining = Math.Max(76, available - 44);
-        var fileMin = compact ? 80 : 120;
-        var folderMax = Math.Clamp(Math.Min(190, remaining - fileMin), 80, 190);
-        var fileMax = Math.Clamp(remaining - folderMax, 80, 430);
+
+        var folderMax = compact ? 120 : available >= 500 ? 190 : 150;
+        var fileMax = Math.Max(120, available - 44 - folderMax);
+        if (compact)
+        {
+            fileMax = Math.Min(fileMax, 170);
+        }
+
         pane.FolderChip.MaxWidth = folderMax;
         pane.FileChip.MaxWidth = fileMax;
+        pane.FileChip.Width = fileMax;
+        pane.FolderName.MaxWidth = compact ? 60 : 82;
+        pane.FileName.MaxWidth = compact ? 72 : 96;
 
-        var showSecondary = !compact && fileMax >= 200;
-        var showPosition = showSecondary && fileMax >= 340;
-        pane.FileMeta.IsVisible = showSecondary;
-        pane.FilePosition.IsVisible = showPosition;
-        pane.FileSeparator1.IsVisible = showSecondary;
-        pane.FileSeparator2.IsVisible = showPosition;
+        var folderChars = compact ? 8 : 12;
+        var fileChars = compact ? 10 : 14;
+        var folderText = pane.Folder is null ? string.Empty : Path.GetFileName(pane.Folder);
+        var fileText = pane.CurrentPath is null ? string.Empty : Path.GetFileName(pane.CurrentPath);
+        pane.FolderName.Text = TruncateLabel(folderText, folderChars);
+        pane.FileName.Text = TruncateFileName(fileText, fileChars);
+        ToolTip.SetTip(pane.FolderName, folderText);
+        ToolTip.SetTip(pane.FileName, fileText);
+
+        var showDimensions = !compact && fileMax >= 220;
+        var showZoom = !compact && fileMax >= 300;
+        pane.FileMeta.IsVisible = showDimensions;
+        pane.FileSeparator1.IsVisible = showDimensions;
+        pane.FileZoom.IsVisible = showZoom;
+        pane.FileSeparator2.IsVisible = true;
+        pane.FilePosition.IsVisible = true;
         pane.FolderCount.IsVisible = !compact;
-        pane.FileName.MaxWidth = showSecondary
-            ? Math.Clamp(fileMax - 160, 50, 180)
-            : Math.Clamp(fileMax - 30, 50, 180);
+    }
+
+    private static string TruncateLabel(string value, int maxChars)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxChars)
+        {
+            return value;
+        }
+
+        return string.Concat(value.AsSpan(0, Math.Max(1, maxChars - 1)), "…");
+    }
+
+    private static string TruncateFileName(string value, int maxChars)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxChars)
+        {
+            return value;
+        }
+
+        var extension = Path.GetExtension(value).TrimStart('.');
+        if (extension.Length > 0 && extension.Length + 2 <= maxChars)
+        {
+            var prefixLength = maxChars - extension.Length - 1;
+            var prefix = value[..prefixLength].TrimEnd('.');
+            if (prefix.Length > 0)
+            {
+                return string.Concat(prefix, "…", extension);
+            }
+        }
+
+        return string.Concat(value.AsSpan(0, Math.Max(1, maxChars - 1)), "…");
     }
 
     private void ApplyCompactLayout()
@@ -1931,10 +1997,11 @@ public sealed class DualCanvasView : UserControl, IDisposable
     private sealed class PaneSlot : IDisposable
     {
         public PaneSlot(int index, ImageViewer viewer, Border host, Border activeFrame, StackPanel header,
-            Border badge, TextBlock folderName, TextBlock folderCount, TextBlock fileName, TextBlock fileMeta,
-            TextBlock filePosition, Border folderChip, Border fileChip, Border fileSeparator1,
-            Border fileSeparator2, Border loading, Border empty, TextBlock emptyTitle,
-            TextBlock emptyDetail, Border navGroup, Border navBadge, Button navPrev, Button navNext)
+            Border badge, TextBlock folderName, TextBlock folderCount, TextBlock fileName,
+            TextBlock fileMeta, TextBlock fileZoom, TextBlock filePosition, Border folderChip,
+            Border fileChip, Border fileSeparator1, Border fileSeparator2, Border loading,
+            Border empty, TextBlock emptyTitle, TextBlock emptyDetail, Border navGroup,
+            Border navBadge, Button navPrev, Button navNext)
         {
             PaneNumber = index;
             Viewer = viewer;
@@ -1946,6 +2013,7 @@ public sealed class DualCanvasView : UserControl, IDisposable
             FolderCount = folderCount;
             FileName = fileName;
             FileMeta = fileMeta;
+            FileZoom = fileZoom;
             FilePosition = filePosition;
             FolderChip = folderChip;
             FileChip = fileChip;
@@ -1982,6 +2050,8 @@ public sealed class DualCanvasView : UserControl, IDisposable
         public TextBlock FileName { get; }
 
         public TextBlock FileMeta { get; }
+
+        public TextBlock FileZoom { get; }
 
         public TextBlock FilePosition { get; }
 
