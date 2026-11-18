@@ -431,7 +431,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ZoomPercent = percent;
         ZoomText = Math.Round(percent, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture) + "%";
 
-        if (_rawDecoded is { } raw &&
+        if (_rawDecoded is { IsProxy: false } raw &&
             !_fullLoaded &&
             !_isLoadingFull &&
             raw.Scale < 0.99 &&
@@ -787,7 +787,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private async Task LoadFullResolutionAsync()
     {
         var path = _currentPath;
-        if (path is null || _fullLoaded || _isLoadingFull || _currentAnimation is not null)
+        if (path is null || _fullLoaded || _isLoadingFull || _currentAnimation is not null ||
+            _rawDecoded?.IsProxy == true)
         {
             return;
         }
@@ -1292,7 +1293,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayVisible = true;
         OverlayTitle = _services.Localization.T("L.CantOpenTitle");
         OverlayMessage = LocalizeFailure(failure, extension);
-        OverlayHint = _services.Localization.T("L.EmptyLimitations");
+        OverlayHint = failure == ImageLoadFailure.TooLarge
+            ? _services.Localization.T("L.TooLargeHint")
+            : _services.Localization.T("L.EmptyLimitations");
         TitleFileName = _currentPath is null ? "AirGlance" : Path.GetFileName(_currentPath);
         WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} 闂?AirGlance";
         _rawDecoded = null;
@@ -1313,6 +1316,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 "L.ErrorUnsupportedFormat",
                 string.IsNullOrWhiteSpace(extension) ? string.Empty : extension),
             ImageLoadFailure.NotFound => localization.T("L.ErrorNotFound"),
+            ImageLoadFailure.TooLarge => localization.T("L.ErrorTooLarge"),
             ImageLoadFailure.AccessDenied => localization.T("L.ErrorAccessDenied"),
             ImageLoadFailure.Corrupt => localization.T("L.ErrorCorrupt"),
             _ => localization.T("L.ErrorUnknown")
@@ -1341,11 +1345,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void UpdateStatus(ImageMetadata metadata)
     {
-        StatusDimensions = string.Format(
+        var dimensions = string.Format(
             CultureInfo.InvariantCulture,
             "{0} \u00D7 {1}",
             metadata.DisplayWidth,
             metadata.DisplayHeight);
+        StatusDimensions = _rawDecoded?.IsProxy == true
+            ? string.Concat(dimensions, " · ", _services.Localization.T("L.Preview"))
+            : dimensions;
         StatusPosition = _navigator.Count == 0
             ? string.Empty
             : $"{_navigator.CurrentIndex + 1}/{_navigator.Count}";
@@ -1541,7 +1548,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             OverlayMessage = LocalizeFailure(failure, _lastFailureExtension);
             OverlayTitle = _services.Localization.T("L.CantOpenTitle");
-            OverlayHint = _services.Localization.T("L.EmptyLimitations");
+            OverlayHint = failure == ImageLoadFailure.TooLarge
+                ? _services.Localization.T("L.TooLargeHint")
+                : _services.Localization.T("L.EmptyLimitations");
         }
         else if (_folderEmpty)
         {

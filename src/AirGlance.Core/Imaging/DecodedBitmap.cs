@@ -12,7 +12,8 @@ public sealed class DecodedBitmap
         byte[] pixels,
         int sourceWidth,
         int sourceHeight,
-        double scale)
+        double scale,
+        bool isProxy = false)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
@@ -32,6 +33,7 @@ public sealed class DecodedBitmap
         SourceWidth = sourceWidth;
         SourceHeight = sourceHeight;
         Scale = scale <= 0 ? 1 : scale;
+        IsProxy = isProxy;
     }
 
     public int Width { get; }
@@ -52,8 +54,11 @@ public sealed class DecodedBitmap
 
     public bool IsFullResolution => Scale >= 0.999;
 
+    /// <summary>True when this bitmap is a reduced preview of a source too large to decode fully.</summary>
+    public bool IsProxy { get; }
+
     public bool HasAlpha { get; set; } = true;
 
     public DecodedBitmap WithSourceSize(int sourceWidth, int sourceHeight) =>
-        new(Width, Height, Pixels, sourceWidth, sourceHeight, Scale);
+        new(Width, Height, Pixels, sourceWidth, sourceHeight, Scale, IsProxy);
 }

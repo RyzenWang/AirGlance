@@ -14,18 +14,21 @@ namespace AirGlance.Core.Imaging;
 /// </summary>
 public static class ImageDecoder
 {
+    private const long LargeTiffPixelThreshold = 250_000_000;
+
     public static DecodedBitmap Decode(
         string path,
         int maxWidth,
         int maxHeight,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool allowLargePreview = true)
     {
         Validate(path);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (SupportedFormats.IsTiff(path))
         {
-            return DecodeTiff(path, maxWidth, maxHeight, cancellationToken);
+            return DecodeTiff(path, maxWidth, maxHeight, cancellationToken, allowLargePreview);
         }
 
         if (SupportedFormats.IsSvg(path))
@@ -171,7 +174,7 @@ public static class ImageDecoder
     }
 
     public static DecodedBitmap DecodeFull(string path, CancellationToken cancellationToken = default) =>
-        Decode(path, 0, 0, cancellationToken);
+        Decode(path, 0, 0, cancellationToken, allowLargePreview: false);
 
     /// <summary>
     /// Decodes at full resolution into unmanaged memory. This is the tile-cache entry
@@ -186,6 +189,15 @@ public static class ImageDecoder
 
         if (SupportedFormats.IsTiff(path))
         {
+            if (IsLargeTiff(path))
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.Unsupported,
+                    "Full-resolution decoding is not available for this large TIFF.",
+                    path,
+                    Path.GetExtension(path));
+            }
+
             return DecodeTiffRaw(path, cancellationToken);
         }
 
@@ -650,8 +662,23 @@ public static class ImageDecoder
         string path,
         int maxWidth,
         int maxHeight,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool allowLargePreview)
     {
+        if (IsLargeTiff(path))
+        {
+            if (!allowLargePreview)
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.Unsupported,
+                    "Full-resolution decoding is not available for this large TIFF.",
+                    path,
+                    Path.GetExtension(path));
+            }
+
+            return NetVipsTiffDecoder.DecodePreview(path, maxWidth, maxHeight, cancellationToken);
+        }
+
         try
         {
             using var image = OpenTiff(path);
@@ -737,6 +764,15 @@ public static class ImageDecoder
 
     private static DecodedImageBuffer DecodeTiffRaw(string path, CancellationToken cancellationToken)
     {
+        if (IsLargeTiff(path))
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Unsupported,
+                "Full-resolution decoding is not available for this large TIFF.",
+                path,
+                Path.GetExtension(path));
+        }
+
         try
         {
             using var image = OpenTiff(path);
@@ -797,6 +833,11 @@ public static class ImageDecoder
     {
         try
         {
+            if (IsLargeTiff(path))
+            {
+                return NetVipsTiffDecoder.ReadMetadata(path);
+            }
+
             var file = new FileInfo(path);
             using var image = OpenTiff(path);
             var info = ReadTiffInfo(image, path);
@@ -837,6 +878,22 @@ public static class ImageDecoder
         catch (Exception exception)
         {
             throw TiffFailure(ImageLoadFailure.Corrupt, "The TIFF could not be read.", path, exception);
+        }
+    }
+
+    private static bool IsLargeTiff(string path)
+    {
+        try
+        {
+            using var image = OpenTiff(path);
+            var width = TiffInt(image, TiffTag.IMAGEWIDTH);
+            var height = TiffInt(image, TiffTag.IMAGELENGTH);
+            return width is > 0 && height is > 0 &&
+                   (long)width.Value * height.Value > LargeTiffPixelThreshold;
+        }
+        catch
+        {
+            return true;
         }
     }
 

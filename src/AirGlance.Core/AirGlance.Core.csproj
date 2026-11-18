@@ -12,6 +12,8 @@
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="Svg.Skia" />
     <PackageReference Include="BitMiracle.LibTiff.NET" />
+    <PackageReference Include="NetVips" />
+    <PackageReference Include="NetVips.Native.win-x64" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
