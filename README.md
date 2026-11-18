@@ -143,13 +143,13 @@ Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 
 
 | Metric | Target | 0.3.0 |
 | --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 222.9 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 451.6 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 338.5 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 84.6 MB |
-| Windows x64 portable zip | ≤ 30 MB | 19.76 MB |
+| Cold start to first window | ≤ 500 ms | 222.0 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 424.7 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 327.0 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 84.5 MB |
+| Windows x64 portable zip | ≤ 30 MB | 20.51 MB |
 
-The 0.3.0 build meets the startup and first-frame targets on the reference machine: the window is up in about 223 ms and a 24 MP image is on screen in about 452 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
+The 0.3.0 build meets the startup and first-frame targets on the reference machine: the window is up in about 222 ms and a 24 MP image is on screen in about 425 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 

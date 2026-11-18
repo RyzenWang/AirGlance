@@ -24,9 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
-- NativeAOT `win-x64`: 24 MP first window 222.9 ms median, first frame 451.6 ms;
-  peak working set 84.6 MB.
-- 100 MP fit-window first frame 338.5 ms; 100 MP at 100% peaks at 457.6 MB and
+- NativeAOT `win-x64`: 24 MP first window 222.0 ms median, first frame 424.7 ms;
+  peak working set 84.5 MB.
+- 100 MP fit-window first frame 327.0 ms; 100 MP at 100% peaks at 457.6 MB and
   settles at 88.2 MB working set.
 
 ## [0.2.0] - 2026-11-18
