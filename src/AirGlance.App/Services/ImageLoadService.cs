@@ -67,6 +67,13 @@ public sealed class ImageLoadService
     public Task<DecodedBitmap> DecodeFullAsync(string path, CancellationToken cancellationToken) =>
         Task.Run(() => ImageDecoder.DecodeFull(path, cancellationToken), cancellationToken);
 
+    public Task<DecodedAnimation?> DecodeAnimationAsync(
+        string path,
+        int maxWidth,
+        int maxHeight,
+        CancellationToken cancellationToken) =>
+        Task.Run(() => ImageDecoder.DecodeAnimation(path, maxWidth, maxHeight, cancellationToken), cancellationToken);
+
     public void Clear()
     {
         lock (_gate)

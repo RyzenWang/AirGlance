@@ -135,6 +135,36 @@ public sealed class MainWindowTests
         Assert.Equal("Switch to dark", ToolTip.GetTip(button));
     }
 
+    [AvaloniaFact]
+    public async Task Animated_gif_is_presented_as_an_animation()
+    {
+        using var fixture = new WindowFixture("animated.gif");
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        Assert.NotNull(viewer.Source);
+        var first = viewer.Source;
+        await WaitUntilAsync(() => !ReferenceEquals(first, viewer.Source), 3_000);
+    }
+
+    [AvaloniaFact]
+    public async Task Svg_is_presented_as_an_image()
+    {
+        using var fixture = new WindowFixture("vector.svg");
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        Assert.NotNull(viewer.Source);
+        Assert.Equal(64, viewer.SourcePixelWidth);
+        Assert.Equal(48, viewer.SourcePixelHeight);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 10_000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
@@ -151,7 +181,7 @@ public sealed class MainWindowTests
     {
         private readonly string _root;
 
-        public WindowFixture()
+        public WindowFixture(string? initialAsset = null)
         {
             _root = Path.Combine(Path.GetTempPath(), "airglance-window-" + Guid.NewGuid().ToString("N"));
             var images = Path.Combine(_root, "images");
@@ -166,9 +196,16 @@ public sealed class MainWindowTests
                     Path.Combine(images, name));
             }
 
+            if (initialAsset is not null)
+            {
+                File.Copy(
+                    Path.Combine(AppContext.BaseDirectory, "Assets", initialAsset),
+                    Path.Combine(images, initialAsset));
+            }
+
             Services = new AppServices(Path.Combine(_root, "settings"), Path.Combine(_root, "cache"));
             Services.SetLanguage(LocalizationService.English);
-            var options = CommandLineOptions.Parse([Path.Combine(images, "a.jpg")]);
+            var options = CommandLineOptions.Parse([Path.Combine(images, initialAsset ?? "a.jpg")]);
             Window = new MainWindow(Services, options);
         }
 

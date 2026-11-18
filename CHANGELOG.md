@@ -5,10 +5,24 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - 2026-11-18
+
+### Added
+
+- Animated GIF playback. Every frame is composited with GIF disposal and blend
+  rules, delays are honoured, and playback loops in the viewer. Frame memory is
+  capped at 24 million pixels for long animations.
+- SVG support through Svg.Skia. Static SVGs are rasterized at the requested display
+  size, keep a transparent background, and appear in the folder list, open dialog and
+  thumbnails like other images. CSS is rendered; JavaScript is not executed.
+- The information panel reports the frame count for animated GIFs.
 
 ### Changed
 
+- The supported format list now includes `.svg`; SVG is no longer in the unsupported
+  matrix. Animated WebP and APNG remain still images.
+- The portable package now carries Svg.Skia and HarfBuzzSharp 14.2.0; the Windows x64
+  zip grows from 15.55 MB to 19.50 MB, still under the 30 MB budget.
 - The overlay chrome now follows the measurements in the interaction prototype:
   18 px top-bar margins, 38 px chips, a 52 px dock with 38 × 40 buttons and 18 px
   icons, 46 px circular navigation at 72% resting opacity, a 570 px empty card and
@@ -39,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shipping docs, and an English version of the interaction design.
 - Section 8 of the interaction design records the geometry pass and refreshed
   screenshots for the default, filmstrip, info, empty, dark and fullscreen states.
+
+### Performance
+
+- NativeAOT `win-x64`: 24 MP first window 199.4 ms median, first frame 365.4 ms;
+  peak working set 81.1 MB.
+- 100 MP fit-window first frame 292.7 ms; 100 MP at 100% peaks at 457.4 MB and
+  settles at 87.9 MB working set.
 
 ## [0.1.3] - 2026-11-17
 
@@ -154,7 +175,8 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.2.0
 [0.1.3]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.3
 [0.1.2]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.2
 [0.1.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.1

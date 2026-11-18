@@ -120,6 +120,15 @@ def main():
         loop=0,
     )
 
+    # A static SVG with a transparent background, one filled rectangle and one circle.
+    with open(os.path.join(OUT, "vector.svg"), "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48" viewBox="0 0 64 48">\n'
+            '  <rect x="0" y="0" width="64" height="24" fill="#e3563b" />\n'
+            '  <circle cx="32" cy="32" r="12" fill="#2e6f63" />\n'
+            "</svg>\n"
+        )
+
     gradient = np.linspace(0, 65535, 64 * 32, dtype=np.uint16).reshape(32, 64)
     Image.fromarray(gradient, mode="I;16").save(os.path.join(OUT, "gradient-16bit.png"))
 

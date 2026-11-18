@@ -24,7 +24,8 @@ public sealed class ImagePresentedEventArgs : EventArgs
         double imageScale,
         bool resetView,
         bool animate,
-        bool isNavigation)
+        bool isNavigation,
+        AnimatedImage? animation = null)
     {
         Bitmap = bitmap;
         SourceWidth = sourceWidth;
@@ -33,9 +34,12 @@ public sealed class ImagePresentedEventArgs : EventArgs
         ResetView = resetView;
         Animate = animate;
         IsNavigation = isNavigation;
+        Animation = animation;
     }
 
     public WriteableBitmap? Bitmap { get; }
+
+    public AnimatedImage? Animation { get; }
 
     public int SourceWidth { get; }
 
@@ -86,6 +90,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _fullLoaded;
     private DecodedBitmap? _rawDecoded;
     private WriteableBitmap? _currentBitmap;
+    private AnimatedImage? _currentAnimation;
     private TiledImageSource? _tiledSource;
     private ImageMetadata? _metadata;
     private EditTransform _edit = EditTransform.None;
@@ -137,7 +142,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public string? CurrentFilePath => _currentPath;
 
-    public WriteableBitmap? CurrentBitmap => _currentBitmap;
+    public WriteableBitmap? CurrentBitmap => _currentAnimation?.Frames[0] ?? _currentBitmap;
 
     public bool IsTiled => _tiledSource is not null;
 
@@ -145,7 +150,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (_tiledSource is null)
         {
-            return _currentBitmap;
+            return CurrentBitmap;
         }
 
         var path = _currentPath;
@@ -618,6 +623,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _services.SettingsChanged -= OnSettingsChanged;
         _currentBitmap?.Dispose();
         _currentBitmap = null;
+        _currentAnimation?.Dispose();
+        _currentAnimation = null;
         DisposeTiled();
     }
 
@@ -669,6 +676,42 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             var metadata = preload?.Metadata ?? await GetMetadataAsync(path, cancellationToken);
             _metadataCache[path] = metadata;
             var (targetWidth, targetHeight) = PreviewTarget();
+
+            // An animated GIF is decoded as a frame set; the ordinary preview cache
+            // only holds the first frame and must not replace the animation.
+            if (metadata.IsAnimated)
+            {
+                var animationStopwatch = Stopwatch.StartNew();
+                var animation = await _loader.DecodeAnimationAsync(
+                    path,
+                    targetWidth,
+                    targetHeight,
+                    cancellationToken);
+                animationStopwatch.Stop();
+                if (animation is not null)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (version != _loadVersion)
+                    {
+                        return;
+                    }
+
+                    _metadata = metadata;
+                    LastDecodeMilliseconds = animationStopwatch.Elapsed.TotalMilliseconds;
+                    PresentAnimation(animation, metadata, resetView: navigation, animate: navigation && animate);
+                    UpdateStatus(metadata);
+                    RebuildInfo();
+
+                    if (_thumbnailsPending)
+                    {
+                        _thumbnailsPending = false;
+                        _thumbnails?.Start(Images, _lifetimeCts.Token);
+                    }
+
+                    StartPrefetch(version, targetWidth, targetHeight);
+                    return;
+                }
+            }
 
             DecodedBitmap? decoded = null;
             var decodeMilliseconds = 0.0;
@@ -744,7 +787,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private async Task LoadFullResolutionAsync()
     {
         var path = _currentPath;
-        if (path is null || _fullLoaded || _isLoadingFull)
+        if (path is null || _fullLoaded || _isLoadingFull || _currentAnimation is not null)
         {
             return;
         }
@@ -944,6 +987,78 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
     }
 
+    private void PresentAnimation(
+        DecodedAnimation animation,
+        ImageMetadata metadata,
+        bool resetView,
+        bool animate)
+    {
+        var oldTiles = _tiledSource;
+        _tiledSource = null;
+        var oldBitmap = _currentBitmap;
+        var oldAnimation = _currentAnimation;
+
+        var frames = new List<WriteableBitmap>(animation.FrameCount);
+        try
+        {
+            foreach (var frame in animation.Frames)
+            {
+                frames.Add(BitmapFactory.FromDecoded(frame));
+            }
+
+            var source = animation.Frames[0];
+            var animatedImage = new AnimatedImage(
+                frames,
+                animation.DelaysMilliseconds,
+                source.SourceWidth,
+                source.SourceHeight,
+                source.Scale,
+                animation.RepetitionCount);
+
+            _currentBitmap = null;
+            _currentAnimation = animatedImage;
+            _rawDecoded = source;
+            _metadata = metadata;
+            HasImage = true;
+            HasError = false;
+            OverlayVisible = false;
+            _folderEmpty = false;
+
+            TitleFileName = metadata.FileName;
+            WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} — AirGlance";
+            StatusDimensions = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} × {1}",
+                source.SourceWidth,
+                source.SourceHeight);
+
+            ImagePresented?.Invoke(
+                this,
+                new ImagePresentedEventArgs(
+                    null,
+                    source.SourceWidth,
+                    source.SourceHeight,
+                    source.Scale,
+                    resetView,
+                    animate,
+                    true,
+                    animatedImage));
+        }
+        catch
+        {
+            foreach (var frame in frames)
+            {
+                frame.Dispose();
+            }
+
+            throw;
+        }
+
+        oldBitmap?.Dispose();
+        oldAnimation?.Dispose();
+        oldTiles?.Dispose();
+    }
+
     private void Present(
         DecodedBitmap display,
         ImageMetadata? metadata,
@@ -953,6 +1068,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         var oldTiles = _tiledSource;
         _tiledSource = null;
+        var oldAnimation = _currentAnimation;
+        _currentAnimation = null;
         var bitmap = BitmapFactory.FromDecoded(display);
         var old = _currentBitmap;
         _currentBitmap = bitmap;
@@ -981,6 +1098,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 isNavigation));
 
         old?.Dispose();
+        oldAnimation?.Dispose();
         oldTiles?.Dispose();
     }
 
@@ -1205,6 +1323,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         var old = _currentBitmap;
         _currentBitmap = null;
+        var oldAnimation = _currentAnimation;
+        _currentAnimation = null;
         var oldTiles = _tiledSource;
         _tiledSource = null;
         HasImage = false;
@@ -1215,6 +1335,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             this,
             new ImagePresentedEventArgs(null, 0, 0, 1, true, false, false));
         old?.Dispose();
+        oldAnimation?.Dispose();
         oldTiles?.Dispose();
     }
 
@@ -1262,6 +1383,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             new(localization.T("L.InfoFormat"), metadata.FormatName),
             new(localization.T("L.InfoBitDepth"), localization.Format("L.BitDepthFormat", metadata.BitDepth), isMono: true)
         };
+        if (metadata.IsAnimated)
+        {
+            imageRows.Add(new InfoRow(
+                localization.T("L.InfoFrames"),
+                metadata.FrameCount.ToString(CultureInfo.InvariantCulture),
+                isMono: true));
+        }
+
         sections.Add(new InfoSection(localization.T("L.SectionImage"), imageRows));
 
         var colorRows = new List<InfoRow>

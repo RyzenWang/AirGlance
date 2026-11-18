@@ -11,7 +11,9 @@ AirGlance uses the components below. Full license texts are available at the lin
 | Avalonia | 11.3.22 | MIT | [AvaloniaUI/Avalonia](https://github.com/AvaloniaUI/Avalonia), [licence.md](https://github.com/AvaloniaUI/Avalonia/blob/master/licence.md) |
 | Avalonia.Fonts.Inter (Inter font) | 11.3.22 | SIL Open Font License 1.1 | [AvaloniaUI/Avalonia](https://github.com/AvaloniaUI/Avalonia), [rsms/inter](https://github.com/rsms/inter), [OFL.txt](https://github.com/rsms/inter/blob/master/LICENSE.txt) |
 | SkiaSharp | 4.150.1 | MIT | [mono/SkiaSharp](https://github.com/mono/SkiaSharp), [LICENSE.md](https://github.com/mono/SkiaSharp/blob/main/LICENSE.md) |
-| HarfBuzzSharp | 8.3.1.1 | MIT | [mono/SkiaSharp](https://github.com/mono/SkiaSharp), [LICENSE.md](https://github.com/mono/SkiaSharp/blob/main/LICENSE.md) |
+| Svg.Skia (and Svg.Model, Svg.Custom, Svg.Animation, Svg.SceneGraph) | 5.2.3 | MIT | [wieslawsoltes/Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia), [LICENSE](https://github.com/wieslawsoltes/Svg.Skia/blob/main/LICENSE) |
+| ShimSkiaSharp | 5.2.3 | MIT | [wieslawsoltes/Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia), [LICENSE](https://github.com/wieslawsoltes/Svg.Skia/blob/main/LICENSE) |
+| HarfBuzzSharp | 14.2.0 | MIT | [mono/SkiaSharp](https://github.com/mono/SkiaSharp), [LICENSE.md](https://github.com/mono/SkiaSharp/blob/main/LICENSE.md) |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | [CommunityToolkit/dotnet](https://github.com/CommunityToolkit/dotnet), [License.md](https://github.com/CommunityToolkit/dotnet/blob/main/License.md) |
 | .NET runtime and libraries | 10 | MIT | [dotnet/runtime](https://github.com/dotnet/runtime), [LICENSE.TXT](https://github.com/dotnet/runtime/blob/main/LICENSE.TXT) |
 

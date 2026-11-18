@@ -16,7 +16,8 @@ public static class SupportedFormats
         ".webp",
         ".bmp",
         ".gif",
-        ".ico"
+        ".ico",
+        ".svg"
     ];
 
     /// <summary>Pattern used by the open-file dialog, for example <c>*.jpg</c>.</summary>
@@ -25,6 +26,9 @@ public static class SupportedFormats
 
     public static bool IsSupported(string? path) =>
         !string.IsNullOrWhiteSpace(path) && IsSupportedExtension(Path.GetExtension(path));
+
+    public static bool IsSvg(string? path) =>
+        string.Equals(Path.GetExtension(path), ".svg", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsSupportedExtension(string? extension)
     {
@@ -56,6 +60,7 @@ public static class SupportedFormats
             ".bmp" => "BMP",
             ".gif" => "GIF",
             ".ico" => "ICO",
+            ".svg" => "SVG",
             _ => extension is { Length: > 1 } ? extension[1..].ToUpperInvariant() : "Unknown"
         };
     }

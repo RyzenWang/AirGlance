@@ -961,19 +961,25 @@ public partial class MainWindow : Window
 
     private void OnImagePresented(object? sender, ImagePresentedEventArgs e)
     {
-        if (e.Bitmap is null)
+        if (e.Animation is { } animation)
+        {
+            Viewer.SetAnimation(animation, e.ResetView);
+        }
+        else if (e.Bitmap is not null)
+        {
+            Viewer.SetImage(
+                e.Bitmap,
+                e.SourceWidth,
+                e.SourceHeight,
+                e.ImageScale,
+                e.ResetView,
+                e.Animate);
+        }
+        else
         {
             Viewer.ClearImage();
             return;
         }
-
-        Viewer.SetImage(
-            e.Bitmap,
-            e.SourceWidth,
-            e.SourceHeight,
-            e.ImageScale,
-            e.ResetView,
-            e.Animate);
 
         if (!_initialZoomApplied)
         {
@@ -1795,6 +1801,7 @@ public partial class MainWindow : Window
         _cursorTimer.Stop();
         _chromeTimer.Stop();
         _benchmarkTimeout?.Stop();
+        Viewer.ClearImage();
         _viewModel.Dispose();
     }
 }

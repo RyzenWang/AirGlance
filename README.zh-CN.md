@@ -4,7 +4,7 @@
 
 **一个文件夹，一眼看完。**
 
-AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.1.3，0.1.0 是首个公开版本。它刻意保持小巧。
+AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.2.0，0.1.0 是首个公开版本。它刻意保持小巧。
 
 - [下载](#安装) · [图片格式](#图片格式) · [键盘](#键盘) · [性能](#性能) · [已知限制](#已知限制) · [从源码构建](#从源码构建)
 
@@ -35,7 +35,7 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 
 ## 图片格式
 
-文件先按扩展名识别，内容还必须能被 SkiaSharp 解码。支持以下格式：
+文件先按扩展名识别。位图格式还必须能被 SkiaSharp 解码；SVG 由 Svg.Skia 解析并光栅化。支持以下格式：
 
 | 格式 | 扩展名 | 说明 |
 | --- | --- | --- |
@@ -43,8 +43,9 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 | PNG | `.png` | 保留透明通道和内嵌 ICC。16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。 |
 | WebP | `.webp` | 支持带透明通道的静态图片；内嵌 ICC 转为 sRGB。 |
 | BMP | `.bmp` | 通过 SkiaSharp 解码。 |
-| GIF | `.gif` | 只显示第一帧，不播放动画。 |
+| GIF | `.gif` | 动画 GIF 自动播放并循环；静态 GIF 只显示一帧。 |
 | ICO | `.ico` | 由编解码器从图标中选择一张图片。 |
+| SVG | `.svg` | 静态矢量图，由 Svg.Skia 按显示尺寸光栅化。渲染 CSS，不执行 JavaScript。 |
 
 不支持：
 
@@ -52,7 +53,6 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 - AVIF
 - TIFF（`.tif`、`.tiff`）
 - RAW 相机格式，例如 CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2
-- SVG
 - 视频文件，例如 MP4、MOV、WebM、MKV
 
 不支持的原因：
@@ -60,34 +60,32 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 - **HEIC / HEIF 和 AVIF** 需要原生 HEVC/AV1 编解码库，而 AirGlance 使用的 SkiaSharp 构建不包含这些库。HEIC 还涉及 HEVC 专利授权；两者也都需要各自的容器、方向和颜色处理。
 - **TIFF** 是一个包含多种压缩方式、多页、16 位和 CMYK 数据的容器。当前使用的 SkiaSharp 构建没有 TIFF 编解码器，引入 libtiff 会增加每个平台的原生依赖。
 - **RAW** 不是可直接显示的像素。打开 RAW 需要去马赛克、白平衡、相机色彩矩阵、色调映射，通常还需要镜头校正；这需要一套 LibRaw 级别的引擎，而不是切换一个解码器。
-- **SVG** 是带 CSS、字体和外部资源的矢量格式；需要 Svg.Skia 之类的光栅化器和安全清理。它不是位图编解码器。
 - **视频** 需要解复用、视频解码、音画同步，以及 FFmpeg 或系统媒体 API 之类的媒体栈。这超出了静态看图工具的范围，编解码授权和包体大小也是显著成本。
-- **动画 GIF** 只解码第一帧，因为查看器没有动画计时器和帧合成器。动画 WebP 同理。
 
-AirGlance 刻意在所有平台使用同一个解码器，不回退到系统编解码器。加入原生编解码器会让 Windows、macOS 和 Linux 的行为不一致，增加各平台原生库和授权成本，并可能让 AOT 包接近或超过 30 MB 的体积预算。
+AirGlance 刻意在所有平台使用 SkiaSharp 处理位图、使用 Svg.Skia 处理 SVG，不回退到系统编解码器。加入原生编解码器会让 Windows、macOS 和 Linux 的行为不一致，增加各平台原生库和授权成本，并可能让 AOT 包接近或超过 30 MB 的体积预算。
 
 以上格式是刻意不支持的，也不会回退到系统编解码器。把文件改成受支持的扩展名没有用：内容检查仍会失败，文件会按损坏文件报错，而不是被打开。扩展名不受支持的文件也会被拒绝，即使它的内容恰好是受支持的图片。
 
 ## 安装
 
-0.1.3 尚未上产品站。请从 [v0.1.3 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.3) 下载。
+0.2.0 尚未上产品站。请从 [v0.2.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.2.0) 下载。
 
 ### Windows
 
-1. 下载 `AirGlance-0.1.3-win-x64.zip`（或 `win-arm64`）。
+1. 下载 `AirGlance-0.2.0-win-x64.zip`（或 `win-arm64`）。
 2. 解压到任意位置，运行 `AirGlance.exe`。
 
 0.1 便携版没有代码签名，首次运行会出现 SmartScreen 警告。选择 **更多信息 → 仍要运行**。可执行文件是 NativeAOT 构建，不需要安装 .NET 运行时。
 
 ### macOS
 
-1. 下载 `AirGlance-0.1.3-osx-arm64.zip` 或 `-osx-x64.zip`。
+1. 下载 `AirGlance-0.2.0-osx-arm64.zip` 或 `-osx-x64.zip`。
 2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.1 尚未公证。
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.1.3-linux-x64.tar.gz
+tar -xzf AirGlance-0.2.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -99,7 +97,7 @@ tar -xzf AirGlance-0.1.3-linux-x64.tar.gz
 
 | 平台 | 压缩包 | 实际运行过 NativeAOT 二进制 |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **已验证**（参考机器，0.1.3） |
+| Windows x64 | `win-x64.zip` | **已验证**（参考机器，0.2.0） |
 | Linux x64 | `linux-x64.tar.gz` | **已验证**（维护者） |
 | Windows arm64 | `win-arm64.zip` | 未验证 |
 | macOS arm64 | `osx-arm64.zip` | 未验证 |
@@ -144,27 +142,27 @@ tar -xzf AirGlance-0.1.3-linux-x64.tar.gz
 
 在 Windows 10 Pro 22H2 (19045)、Intel Xeon E5-2697 v4、32 GB 内存、.NET 10.0.14、NativeAOT `win-x64` 上测量。每行十个全新进程，取 `tools/bench.ps1` 的中位数；完整方法和原始数据见 [docs/performance.md](docs/performance.md)。
 
-| 指标 | 目标 | 0.1.3 |
+| 指标 | 目标 | 0.2.0 |
 | --- | --- | --- |
-| 冷启动到首窗 | ≤ 500 ms | 195.3 ms |
-| 24 MP JPEG 首帧 | ≤ 500 ms | 325.5 ms |
-| 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 300.8 ms |
-| 24 MP 适应窗口内存峰值 | ≤ 250 MB | 78.0 MB |
-| Windows x64 便携 zip | ≤ 30 MB | 15.55 MB |
+| 冷启动到首窗 | ≤ 500 ms | 199.4 ms |
+| 24 MP JPEG 首帧 | ≤ 500 ms | 365.4 ms |
+| 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 292.7 ms |
+| 24 MP 适应窗口内存峰值 | ≤ 250 MB | 81.1 MB |
+| Windows x64 便携 zip | ≤ 30 MB | 19.50 MB |
 
-0.1.3 在参考机器上达到启动和首帧目标：窗口约 195 ms 出现，24 MP 图片约 326 ms 上屏。窗口外壳用 C# 构建而不是 XAML，移除了最大的一项首帧开销；解码与建窗重叠。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
+0.2.0 在参考机器上达到启动和首帧目标：窗口约 199 ms 出现，24 MP 图片约 365 ms 上屏。窗口外壳用 C# 构建而不是 XAML，移除了最大的一项首帧开销；解码与建窗重叠。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
 
 ## 已知限制
 
 这些是限制，不是承诺清单。
 
 - 不支持 HEIC、AVIF、RAW 或 TIFF。SkiaSharp 无法解码这些格式，AirGlance 也不附带平台编解码器。
-- GIF 只显示第一帧。没有动画，也没有视频。
+- 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。
 - 没有标签页。一个窗口对应一个文件夹。没有托盘图标，也没有单实例转发。
 - 没有裁剪，也没有无损 JPEG 旋转。旋转和翻转只改变屏幕显示。
 - 16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。
-- 100 MP 图片在 100% 时使用基于文件的分块缓存：10000 × 10000 JPEG 的实测工作集峰值约 **455 MB**，分块写完后稳定在约 **83 MB**。图片打开期间临时分块文件约 400 MB。48 MP PNG 仍可能峰值接近 300 MB，因为 PNG 预览解码无法由编解码器缩放；内存较小的机器查看超大 PNG 时建议使用适应窗口。
+- 100 MP 图片在 100% 时使用基于文件的分块缓存：10000 × 10000 JPEG 的实测工作集峰值约 **457 MB**，分块写完后稳定在约 **88 MB**。图片打开期间临时分块文件约 400 MB。48 MP PNG 仍可能峰值接近 300 MB，因为 PNG 预览解码无法由编解码器缩放；内存较小的机器查看超大 PNG 时建议使用适应窗口。
 - 0.1 Windows 便携版未签名，macOS 版未公证。MSIX 包尚未发布。
 
 ## 从源码构建

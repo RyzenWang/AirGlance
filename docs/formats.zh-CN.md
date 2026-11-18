@@ -5,7 +5,7 @@
 AirGlance 在图像显示到屏幕之前会做两项检查：
 
 1. 文件扩展名必须位于受支持列表中（`SupportedFormats`）。这决定了该文件是否会出现在文件夹列表中，以及命令行或拖放处理程序是否接受它。
-2. SkiaSharp 的 `SKCodec` 必须能够解码该内容。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
+2. 位图格式还必须能由 SkiaSharp 的 `SKCodec` 解码；SVG 由 Svg.Skia 解析并光栅化。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
 
 即使文件内容恰好是受支持的图像，扩展名不受支持的文件也会被拒绝。信息面板中显示的格式名称优先取自编解码器，无法获取时回退到扩展名。
 
@@ -17,10 +17,11 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | PNG | `.png` | BGRA 输出；源位深从 IHDR 报告（测试夹具中为 8 或 16） | 1 | 保留 | 为信息面板从 `eXIf` 读取；不应用到像素 | 从 `iCCP` 读取并转换为 sRGB | `alpha.png`、`display-p3.png`、`gradient-16bit.png` |
 | WebP | `.webp` | 8 位 BGRA 输出 | 1 | 保留 | 为信息面板读取 EXIF；没有显示方向测试夹具 | 从 `ICCP` 读取并转换为 sRGB | `alpha.webp` |
 | BMP | `.bmp` | 由 `SKCodec` 解码 | 1 | 未纳入测试覆盖 | 未读取 | 未读取 | 无测试夹具 |
-| GIF | `.gif` | 首帧，8 位 BGRA 输出 | 仅 1 帧 | 首帧透明度未纳入测试覆盖 | 未读取 | 未读取 | `animated.gif` |
+| GIF | `.gif` | 8 位 BGRA 输出；按 GIF 处置规则合成每一帧 | 全部帧 | 通过合成输出保留；没有专门的透明度测试夹具 | 未读取 | 未读取 | `animated.gif` |
 | ICO | `.ico` | 由编解码器选择的一幅图像 | 1 | 沿 BGRA 解码路径保留；未做测试夹具验证 | 未读取 | 未读取 | 无测试夹具 |
+| SVG | `.svg` | 由 Svg.Skia 按请求的显示尺寸光栅化 | 1 | 保留透明背景 | 不适用 | 未读取 | `vector.svg` |
 
-“保留”指解码后的缓冲区是带预乘 Alpha 的 BGRA，并且 PNG/WebP 编码器会保留该 Alpha。JPEG 副本会先绘制到白色背景上，因此透明像素会变成白色。参见 [Alpha 与位深](#alpha-与位深)。
+“保留”指解码后的缓冲区是带预乘 Alpha 的 BGRA，并且 PNG/WebP 编码器会保留该 Alpha。GIF 帧会先合成到透明画布再交给查看器；SVG 会渲染到透明的 BGRA 表面。JPEG 副本会先绘制到白色背景上，因此透明像素会变成白色。参见 [Alpha 与位深](#alpha-与位深)。
 
 ### “转换为 sRGB”的含义
 
@@ -42,11 +43,10 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | AVIF | 不列出，也不打开 |
 | RAW（CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2 等） | 不列出，也不打开 |
 | TIFF（`.tif`、`.tiff`） | 不列出，也不打开 |
-| SVG | 不列出，也不打开；没有单独的包时 SkiaSharp 无法解码 SVG |
-| 第 1 帧之后的动画 GIF | 只显示第 1 帧；没有动画循环 |
+| 动画 WebP / APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 视频（MP4、MOV、WebM、MKV 等） | 不列出，也不打开 |
 
-这些格式是有意不支持的，而不是尚未完成的工作。`SupportedFormats` 不包含它们，也没有平台编解码器作为回退。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
+这些格式是有意不支持的，而不是尚未完成的工作。`SupportedFormats` 不包含它们，也没有平台编解码器作为回退。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
 
 ## 确切行为
 
@@ -58,7 +58,7 @@ PNG 的 `eXIf` 元数据会被读取，但其方向不会作为显示变换应�
 
 WebP 的 EXIF 也会为信息面板而读取。没有 WebP 方向测试夹具，因此 WebP 的显示旋转未经测量。不要假定 WebP 的 EXIF 方向会旋转图像。
 
-BMP、GIF 和 ICO 没有 EXIF 块读取器。
+BMP、GIF、ICO 和 SVG 没有 EXIF 块读取器。
 
 ### ICC 转换
 
@@ -75,15 +75,17 @@ JPEG、PNG 和 WebP 的配置文件在解码过程中会转换为 sRGB。覆盖�
 
 PNG 和 WebP 的 Alpha 会被保留。测试夹具中有一个完全透明的角和一个完全不透明的中心；`alpha.png` 检查解码后的 Alpha 值，`alpha.webp` 检查 WebP 解码后的透明角。PNG 导出会保留透明度。JPEG 导出会压平到白色背景上，这一点会在一块透明 PNG 上检查。
 
-ICO 使用相同的预乘 BGRA 路径，并且 `HasAlpha` 会为 ICO 容器设置，但没有 ICO 测试夹具。GIF 第 1 帧可能带有透明度；这一点未测试。BMP 的 Alpha 既未记录也未测试。
+ICO 使用相同的预乘 BGRA 路径，并且 `HasAlpha` 会为 ICO 容器设置，但没有 ICO 测试夹具。GIF 帧会在合成时处理透明度；没有专门的透明度测试夹具。BMP 的 Alpha 既未记录也未测试。
 
 16 位 PNG 会从 IHDR 报告为 16 位。它会被解码为 8 位 BGRA，并以 8 位显示和导出。测试断言的是所报告的位深，而不是结果像素的精度。没有 16 位导出路径。
 
 ### 动画
 
-GIF 只解码一次。仅显示第 1 帧，没有帧定时器、帧处置或动画控件。`animated.gif` 有三帧，测试断言第 1 帧能解码；它并不断言后续帧被忽略，但解码器只请求一次像素。
+动画 GIF 会逐帧解码并由查看器自动播放。`ImageDecoder.DecodeAnimation` 按 GIF 的处置与混合规则合成每一帧，记录每帧延迟，并通过在长动画超出预算时降低光栅化尺寸，把总帧内存限制在 2400 万像素以内。查看器使用 Avalonia `DispatcherTimer` 循环播放这组帧。
 
-动画 WebP 和 APNG 未测试。应用只请求一幅图像，没有动画循环；这些容器在该路径下的行为未经测量。
+`animated.gif` 有三帧、每帧延迟 100 ms；`ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay` 检查三帧颜色和延迟，窗口测试检查显示的位图会随时间变化。旋转、另存和复制操作使用第 1 帧；动画按解码后的预览尺寸播放（较大的 GIF 在 100% 下可能偏软）。
+
+动画 WebP 和 APNG 仍按静态图处理：这些容器不会被解码为帧集合，也没有测试。视频不支持。
 
 ### 元数据
 
@@ -117,7 +119,8 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 | `srgb.jpg` | 64 × 32 | `ImageDecoderTests.Display_p3_is_converted_to_srgb` | 用于 P3 转换比较的 sRGB 参考图像 |
 | `alpha.png` | 48 × 32 | `ImageDecoderTests.Png_alpha_is_preserved_and_premultiplied`、`ImageExporterTests.Jpeg_flattens_transparency_to_white`、`ImageExporterTests.Png_keeps_transparency` | PNG 的 Alpha 被解码、在 PNG 导出时保留，并在 JPEG 导出时被压平 |
 | `alpha.webp` | 48 × 32 | `ImageDecoderTests.Webp_decodes` | WebP 能解码并保留透明角 |
-| `animated.gif` | 40 × 40，3 帧 | `ImageDecoderTests.Gif_decodes_its_first_frame` | GIF 解码其第 1 帧 |
+| `animated.gif` | 40 × 40，3 帧 | `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay`、`MainWindowTests.Animated_gif_is_presented_as_an_animation` | 验证 GIF 的帧、延迟和播放 |
+| `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`、`Svg_scaled_decode_keeps_the_vector_aspect_ratio` | 验证 SVG 在固有尺寸和缩放尺寸下的光栅化 |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | 报告 PNG 源位深为 16 |
 | `corrupt.jpg` | 18 字节 | `ImageDecoderTests.Corrupt_file_reports_corrupt` | 受支持的扩展名搭配无效内容时会报告图像损坏 |
 | `exif-full.jpg` | 120 × 80 | `ImageDecoderTests.Exif_fields_are_read` | IFD0/子 IFD 字段、有理数值和 Pillow 风格数对 |
@@ -133,10 +136,10 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 - BMP 和 ICO 没有测试夹具，也没有测试。它们的支持仅依靠 `SKCodec` 路径和扩展名校验。
 - PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
 - WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。
-- ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 未被覆盖。
+- ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。
 - CMYK JPEG、渐进式 JPEG 和超大 JPEG 没有单独测试。
 - 16 位 PNG 测试检查的是所报告的位深，而不是 8 位结果的精度。
-- 动画 WebP 和 APNG 未测试。
+- 动画 WebP 和 APNG 不会按动画解码。
 - 格式测试在 `build.yml` 中的每个主机上运行（Windows、Linux 和 macOS），但没有按操作系统分开的测试夹具或预期结果矩阵。
 - `tools/testdata/photo-100mp.jpg` 和 `photo-24mp.jpg` 是基准测试图像，不是格式测试夹具，并且被 gitignore 忽略。
 
@@ -157,6 +160,6 @@ dotnet test tests/AirGlance.Core.Tests/AirGlance.Core.Tests.csproj -c Release --
 ## 相关文档
 
 - [架构](architecture.zh-CN.md)
-- [发布 AirGlance 0.1.3](shipping.zh-CN.md)
+- [发布 AirGlance 0.2.0](shipping.zh-CN.md)
 - [更新日志](../CHANGELOG.md)
 - [README](../README.zh-CN.md)

@@ -68,6 +68,7 @@ public sealed class ImageViewer : Control
         AvaloniaProperty.Register<ImageViewer, IBrush?>(nameof(CheckerDarkBrush));
 
     private readonly DispatcherTimer _fadeTimer;
+    private readonly DispatcherTimer _animationTimer;
     private DrawingBrush? _checkerBrush;
     private IBrush? _checkerBrushLight;
     private IBrush? _checkerBrushDark;
@@ -84,6 +85,8 @@ public sealed class ImageViewer : Control
     private bool _hasSource;
     private Size _lastViewport;
     private TiledImageSource? _tiles;
+    private AnimatedImage? _animation;
+    private int _animationIndex;
 
     public ImageViewer()
     {
@@ -93,6 +96,8 @@ public sealed class ImageViewer : Control
 
         _fadeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _fadeTimer.Tick += OnFadeTick;
+        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+        _animationTimer.Tick += OnAnimationTick;
 
         AddHandler(Gestures.PinchEvent, OnPinch);
         AddHandler(Gestures.PinchEndedEvent, OnPinchEnded);
@@ -186,6 +191,7 @@ public sealed class ImageViewer : Control
 
     public void SetTiles(TiledImageSource? tiles)
     {
+        StopAnimation();
         _tiles = tiles;
         if (tiles is not null)
         {
@@ -206,6 +212,7 @@ public sealed class ImageViewer : Control
         bool resetView = true,
         bool animateImage = true)
     {
+        StopAnimation();
         var animate = animateImage && _hasSource && bitmap is not null && ReferenceEquals(bitmap, Source) == false;
 
         _tiles = null;
@@ -237,8 +244,72 @@ public sealed class ImageViewer : Control
         RaiseZoomChanged();
     }
 
+    public void SetAnimation(AnimatedImage animation, bool resetView = true)
+    {
+        ArgumentNullException.ThrowIfNull(animation);
+        StopAnimation();
+
+        _tiles = null;
+        _animation = animation;
+        _animationIndex = 0;
+        Source = animation.Frames[0];
+        SourcePixelWidth = animation.SourceWidth;
+        SourcePixelHeight = animation.SourceHeight;
+        ImageScale = animation.Scale <= 0 ? 1.0 : animation.Scale;
+        _hasSource = true;
+
+        if (resetView)
+        {
+            _panX = 0;
+            _panY = 0;
+        }
+
+        _fadeStarted = null;
+        _fadeTimer.Stop();
+        UpdateInterpolation();
+        InvalidateVisual();
+        RaiseZoomChanged();
+        StartAnimationTimer();
+    }
+
+    private void StartAnimationTimer()
+    {
+        if (_animation is null || _animation.FrameCount <= 1)
+        {
+            _animationTimer.Stop();
+            return;
+        }
+
+        _animationTimer.Interval = TimeSpan.FromMilliseconds(
+            Math.Clamp(_animation.DelaysMilliseconds[_animationIndex], 20, 10_000));
+        _animationTimer.Start();
+    }
+
+    private void StopAnimation()
+    {
+        _animationTimer.Stop();
+        _animation = null;
+        _animationIndex = 0;
+    }
+
+    private void OnAnimationTick(object? sender, EventArgs e)
+    {
+        if (_animation is null || _animation.FrameCount <= 1)
+        {
+            _animationTimer.Stop();
+            return;
+        }
+
+        _animationIndex = (_animationIndex + 1) % _animation.FrameCount;
+        Source = _animation.Frames[_animationIndex];
+        _animationTimer.Interval = TimeSpan.FromMilliseconds(
+            Math.Clamp(_animation.DelaysMilliseconds[_animationIndex], 20, 10_000));
+        InvalidateVisual();
+    }
+
     public void ClearImage()
     {
+        StopAnimation();
         Source = null;
         SourcePixelWidth = 0;
         SourcePixelHeight = 0;

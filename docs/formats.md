@@ -5,7 +5,7 @@
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.
-2. SkiaSharp's `SKCodec` must be able to decode the content. A supported extension with unreadable content is reported as corrupt, not unsupported.
+2. A raster format must also decode with SkiaSharp's `SKCodec`; SVG is parsed and rasterized with Svg.Skia. A supported extension with unreadable content is reported as corrupt, not unsupported.
 
 A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension.
 
@@ -17,10 +17,11 @@ A file with an unsupported extension is refused even if its content happens to b
 | PNG | `.png` | BGRA output; source bit depth reported from IHDR (8 or 16 in the fixtures) | 1 | Preserved | Read from `eXIf` for the info panel; not applied to pixels | Read from `iCCP` and converted to sRGB | `alpha.png`, `display-p3.png`, `gradient-16bit.png` |
 | WebP | `.webp` | 8-bit BGRA output | 1 | Preserved | EXIF read for the info panel; no display-orientation fixture | Read from `ICCP` and converted to sRGB | `alpha.webp` |
 | BMP | `.bmp` | Decoded by `SKCodec` | 1 | Not test-covered | Not read | Not read | No fixture |
-| GIF | `.gif` | First frame, 8-bit BGRA output | 1 only | First-frame transparency not test-covered | Not read | Not read | `animated.gif` |
+| GIF | `.gif` | 8-bit BGRA output; every frame composited with GIF disposal rules | All frames | Carried through the composited output; no dedicated transparency fixture | Not read | Not read | `animated.gif` |
 | ICO | `.ico` | One image selected by the codec | 1 | Carried through the BGRA decode path; not fixture-tested | Not read | Not read | No fixture |
+| SVG | `.svg` | Rasterized by Svg.Skia at the requested display size | 1 | Transparent background preserved | Not applicable | Not read | `vector.svg` |
 
-"Preserved" means the decoded buffer is BGRA with premultiplied alpha and the PNG/WebP encoders keep that alpha. A JPEG copy is first drawn onto white, so transparent pixels become white. See [alpha and bit depth](#alpha-and-bit-depth).
+"Preserved" means the decoded buffer is BGRA with premultiplied alpha and the PNG/WebP encoders keep that alpha. GIF frames are composited into a transparent canvas before they reach the viewer; SVG is rendered to a transparent BGRA surface. A JPEG copy is first drawn onto white, so transparent pixels become white. See [alpha and bit depth](#alpha-and-bit-depth).
 
 ### What "converted to sRGB" means
 
@@ -42,11 +43,10 @@ The info panel reads the profile separately from the file header:
 | AVIF | Not listed and not opened |
 | RAW (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2 and others) | Not listed and not opened |
 | TIFF (`.tif`, `.tiff`) | Not listed and not opened |
-| SVG | Not listed and not opened; SkiaSharp does not decode SVG without a separate package |
-| Animated GIF beyond frame 1 | Frame 1 is shown; there is no animation loop |
+| Animated WebP / APNG | First frame is shown as a still image; no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 
-These formats are deliberately absent, not pending work. `SupportedFormats` does not include them and there is no platform-codec fallback. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
+These formats are deliberately absent, not pending work. `SupportedFormats` does not include them and there is no platform-codec fallback. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
 
 ## Exact behavior
 
@@ -58,7 +58,7 @@ PNG `eXIf` metadata is read but its orientation is not applied as a display tran
 
 WebP EXIF is also read for the info panel. There is no WebP orientation fixture, so WebP display rotation is not measured. Do not assume that a WebP EXIF orientation rotates the image.
 
-BMP, GIF and ICO have no EXIF block reader.
+BMP, GIF, ICO and SVG have no EXIF block reader.
 
 ### ICC conversion
 
@@ -75,15 +75,17 @@ A missing profile is treated as sRGB. CMYK JPEG, exotic transfer curves and very
 
 PNG and WebP alpha are preserved. The test fixtures have a fully transparent corner and a fully opaque centre; `alpha.png` checks the decoded alpha values, and `alpha.webp` checks the transparent corner after WebP decoding. PNG export keeps transparency. JPEG export flattens onto white, which is checked on a transparent PNG.
 
-ICO uses the same premultiplied BGRA path and `HasAlpha` is set for the ICO container, but there is no ICO fixture. GIF frame 1 may carry transparency; that is not tested. BMP alpha is not documented or tested.
+ICO uses the same premultiplied BGRA path and `HasAlpha` is set for the ICO container, but there is no ICO fixture. GIF frames are composited with transparency; a dedicated transparency fixture is not included. BMP alpha is not documented or tested.
 
 A 16-bit PNG is reported as 16-bit from its IHDR. It is decoded into 8-bit BGRA and displayed and exported as 8-bit. The test asserts the reported bit depth, not the precision of the resulting pixels. There is no 16-bit export path.
 
 ### Animation
 
-GIF is decoded once. The first frame is displayed and there is no frame timer, disposal handling or animation controls. `animated.gif` has three frames and the test asserts that the first frame decodes; it does not assert that later frames are ignored, but the decoder requests pixels once.
+Animated GIFs are decoded frame by frame and played automatically by the viewer. `ImageDecoder.DecodeAnimation` composites every frame using the GIF disposal and blend rules, records each frame's delay, and caps the total frame memory at 24 million pixels by reducing the rasterization size when a long animation would exceed that budget. The viewer loops the frame set with an Avalonia `DispatcherTimer`.
 
-Animated WebP and APNG are not tested. The application requests one image and has no animation loop; how those containers behave under that path is not measured.
+`animated.gif` has three frames with 100 ms delays; `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay` checks all three frame colours and delays, and the window test checks that the displayed bitmap changes over time. Rotation and save/copy operate on the first frame; animated playback is at the decoded preview size (a large GIF may be softer at 100%).
+
+Animated WebP and APNG remain still images: those containers are not decoded as frame sets and are not tested. Video is not supported.
 
 ### Metadata
 
@@ -117,7 +119,8 @@ All paths are under `tests/Assets` and are copied next to the test binaries.
 | `srgb.jpg` | 64 × 32 | `ImageDecoderTests.Display_p3_is_converted_to_srgb` | sRGB reference image for the P3 conversion comparison |
 | `alpha.png` | 48 × 32 | `ImageDecoderTests.Png_alpha_is_preserved_and_premultiplied`, `ImageExporterTests.Jpeg_flattens_transparency_to_white`, `ImageExporterTests.Png_keeps_transparency` | PNG alpha is decoded, preserved on PNG export and flattened on JPEG export |
 | `alpha.webp` | 48 × 32 | `ImageDecoderTests.Webp_decodes` | WebP decodes and keeps a transparent corner |
-| `animated.gif` | 40 × 40, 3 frames | `ImageDecoderTests.Gif_decodes_its_first_frame` | GIF decodes its first frame |
+| `animated.gif` | 40 × 40, 3 frames | `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay`, `MainWindowTests.Animated_gif_is_presented_as_an_animation` | GIF frames, delays and playback are exercised |
+| `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`, `Svg_scaled_decode_keeps_the_vector_aspect_ratio` | SVG is rasterized at intrinsic and scaled sizes |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | PNG source bit depth 16 is reported |
 | `corrupt.jpg` | 18 bytes | `ImageDecoderTests.Corrupt_file_reports_corrupt` | A supported extension with invalid content reports a corrupt image |
 | `exif-full.jpg` | 120 × 80 | `ImageDecoderTests.Exif_fields_are_read` | IFD0/sub-IFD fields, rational values and Pillow-style pairs |
@@ -133,10 +136,10 @@ The matrix is a description of tested behavior, not a claim that every supported
 - BMP and ICO have no fixture and no test. Their support is the `SKCodec` path and the extension gate.
 - PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
 - WebP ICC and WebP EXIF are not covered by fixtures.
-- ICO alpha, GIF transparency and BMP alpha are not covered.
+- ICO alpha, GIF transparency and BMP alpha are not covered by dedicated fixtures.
 - CMYK JPEG, progressive JPEG and very large JPEGs are not separately tested.
 - The 16-bit PNG test checks the reported depth, not the precision of the 8-bit result.
-- Animated WebP and APNG are not tested.
+- Animated WebP and APNG are not decoded as animations.
 - The format tests run on each host in `build.yml` (Windows, Linux and macOS), but there is no separate per-OS fixture or expected-result matrix.
 - `tools/testdata/photo-100mp.jpg` and `photo-24mp.jpg` are benchmark images, not format fixtures, and are gitignored.
 
@@ -157,6 +160,6 @@ The test projects copy `tests/Assets` into their output directories, so the fixt
 ## Related documents
 
 - [Architecture](architecture.md)
-- [Shipping AirGlance 0.1.3](shipping.md)
+- [Shipping AirGlance 0.2.0](shipping.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)

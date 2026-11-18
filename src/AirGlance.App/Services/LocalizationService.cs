@@ -27,7 +27,7 @@ public sealed class LocalizationService : IDisposable
             ["L.Menu"] = ("Menu", "菜单"),
 
             ["L.EmptyTitle"] = ("Drop images or a folder here.", "把图片或文件夹拖进来。"),
-            ["L.EmptyLimitations"] = ("No HEIC, RAW, TIFF or animation yet.", "还不支持 HEIC、RAW、TIFF 和动图。"),
+            ["L.EmptyLimitations"] = ("No HEIC, RAW, TIFF or video yet.", "还不支持 HEIC、RAW、TIFF 和视频。"),
             ["L.EmptyFolderTitle"] = ("No images in this folder.", "这个文件夹里没有可显示的图片。"),
             ["L.EmptyFolderHint"] = ("Try another folder, or press Ctrl+Shift+O.", "换一个文件夹，或者按 Ctrl+Shift+O。"),
             ["L.DropHint"] = ("Release to open", "松开即可打开"),
@@ -61,6 +61,7 @@ public sealed class LocalizationService : IDisposable
             ["L.InfoDimensions"] = ("Dimensions", "尺寸"),
             ["L.InfoFormat"] = ("Format", "格式"),
             ["L.InfoBitDepth"] = ("Bit depth", "位深"),
+            ["L.InfoFrames"] = ("Frames", "帧数"),
             ["L.InfoColorSpace"] = ("Color space", "色彩空间"),
             ["L.InfoIcc"] = ("ICC profile", "ICC 配置"),
             ["L.InfoCamera"] = ("Camera", "相机"),

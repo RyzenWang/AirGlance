@@ -26,6 +26,11 @@ public sealed class ImageDecoderTests
             return "green";
         }
 
+        if (g > 80 && g < 140 && r < 100 && b > 70 && b < 130)
+        {
+            return "teal";
+        }
+
         if (b > 140 && r < 130 && g < 160)
         {
             return "blue";
@@ -112,6 +117,73 @@ public sealed class ImageDecoderTests
         Assert.Equal(40, bitmap.Width);
         Assert.Equal(40, bitmap.Height);
         Assert.Equal("red", Classify(Pixel(bitmap, 20, 20)));
+    }
+
+    [Fact]
+    public void Svg_renders_at_its_intrinsic_size()
+    {
+        var bitmap = ImageDecoder.DecodeFull(Asset("vector.svg"));
+
+        Assert.Equal(64, bitmap.Width);
+        Assert.Equal(48, bitmap.Height);
+        Assert.True(bitmap.HasAlpha);
+        Assert.Equal("red", Classify(Pixel(bitmap, 8, 8)));
+        var teal = Pixel(bitmap, 32, 32);
+        Assert.Equal((byte)99, teal.B);
+        Assert.Equal((byte)111, teal.G);
+        Assert.Equal((byte)46, teal.R);
+        Assert.Equal((byte)0, Pixel(bitmap, 0, 47).A);
+    }
+
+    [Fact]
+    public void Svg_scaled_decode_keeps_the_vector_aspect_ratio()
+    {
+        var bitmap = ImageDecoder.Decode(Asset("vector.svg"), 32, 32);
+
+        Assert.Equal(32, bitmap.Width);
+        Assert.Equal(24, bitmap.Height);
+        Assert.Equal(64, bitmap.SourceWidth);
+        Assert.Equal(48, bitmap.SourceHeight);
+    }
+
+    [Fact]
+    public void Svg_metadata_and_format_are_reported()
+    {
+        var metadata = ImageDecoder.ReadMetadata(Asset("vector.svg"));
+
+        Assert.Equal(64, metadata.DisplayWidth);
+        Assert.Equal(48, metadata.DisplayHeight);
+        Assert.Equal("SVG", metadata.FormatName);
+        Assert.False(metadata.IsAnimated);
+    }
+
+    [Fact]
+    public void Animated_gif_decodes_every_frame_and_delay()
+    {
+        var animation = ImageDecoder.DecodeAnimation(Asset("animated.gif"), 40, 40);
+
+        Assert.NotNull(animation);
+        Assert.Equal(3, animation.FrameCount);
+        Assert.Equal([100, 100, 100], animation.DelaysMilliseconds);
+        Assert.Equal(40, animation.Frames[0].Width);
+        Assert.Equal("red", Classify(Pixel(animation.Frames[0], 20, 20)));
+        Assert.Equal("teal", Classify(Pixel(animation.Frames[1], 20, 20)));
+        Assert.Equal("yellow", Classify(Pixel(animation.Frames[2], 20, 20)));
+    }
+
+    [Fact]
+    public void Animated_gif_metadata_reports_frame_count()
+    {
+        var metadata = ImageDecoder.ReadMetadata(Asset("animated.gif"));
+
+        Assert.Equal(3, metadata.FrameCount);
+        Assert.True(metadata.IsAnimated);
+    }
+
+    [Fact]
+    public void Still_image_has_no_animation()
+    {
+        Assert.Null(ImageDecoder.DecodeAnimation(Asset("alpha.png"), 40, 40));
     }
 
     [Fact]

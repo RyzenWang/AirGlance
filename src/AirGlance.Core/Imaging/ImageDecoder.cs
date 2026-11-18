@@ -1,6 +1,7 @@
 using AirGlance.Core.Files;
 using System.Runtime.InteropServices;
 using SkiaSharp;
+using Svg.Skia;
 
 namespace AirGlance.Core.Imaging;
 
@@ -19,6 +20,11 @@ public static class ImageDecoder
     {
         Validate(path);
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (SupportedFormats.IsSvg(path))
+        {
+            return DecodeSvg(path, maxWidth, maxHeight, cancellationToken);
+        }
 
         try
         {
@@ -171,6 +177,11 @@ public static class ImageDecoder
         Validate(path);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (SupportedFormats.IsSvg(path))
+        {
+            return DecodeSvgRaw(path, cancellationToken);
+        }
+
         IntPtr pixels = IntPtr.Zero;
         try
         {
@@ -281,6 +292,11 @@ public static class ImageDecoder
     {
         Validate(path);
 
+        if (SupportedFormats.IsSvg(path))
+        {
+            return ReadSvgMetadata(path);
+        }
+
         try
         {
             var file = new FileInfo(path);
@@ -313,6 +329,7 @@ public static class ImageDecoder
                 DisplayHeight = displayHeight,
                 Orientation = orientation,
                 FormatName = DescribeFormat(codec.EncodedFormat, path),
+                FrameCount = Math.Max(1, codec.FrameCount),
                 BitDepth = header.BitDepth ?? 8,
                 IccDescription = IccProfile.ReadDescription(header.IccProfile),
                 Exif = header.Exif
@@ -349,6 +366,454 @@ public static class ImageDecoder
                 Path.GetExtension(path),
                 exception);
         }
+    }
+
+    /// <summary>
+    /// Decodes every frame of an animated GIF. This is intentionally GIF-only:
+    /// SkiaSharp exposes frame metadata for WebP too, but the current viewer and
+    /// documentation only promise GIF animation. Returns null for still images.
+    /// </summary>
+    public static DecodedAnimation? DecodeAnimation(
+        string path,
+        int maxWidth,
+        int maxHeight,
+        CancellationToken cancellationToken = default)
+    {
+        Validate(path);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!string.Equals(Path.GetExtension(path), ".gif", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = OpenRead(path);
+            using var codec = SKCodec.Create(stream)
+                ?? throw new ImageLoadException(
+                    ImageLoadFailure.Corrupt,
+                    "SkiaSharp could not read the image.",
+                    path,
+                    ".gif");
+
+            var frameCount = codec.FrameCount;
+            if (frameCount <= 1)
+            {
+                return null;
+            }
+
+            var sourceWidth = codec.Info.Width;
+            var sourceHeight = codec.Info.Height;
+            var targetScale = maxWidth <= 0 || maxHeight <= 0
+                ? 1.0
+                : Math.Min(1.0, Math.Min((double)maxWidth / sourceWidth, (double)maxHeight / sourceHeight));
+            targetScale = Math.Max(targetScale, 1.0 / 64.0);
+            var scaled = NormalizeScaled(codec.GetScaledDimensions((float)targetScale), codec.Info);
+            var targetWidth = scaled.Width;
+            var targetHeight = scaled.Height;
+
+            // A GIF can contain hundreds of frames. Keep the whole animation under a
+            // fixed pixel budget rather than letting one file consume the process.
+            const long MaximumAnimationPixels = 24_000_000;
+            var totalPixels = (long)targetWidth * targetHeight * frameCount;
+            if (totalPixels > MaximumAnimationPixels)
+            {
+                var factor = Math.Sqrt(MaximumAnimationPixels / (double)totalPixels);
+                targetWidth = Math.Max(1, (int)Math.Round(targetWidth * factor));
+                targetHeight = Math.Max(1, (int)Math.Round(targetHeight * factor));
+            }
+
+            var info = new SKImageInfo(
+                targetWidth,
+                targetHeight,
+                SKColorType.Bgra8888,
+                SKAlphaType.Premul,
+                SKColorSpace.CreateSrgb());
+            var frameInfos = codec.FrameInfo;
+            var canvas = new byte[checked(targetWidth * targetHeight * 4)];
+            var frames = new List<DecodedBitmap>(Math.Min(frameCount, 1024));
+            var delays = new List<int>(Math.Min(frameCount, 1024));
+            byte[]? snapshotBeforePrevious = null;
+            SKCodecFrameInfo? previousInfo = null;
+            SKRectI previousRect = SKRectI.Empty;
+
+            for (var index = 0; index < frameCount; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var frameInfo = frameInfos[index];
+
+                if (previousInfo is { } previous)
+                {
+                    switch (previous.DisposalMethod)
+                    {
+                        case SKCodecAnimationDisposalMethod.RestoreBackgroundColor:
+                            ClearRect(canvas, targetWidth, previousRect);
+                            break;
+                        case SKCodecAnimationDisposalMethod.RestorePrevious:
+                            if (snapshotBeforePrevious is not null)
+                            {
+                                Buffer.BlockCopy(snapshotBeforePrevious, 0, canvas, 0, canvas.Length);
+                            }
+
+                            break;
+                    }
+                }
+
+                snapshotBeforePrevious = frameInfo.DisposalMethod == SKCodecAnimationDisposalMethod.RestorePrevious
+                    ? (byte[])canvas.Clone()
+                    : null;
+
+                var raw = GC.AllocateUninitializedArray<byte>(info.Width * info.Height * 4);
+                SKCodecResult result;
+                unsafe
+                {
+                    fixed (byte* destination = raw)
+                    {
+                        result = codec.GetPixels(info, (IntPtr)destination, new SKCodecOptions(index));
+                    }
+                }
+
+                if (result != SKCodecResult.Success)
+                {
+                    throw new ImageLoadException(
+                        ImageLoadFailure.Corrupt,
+                        $"The GIF frame could not be decoded ({result}).",
+                        path,
+                        ".gif");
+                }
+
+                var targetRect = ScaleRect(frameInfo.FrameRect, sourceWidth, sourceHeight, targetWidth, targetHeight);
+                CopyFrame(canvas, raw, targetWidth, targetHeight, targetRect, frameInfo.Blend);
+
+                frames.Add(new DecodedBitmap(
+                    targetWidth,
+                    targetHeight,
+                    (byte[])canvas.Clone(),
+                    sourceWidth,
+                    sourceHeight,
+                    targetWidth / (double)sourceWidth)
+                {
+                    HasAlpha = true
+                });
+                delays.Add(Math.Clamp(frameInfo.Duration <= 0 ? 100 : frameInfo.Duration, 20, 10_000));
+
+                previousInfo = frameInfo;
+                previousRect = targetRect;
+            }
+
+            return new DecodedAnimation(frames, delays, codec.RepetitionCount);
+        }
+        catch (ImageLoadException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.AccessDenied,
+                "The file could not be read because access was denied.",
+                path,
+                ".gif",
+                exception);
+        }
+        catch (FileNotFoundException exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.NotFound,
+                "The file does not exist.",
+                path,
+                ".gif",
+                exception);
+        }
+        catch (IOException exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Unknown,
+                "The file could not be read.",
+                path,
+                ".gif",
+                exception);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Corrupt,
+                "The GIF animation could not be decoded.",
+                path,
+                ".gif",
+                exception);
+        }
+    }
+
+    private static void ClearRect(byte[] canvas, int width, SKRectI rect)
+    {
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            return;
+        }
+
+        var bytesPerRow = rect.Width * 4;
+        for (var y = rect.Top; y < rect.Bottom; y++)
+        {
+            var offset = (y * width + rect.Left) * 4;
+            Array.Clear(canvas, offset, bytesPerRow);
+        }
+    }
+
+    private static void CopyFrame(
+        byte[] canvas,
+        byte[] frame,
+        int canvasWidth,
+        int canvasHeight,
+        SKRectI rect,
+        SKCodecAnimationBlend blend)
+    {
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            return;
+        }
+
+        var frameWidth = canvasWidth;
+        for (var y = rect.Top; y < rect.Bottom; y++)
+        {
+            var row = y * frameWidth;
+            for (var x = rect.Left; x < rect.Right; x++)
+            {
+                var sourceOffset = (row + x) * 4;
+                var destinationOffset = sourceOffset;
+                var sourceAlpha = frame[sourceOffset + 3];
+                if (blend == SKCodecAnimationBlend.Src)
+                {
+                    canvas[destinationOffset] = frame[sourceOffset];
+                    canvas[destinationOffset + 1] = frame[sourceOffset + 1];
+                    canvas[destinationOffset + 2] = frame[sourceOffset + 2];
+                    canvas[destinationOffset + 3] = sourceAlpha;
+                }
+                else if (sourceAlpha == 255)
+                {
+                    canvas[destinationOffset] = frame[sourceOffset];
+                    canvas[destinationOffset + 1] = frame[sourceOffset + 1];
+                    canvas[destinationOffset + 2] = frame[sourceOffset + 2];
+                    canvas[destinationOffset + 3] = 255;
+                }
+                else if (sourceAlpha > 0)
+                {
+                    var inverse = 255 - sourceAlpha;
+                    canvas[destinationOffset] = (byte)(frame[sourceOffset] + canvas[destinationOffset] * inverse / 255);
+                    canvas[destinationOffset + 1] = (byte)(frame[sourceOffset + 1] + canvas[destinationOffset + 1] * inverse / 255);
+                    canvas[destinationOffset + 2] = (byte)(frame[sourceOffset + 2] + canvas[destinationOffset + 2] * inverse / 255);
+                    canvas[destinationOffset + 3] = (byte)(sourceAlpha + canvas[destinationOffset + 3] * inverse / 255);
+                }
+            }
+        }
+    }
+
+    private static SKRectI ScaleRect(SKRectI rect, int sourceWidth, int sourceHeight, int targetWidth, int targetHeight)
+    {
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            return SKRectI.Empty;
+        }
+
+        var left = Math.Clamp((int)Math.Floor(rect.Left * (double)targetWidth / sourceWidth), 0, targetWidth);
+        var top = Math.Clamp((int)Math.Floor(rect.Top * (double)targetHeight / sourceHeight), 0, targetHeight);
+        var right = Math.Clamp((int)Math.Ceiling(rect.Right * (double)targetWidth / sourceWidth), 0, targetWidth);
+        var bottom = Math.Clamp((int)Math.Ceiling(rect.Bottom * (double)targetHeight / sourceHeight), 0, targetHeight);
+        return right > left && bottom > top
+            ? new SKRectI(left, top, right, bottom)
+            : SKRectI.Empty;
+    }
+
+    private static DecodedBitmap DecodeSvg(
+        string path,
+        int maxWidth,
+        int maxHeight,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var (sourceWidth, sourceHeight) = SvgGeometry.Read(path);
+            var targetScale = maxWidth <= 0 || maxHeight <= 0
+                ? 1.0
+                : Math.Min(1.0, Math.Min((double)maxWidth / sourceWidth, (double)maxHeight / sourceHeight));
+            targetScale = Math.Max(targetScale, 1.0 / 64.0);
+
+            var targetWidth = Math.Max(1, (int)Math.Round(sourceWidth * targetScale));
+            var targetHeight = Math.Max(1, (int)Math.Round(sourceHeight * targetScale));
+            var pixelCount = (long)targetWidth * targetHeight;
+            if (pixelCount <= 0 || pixelCount > int.MaxValue / 4)
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.Corrupt,
+                    "The decoded SVG would be too large.",
+                    path,
+                    ".svg");
+            }
+
+            using var stream = OpenRead(path);
+            using var svg = new SKSvg();
+            var picture = svg.Load(stream);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var cull = picture?.CullRect ?? SKRect.Empty;
+            if (picture is null || cull.Width <= 0 || cull.Height <= 0)
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.Corrupt,
+                    "The SVG has no drawable area.",
+                    path,
+                    ".svg");
+            }
+
+            using var bitmap = new SKBitmap(new SKImageInfo(
+                targetWidth,
+                targetHeight,
+                SKColorType.Bgra8888,
+                SKAlphaType.Premul,
+                SKColorSpace.CreateSrgb()));
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Clear(SKColors.Transparent);
+                var drawScale = Math.Min(targetWidth / cull.Width, targetHeight / cull.Height);
+                canvas.Translate(
+                    (float)((targetWidth - cull.Width * drawScale) / 2),
+                    (float)((targetHeight - cull.Height * drawScale) / 2));
+                canvas.Scale((float)drawScale);
+                canvas.Translate(-cull.Left, -cull.Top);
+                canvas.DrawPicture(picture);
+                canvas.Flush();
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var pixels = bitmap.Bytes;
+            if (pixels.Length < targetWidth * targetHeight * 4)
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.Corrupt,
+                    "The SVG renderer returned an incomplete image.",
+                    path,
+                    ".svg");
+            }
+
+            return new DecodedBitmap(
+                targetWidth,
+                targetHeight,
+                pixels,
+                sourceWidth,
+                sourceHeight,
+                targetWidth / (double)sourceWidth)
+            {
+                HasAlpha = true
+            };
+        }
+        catch (ImageLoadException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.AccessDenied,
+                "The file could not be read because access was denied.",
+                path,
+                ".svg",
+                exception);
+        }
+        catch (FileNotFoundException exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.NotFound,
+                "The file does not exist.",
+                path,
+                ".svg",
+                exception);
+        }
+        catch (IOException exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Unknown,
+                "The file could not be read.",
+                path,
+                ".svg",
+                exception);
+        }
+        catch (Exception exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Corrupt,
+                "The SVG could not be rendered.",
+                path,
+                ".svg",
+                exception);
+        }
+    }
+
+    private static DecodedImageBuffer DecodeSvgRaw(string path, CancellationToken cancellationToken)
+    {
+        var decoded = DecodeSvg(path, 0, 0, cancellationToken);
+        IntPtr pixels = IntPtr.Zero;
+        try
+        {
+            unsafe
+            {
+                pixels = (IntPtr)NativeMemory.Alloc(checked((nuint)decoded.Pixels.Length));
+                fixed (byte* source = decoded.Pixels)
+                {
+                    Buffer.MemoryCopy(source, (void*)pixels, decoded.Pixels.Length, decoded.Pixels.Length);
+                }
+            }
+
+            var buffer = new DecodedImageBuffer(
+                pixels,
+                decoded.Width,
+                decoded.Height,
+                decoded.SourceWidth,
+                decoded.SourceHeight,
+                ImageOrientation.TopLeft,
+                true);
+            pixels = IntPtr.Zero;
+            return buffer;
+        }
+        finally
+        {
+            if (pixels != IntPtr.Zero)
+            {
+                unsafe
+                {
+                    NativeMemory.Free((void*)pixels);
+                }
+            }
+        }
+    }
+
+    private static ImageMetadata ReadSvgMetadata(string path)
+    {
+        var file = new FileInfo(path);
+        var (width, height) = SvgGeometry.Read(path);
+        return new ImageMetadata
+        {
+            FilePath = path,
+            FileName = Path.GetFileName(path),
+            FileSizeBytes = file.Length,
+            LastWriteTime = file.LastWriteTimeUtc,
+            RawWidth = width,
+            RawHeight = height,
+            DisplayWidth = width,
+            DisplayHeight = height,
+            FormatName = "SVG",
+            FrameCount = 1,
+            BitDepth = 8
+        };
     }
 
     private static void Validate(string path)

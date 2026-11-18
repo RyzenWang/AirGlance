@@ -25,6 +25,11 @@ public sealed class ImageMetadata
 
     public required string FormatName { get; init; }
 
+    /// <summary>Number of frames in an animated GIF; 1 for still images.</summary>
+    public int FrameCount { get; init; } = 1;
+
+    public bool IsAnimated => FrameCount > 1;
+
     public int BitDepth { get; init; } = 8;
 
     /// <summary>Description of the embedded ICC profile, or null when the file has none.</summary>
