@@ -50,6 +50,7 @@ A file is recognised by its extension. Raster formats must also decode with Skia
 | JPEG | `.jpg`, `.jpeg`, `.jfif` | EXIF orientation and embedded ICC to sRGB. JPEG copies flatten transparency onto white. |
 | PNG | `.png` | Alpha and embedded ICC are preserved. A 16-bit PNG is reported as 16-bit but displayed and saved at 8-bit. |
 | WebP | `.webp` | Still images with alpha; embedded ICC to sRGB. |
+| AVIF | `.avif` | Decoded through the bundled libvips native library; first frame only. |
 | BMP | `.bmp` | Decoded through SkiaSharp. |
 | GIF | `.gif` | Animated GIFs play and loop automatically; static GIFs show one frame. |
 | ICO | `.ico` | One image is selected from the icon by the codec. |
@@ -59,13 +60,12 @@ A file is recognised by its extension. Raster formats must also decode with Skia
 Not supported:
 
 - HEIC / HEIF
-- AVIF
 - RAW camera formats such as CR2, CR3, NEF, ARW, DNG, RAF, ORF and RW2
 - Video files such as MP4, MOV, WebM and MKV
 
 Why these are absent:
 
-- **HEIC / HEIF and AVIF** need native HEVC/AV1 codec libraries that are not part of the SkiaSharp build AirGlance ships. HEIC also brings HEVC patent licensing, and both need their own container, orientation and colour handling.
+- **HEIC / HEIF** need a native HEVC decoder that is not part of the current Windows x64 libvips package. AVIF is supported through the bundled libvips AV1 decoder; HEIC remains outside the current package.
 - **RAW** files are not display-ready pixels. Opening one requires demosaicing, white balance, a camera colour matrix, tone mapping and often lens corrections. That is a separate LibRaw-class engine, not a decoder switch.
 - **Video** needs demuxing, a video decoder, audio/video synchronisation and a media stack such as FFmpeg or the OS media APIs. That is outside a still-image viewer, and the codec licensing and package size are significant.
 
@@ -169,7 +169,7 @@ The 0.3.0 build meets the startup and first-frame targets on the reference machi
 
 These are limitations, not a promise list.
 
-- No HEIC, AVIF or RAW. SkiaSharp cannot decode them and AirGlance does not ship platform codecs.
+- No HEIC or RAW; AVIF is supported on Windows through libvips. SkiaSharp cannot decode them and AirGlance does not ship platform codecs.
 - Animated GIFs play; animated WebP and APNG remain still images. Video is not supported.
 - TIFF shows the first page only. CMYK, multi-page and some exotic compression variants are not part of the initial support contract.
 - No gallery, database, tags, ratings, search, batch conversion or rename, filters, layers, text, stitching, cloud sync or accounts.

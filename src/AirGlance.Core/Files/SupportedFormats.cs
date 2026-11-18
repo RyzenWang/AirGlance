@@ -1,9 +1,8 @@
 namespace AirGlance.Core.Files;
 
 /// <summary>
-/// The file types AirGlance can display. Formats SkiaSharp cannot decode at all
-/// (HEIC, AVIF, RAW, TIFF) are deliberately absent; they are a known limitation,
-/// not a pending feature.
+/// The file types AirGlance can display. HEIC and camera RAW remain outside the
+/// supported set; AVIF uses the libvips path and TIFF uses LibTiff/libvips.
 /// </summary>
 public static class SupportedFormats
 {
@@ -14,6 +13,7 @@ public static class SupportedFormats
         ".jfif",
         ".png",
         ".webp",
+        ".avif",
         ".bmp",
         ".gif",
         ".ico",
@@ -31,6 +31,9 @@ public static class SupportedFormats
 
     public static bool IsSvg(string? path) =>
         string.Equals(Path.GetExtension(path), ".svg", StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsAvif(string? path) =>
+        string.Equals(Path.GetExtension(path), ".avif", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsTiff(string? path) =>
         string.Equals(Path.GetExtension(path), ".tif", StringComparison.OrdinalIgnoreCase) ||
@@ -63,6 +66,7 @@ public static class SupportedFormats
             ".jpg" or ".jpeg" or ".jfif" => "JPEG",
             ".png" => "PNG",
             ".webp" => "WebP",
+            ".avif" => "AVIF",
             ".bmp" => "BMP",
             ".gif" => "GIF",
             ".ico" => "ICO",

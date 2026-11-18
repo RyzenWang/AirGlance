@@ -1,3 +1,4 @@
+using AirGlance.Core.Files;
 using AirGlance.Core.Imaging;
 using Xunit;
 
@@ -197,6 +198,29 @@ public sealed class ImageDecoderTests
         Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 7, 6)));
         Assert.Equal("blue", Classify(Pixel(bitmap, 6, bitmap.Height - 7)));
         Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 7, bitmap.Height - 7)));
+    }
+
+    [Fact]
+    public void Avif_is_supported_and_decodes()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            // The local AVIF decoder uses the Windows libvips native package.
+            return;
+        }
+
+        Assert.True(SupportedFormats.IsSupported("sample.avif"));
+        var path = Asset("sample.avif");
+        var metadata = ImageDecoder.ReadMetadata(path);
+        Assert.Equal("AVIF", metadata.FormatName);
+        Assert.Equal(1440, metadata.DisplayWidth);
+        Assert.Equal(900, metadata.DisplayHeight);
+
+        var bitmap = ImageDecoder.Decode(path, 800, 800);
+        Assert.True(bitmap.Width <= 800);
+        Assert.True(bitmap.Height <= 800);
+        Assert.Equal(1440, bitmap.SourceWidth);
+        Assert.Equal(900, bitmap.SourceHeight);
     }
 
     [Fact]
