@@ -192,9 +192,15 @@ public sealed class ImageViewer : Control
     public void SetTiles(TiledImageSource? tiles)
     {
         StopAnimation();
+        if (_tiles is not null)
+        {
+            _tiles.TileAvailable -= OnTileAvailable;
+        }
+
         _tiles = tiles;
         if (tiles is not null)
         {
+            tiles.TileAvailable += OnTileAvailable;
             SourcePixelWidth = tiles.PixelWidth;
             SourcePixelHeight = tiles.PixelHeight;
         }
@@ -203,6 +209,9 @@ public sealed class ImageViewer : Control
         UpdateInterpolation();
         InvalidateVisual();
     }
+
+    private void OnTileAvailable(object? sender, EventArgs e) =>
+        Dispatcher.UIThread.Post(InvalidateVisual, DispatcherPriority.Background);
 
     public void SetImage(
         WriteableBitmap? bitmap,
@@ -214,6 +223,11 @@ public sealed class ImageViewer : Control
     {
         StopAnimation();
         var animate = animateImage && _hasSource && bitmap is not null && ReferenceEquals(bitmap, Source) == false;
+
+        if (_tiles is not null)
+        {
+            _tiles.TileAvailable -= OnTileAvailable;
+        }
 
         _tiles = null;
         Source = bitmap;
@@ -248,6 +262,11 @@ public sealed class ImageViewer : Control
     {
         ArgumentNullException.ThrowIfNull(animation);
         StopAnimation();
+
+        if (_tiles is not null)
+        {
+            _tiles.TileAvailable -= OnTileAvailable;
+        }
 
         _tiles = null;
         _animation = animation;
@@ -313,6 +332,11 @@ public sealed class ImageViewer : Control
         Source = null;
         SourcePixelWidth = 0;
         SourcePixelHeight = 0;
+        if (_tiles is not null)
+        {
+            _tiles.TileAvailable -= OnTileAvailable;
+        }
+
         _hasSource = false;
         _tiles = null;
         _panX = 0;
@@ -448,6 +472,11 @@ public sealed class ImageViewer : Control
         {
             if (_tiles is not null)
             {
+                if (source is not null)
+                {
+                    context.DrawImage(source, imageRect);
+                }
+
                 DrawTiles(context, layout);
             }
             else if (source is not null)
@@ -502,6 +531,11 @@ public sealed class ImageViewer : Control
             for (var column = firstColumn; column <= lastColumn; column++)
             {
                 var tile = _tiles.GetTile(column, row);
+                if (tile is null)
+                {
+                    continue;
+                }
+
                 var tileWidth = Math.Min(
                     TiledImageSource.TileSize,
                     _tiles.PixelWidth - column * TiledImageSource.TileSize);

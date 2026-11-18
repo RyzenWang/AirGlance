@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using AirGlance.Core.Imaging;
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
 
 namespace AirGlance.App.Imaging;
 
@@ -20,21 +22,46 @@ public sealed class TiledImageSource : IDisposable
     private const int MaxCachedTiles = 32;
     private const uint Magic = 0x4C544741; // AGTL
 
-    private readonly string _path;
-    private readonly FileStream _stream;
+    private readonly string? _path;
+    private readonly FileStream? _stream;
+    private readonly TiffRegionReader? _region;
+    private readonly SemaphoreSlim _regionGate = new(1, 1);
+    private readonly ConcurrentDictionary<int, byte> _pendingRegionTiles = [];
     private readonly Dictionary<int, WriteableBitmap> _cache = [];
     private readonly Queue<int> _cacheOrder = [];
     private readonly long _tileBytes;
     private bool _disposed;
+
+    public event EventHandler? TileAvailable;
+
+    public event EventHandler? TileLoadingChanged;
+
+    public int PendingTileCount => _pendingRegionTiles.Count;
 
     private TiledImageSource(
         string path,
         FileStream stream,
         int pixelWidth,
         int pixelHeight)
+        : this(pixelWidth, pixelHeight, path, stream, null)
+    {
+    }
+
+    private TiledImageSource(TiffRegionReader region, int pixelWidth, int pixelHeight)
+        : this(pixelWidth, pixelHeight, null, null, region)
+    {
+    }
+
+    private TiledImageSource(
+        int pixelWidth,
+        int pixelHeight,
+        string? path,
+        FileStream? stream,
+        TiffRegionReader? region)
     {
         _path = path;
         _stream = stream;
+        _region = region;
         PixelWidth = pixelWidth;
         PixelHeight = pixelHeight;
         TileColumns = (pixelWidth + TileSize - 1) / TileSize;
@@ -50,7 +77,15 @@ public sealed class TiledImageSource : IDisposable
 
     public int TileRows { get; }
 
-    public long FileSize => HeaderSize + (long)TileColumns * TileRows * _tileBytes;
+    public long FileSize => _region is not null
+        ? 0
+        : HeaderSize + (long)TileColumns * TileRows * _tileBytes;
+
+    public static TiledImageSource OpenRegion(string path, int pixelWidth, int pixelHeight)
+    {
+        var region = TiffRegionReader.Open(path);
+        return new TiledImageSource(region, pixelWidth, pixelHeight);
+    }
 
     /// <summary>
     /// Writes the full-resolution pixels to a temporary tile file. Call from a
@@ -231,7 +266,7 @@ public sealed class TiledImageSource : IDisposable
     /// Returns a tile bitmap, loading it from the tile file on first use. Must be
     /// called from the UI thread; the small LRU keeps memory bounded while panning.
     /// </summary>
-    public WriteableBitmap GetTile(int column, int row)
+    public WriteableBitmap? GetTile(int column, int row)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (column < 0 || column >= TileColumns || row < 0 || row >= TileRows)
@@ -245,7 +280,29 @@ public sealed class TiledImageSource : IDisposable
             return cached;
         }
 
+        if (_region is not null)
+        {
+            if (_pendingRegionTiles.TryAdd(index, 0))
+            {
+                RaiseTileLoadingChanged();
+                _ = LoadRegionTileAsync(column, row, index);
+            }
+
+            return null;
+        }
+
         var bitmap = ReadTile(column, row);
+        CacheTile(index, bitmap);
+        return bitmap;
+    }
+
+    private void RaiseTileLoadingChanged() =>
+        Dispatcher.UIThread.Post(
+            () => TileLoadingChanged?.Invoke(this, EventArgs.Empty),
+            DispatcherPriority.Background);
+
+    private void CacheTile(int index, WriteableBitmap bitmap)
+    {
         if (_cache.Count >= MaxCachedTiles && _cacheOrder.Count > 0)
         {
             var evict = _cacheOrder.Dequeue();
@@ -257,6 +314,68 @@ public sealed class TiledImageSource : IDisposable
 
         _cache[index] = bitmap;
         _cacheOrder.Enqueue(index);
+    }
+
+    private async Task LoadRegionTileAsync(int column, int row, int index)
+    {
+        try
+        {
+            await _regionGate.WaitAsync();
+            try
+            {
+                if (_disposed || _region is null)
+                {
+                    return;
+                }
+
+                var x = column * TileSize;
+                var y = row * TileSize;
+                var width = Math.Min(TileSize, PixelWidth - x);
+                var height = Math.Min(TileSize, PixelHeight - y);
+                var bytes = await Task.Run(() => _region.ReadTile(x, y, width, height));
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (_disposed)
+                    {
+                        return;
+                    }
+
+                    var bitmap = CreateBitmap(bytes, width, height);
+                    CacheTile(index, bitmap);
+                    _pendingRegionTiles.TryRemove(index, out _);
+                    TileAvailable?.Invoke(this, EventArgs.Empty);
+                    RaiseTileLoadingChanged();
+                });
+            }
+            finally
+            {
+                _regionGate.Release();
+            }
+        }
+        catch
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _pendingRegionTiles.TryRemove(index, out _);
+                RaiseTileLoadingChanged();
+            });
+        }
+    }
+
+    private static WriteableBitmap CreateBitmap(byte[] bytes, int width, int height)
+    {
+        var bitmap = new WriteableBitmap(
+            new PixelSize(width, height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Premul);
+        using var framebuffer = bitmap.Lock();
+        var rowBytes = width * 4;
+        for (var y = 0; y < height; y++)
+        {
+            Marshal.Copy(bytes, y * rowBytes, IntPtr.Add(framebuffer.Address, y * framebuffer.RowBytes), rowBytes);
+        }
+
         return bitmap;
     }
 
@@ -275,16 +394,21 @@ public sealed class TiledImageSource : IDisposable
 
         _cache.Clear();
         _cacheOrder.Clear();
-        _stream.Dispose();
-        TryDelete(_path);
+        _region?.Dispose();
+        _stream?.Dispose();
+        if (_path is not null)
+        {
+            TryDelete(_path);
+        }
     }
 
     internal byte[] ReadTileBytesForTest(int column, int row)
     {
         var buffer = new byte[TileSize * TileSize * 4];
         var offset = HeaderSize + ((long)row * TileColumns + column) * _tileBytes;
-        _stream.Position = offset;
-        _stream.ReadExactly(buffer);
+        var stream = _stream ?? throw new InvalidOperationException("This tile source has no file stream.");
+        stream.Position = offset;
+        stream.ReadExactly(buffer);
         return buffer;
     }
 
@@ -301,8 +425,9 @@ public sealed class TiledImageSource : IDisposable
         var rowBytes = width * 4;
         var tileBuffer = new byte[TileSize * TileSize * 4];
         var offset = HeaderSize + ((long)row * TileColumns + column) * _tileBytes;
-        _stream.Position = offset;
-        _stream.ReadExactly(tileBuffer);
+        var stream = _stream ?? throw new InvalidOperationException("This tile source has no file stream.");
+        stream.Position = offset;
+        stream.ReadExactly(tileBuffer);
 
         using var framebuffer = bitmap.Lock();
         for (var y = 0; y < height; y++)

@@ -67,6 +67,7 @@ public sealed class TiledImagePresentedEventArgs(TiledImageSource tiles) : Event
 public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private const long TiledPixelThreshold = 40_000_000;
+    private const int ProxyMaximumEdge = 8192;
 
     private readonly AppServices _services;
     private readonly ImageLoadService _loader = new();
@@ -81,6 +82,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _prefetchCts;
     private CancellationTokenSource? _fullCts;
+    private CancellationTokenSource? _proxyCts;
+    private bool _isUpgradingProxy;
+    private bool _isRegionOpening;
+    private bool _regionActive;
+    private bool _regionLoading;
+
+    [ObservableProperty]
+    private bool _showRegionLoading;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
     private bool _slideshowBusy;
@@ -431,13 +440,164 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ZoomPercent = percent;
         ZoomText = Math.Round(percent, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture) + "%";
 
-        if (_rawDecoded is { } raw &&
+        if (_rawDecoded is { IsProxy: true } proxy)
+        {
+            if (_regionActive)
+            {
+                return;
+            }
+
+            if (percent >= 30 && !_isRegionOpening)
+            {
+                _ = OpenRegionAsync();
+                return;
+            }
+
+            if (!_isUpgradingProxy &&
+                proxy.Width < ProxyMaximumEdge &&
+                percent / 100.0 > proxy.Scale * 1.15)
+            {
+                _ = UpgradeProxyAsync();
+            }
+
+            return;
+        }
+
+        if (_rawDecoded is { IsProxy: false } raw &&
             !_fullLoaded &&
             !_isLoadingFull &&
             raw.Scale < 0.99 &&
             percent / 100.0 > raw.Scale * 1.15)
         {
             _ = LoadFullResolutionAsync();
+        }
+    }
+
+    private async Task UpgradeProxyAsync()
+    {
+        if (_isUpgradingProxy)
+        {
+            return;
+        }
+
+        _isUpgradingProxy = true;
+        try
+        {
+            // Coalesce a wheel/gesture burst and decode the final tier once.
+            await Task.Delay(500, _lifetimeCts.Token);
+            while (true)
+            {
+                var path = _currentPath;
+                var metadata = _metadata;
+                var current = _rawDecoded;
+                if (path is null || metadata is null || current is not { IsProxy: true })
+                {
+                    break;
+                }
+
+                var target = NextProxyEdge(metadata);
+                if (target <= current.Width * 1.05 || target > ProxyMaximumEdge)
+                {
+                    break;
+                }
+
+                var version = _loadVersion;
+                _proxyCts?.Cancel();
+                _proxyCts?.Dispose();
+                _proxyCts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+                var token = _proxyCts.Token;
+                var decoded = await _loader.DecodePreviewAsync(path, target, target, token);
+                token.ThrowIfCancellationRequested();
+                if (version != _loadVersion ||
+                    !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                _loader.Store(path, target, target, decoded);
+                _rawDecoded = decoded;
+                var edit = _edit;
+                var display = edit.IsIdentity ? decoded : ImageTransform.Apply(decoded, edit);
+                Present(display, metadata, resetView: false, animate: false, isNavigation: false);
+                UpdateStatus(metadata);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation or shutdown superseded the upgrade.
+        }
+        catch
+        {
+            // Keep the current proxy if a larger one cannot be generated.
+        }
+        finally
+        {
+            _isUpgradingProxy = false;
+            _proxyCts?.Dispose();
+            _proxyCts = null;
+        }
+    }
+
+    private int NextProxyEdge(ImageMetadata metadata)
+    {
+        var needed = (int)Math.Ceiling(
+            metadata.DisplayWidth * (Math.Max(1, ZoomPercent) / 100.0) * 1.15);
+        if (needed <= 2048)
+        {
+            return 2048;
+        }
+
+        return needed <= 4096 ? 4096 : ProxyMaximumEdge;
+    }
+
+    private async Task OpenRegionAsync()
+    {
+        if (_isRegionOpening || _regionActive)
+        {
+            return;
+        }
+
+        var path = _currentPath;
+        var metadata = _metadata;
+        if (path is null || metadata is null)
+        {
+            return;
+        }
+
+        _isRegionOpening = true;
+        var version = _loadVersion;
+        try
+        {
+            var tiles = await Task.Run(
+                () => TiledImageSource.OpenRegion(
+                    path,
+                    metadata.DisplayWidth,
+                    metadata.DisplayHeight),
+                _lifetimeCts.Token);
+            if (version != _loadVersion ||
+                !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                tiles.Dispose();
+                return;
+            }
+
+            _regionActive = true;
+            _regionLoading = true;
+            ShowRegionLoading = true;
+            PublishTiled(tiles);
+            UpdateStatus(metadata);
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation or shutdown superseded the region source.
+        }
+        catch
+        {
+            // Keep the proxy preview when the region source cannot be opened.
+        }
+        finally
+        {
+            _isRegionOpening = false;
         }
     }
 
@@ -667,6 +827,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IsLoading = true;
         HasError = false;
         _fullLoaded = false;
+        _regionActive = false;
+        _isRegionOpening = false;
+        ShowRegionLoading = false;
         _edit = EditTransform.None;
         _editVersion++;
 
@@ -787,7 +950,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private async Task LoadFullResolutionAsync()
     {
         var path = _currentPath;
-        if (path is null || _fullLoaded || _isLoadingFull || _currentAnimation is not null)
+        if (path is null || _fullLoaded || _isLoadingFull || _currentAnimation is not null ||
+            _rawDecoded?.IsProxy == true)
         {
             return;
         }
@@ -890,9 +1054,27 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void PublishTiled(TiledImageSource tiles)
     {
         var old = _tiledSource;
+        if (old is not null)
+        {
+            old.TileLoadingChanged -= OnRegionTileLoadingChanged;
+        }
+
         _tiledSource = tiles;
+        tiles.TileLoadingChanged += OnRegionTileLoadingChanged;
         TiledImagePresented?.Invoke(this, new TiledImagePresentedEventArgs(tiles));
         old?.Dispose();
+    }
+
+    private void OnRegionTileLoadingChanged(object? sender, EventArgs e)
+    {
+        if (!_regionActive || _metadata is not { } metadata)
+        {
+            return;
+        }
+
+        _regionLoading = _tiledSource?.PendingTileCount > 0;
+        ShowRegionLoading = _regionLoading;
+        UpdateStatus(metadata);
     }
 
     private void DisposeTiled()
@@ -994,7 +1176,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         bool animate)
     {
         var oldTiles = _tiledSource;
+        if (oldTiles is not null)
+        {
+            oldTiles.TileLoadingChanged -= OnRegionTileLoadingChanged;
+        }
+
         _tiledSource = null;
+        _regionActive = false;
+        _regionLoading = false;
+        ShowRegionLoading = false;
         var oldBitmap = _currentBitmap;
         var oldAnimation = _currentAnimation;
 
@@ -1292,7 +1482,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayVisible = true;
         OverlayTitle = _services.Localization.T("L.CantOpenTitle");
         OverlayMessage = LocalizeFailure(failure, extension);
-        OverlayHint = _services.Localization.T("L.EmptyLimitations");
+        OverlayHint = failure == ImageLoadFailure.TooLarge
+            ? _services.Localization.T("L.TooLargeHint")
+            : _services.Localization.T("L.EmptyLimitations");
         TitleFileName = _currentPath is null ? "AirGlance" : Path.GetFileName(_currentPath);
         WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} 闂?AirGlance";
         _rawDecoded = null;
@@ -1313,6 +1505,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 "L.ErrorUnsupportedFormat",
                 string.IsNullOrWhiteSpace(extension) ? string.Empty : extension),
             ImageLoadFailure.NotFound => localization.T("L.ErrorNotFound"),
+            ImageLoadFailure.TooLarge => localization.T("L.ErrorTooLarge"),
             ImageLoadFailure.AccessDenied => localization.T("L.ErrorAccessDenied"),
             ImageLoadFailure.Corrupt => localization.T("L.ErrorCorrupt"),
             _ => localization.T("L.ErrorUnknown")
@@ -1341,11 +1534,25 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     private void UpdateStatus(ImageMetadata metadata)
     {
-        StatusDimensions = string.Format(
+        var dimensions = string.Format(
             CultureInfo.InvariantCulture,
             "{0} \u00D7 {1}",
             metadata.DisplayWidth,
             metadata.DisplayHeight);
+        StatusDimensions = _regionActive
+            ? string.Concat(
+                dimensions,
+                " · ",
+                _services.Localization.T("L.Region"))
+            : _rawDecoded?.IsProxy == true
+                ? string.Concat(
+                    dimensions,
+                    " · ",
+                    _services.Localization.T("L.Preview"),
+                    " ",
+                    _rawDecoded.Width.ToString(CultureInfo.InvariantCulture),
+                    "px")
+                : dimensions;
         StatusPosition = _navigator.Count == 0
             ? string.Empty
             : $"{_navigator.CurrentIndex + 1}/{_navigator.Count}";
@@ -1488,7 +1695,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             return;
         }
 
+        if (_regionActive)
+        {
+            return;
+        }
+
         var (width, height) = PreviewTarget();
+        if (_rawDecoded.IsProxy)
+        {
+            width = Math.Max(width, _rawDecoded.Width);
+            height = Math.Max(height, _rawDecoded.Height);
+        }
+
         if (_rawDecoded.Width >= width * 0.9 && _rawDecoded.Height >= height * 0.9)
         {
             return;
@@ -1541,7 +1759,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             OverlayMessage = LocalizeFailure(failure, _lastFailureExtension);
             OverlayTitle = _services.Localization.T("L.CantOpenTitle");
-            OverlayHint = _services.Localization.T("L.EmptyLimitations");
+            OverlayHint = failure == ImageLoadFailure.TooLarge
+                ? _services.Localization.T("L.TooLargeHint")
+                : _services.Localization.T("L.EmptyLimitations");
         }
         else if (_folderEmpty)
         {
@@ -1595,6 +1815,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _fullCts?.Cancel();
         _fullCts?.Dispose();
         _fullCts = null;
+        _proxyCts?.Cancel();
+        _proxyCts?.Dispose();
+        _proxyCts = null;
         _isLoadingFull = false;
     }
 

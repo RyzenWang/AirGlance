@@ -27,7 +27,7 @@ public sealed class LocalizationService : IDisposable
             ["L.Menu"] = ("Menu", "菜单"),
 
             ["L.EmptyTitle"] = ("Drop images or a folder here.", "把图片或文件夹拖进来。"),
-            ["L.EmptyLimitations"] = ("No HEIC, RAW, TIFF or video yet.", "还不支持 HEIC、RAW、TIFF 和视频。"),
+            ["L.EmptyLimitations"] = ("HEIC, RAW and video still need additional decoders.", "HEIC、RAW 和视频仍需要额外的解码支持。"),
             ["L.EmptyFolderTitle"] = ("No images in this folder.", "这个文件夹里没有可显示的图片。"),
             ["L.EmptyFolderHint"] = ("Try another folder, or press Ctrl+Shift+O.", "换一个文件夹，或者按 Ctrl+Shift+O。"),
             ["L.DropHint"] = ("Release to open", "松开即可打开"),
@@ -35,6 +35,8 @@ public sealed class LocalizationService : IDisposable
 
             ["L.CantOpenTitle"] = ("Can't open this file", "打不开这张图"),
             ["L.ErrorUnsupportedFormat"] = ("Unsupported format ({0}).", "格式不支持（{0}）。"),
+            ["L.ErrorTooLarge"] = ("This image is too large to decode.", "图片尺寸过大，当前解码器无法生成预览。"),
+            ["L.TooLargeHint"] = ("Try the preview image next to the original file.", "可以尝试打开原文件旁边的预览图。"),
             ["L.ErrorNotFound"] = ("The file no longer exists.", "文件已经不存在了。"),
             ["L.ErrorAccessDenied"] = ("Access denied. Check the file's permissions.", "没有权限读取这个文件。"),
             ["L.ErrorCorrupt"] = ("The file looks damaged or incomplete.", "文件似乎损坏或不完整。"),
@@ -54,6 +56,9 @@ public sealed class LocalizationService : IDisposable
             ["L.ContextMenuNote"] = ("Right-click selects this canvas first; every item applies to this side only.", "右键会先选中该画布，菜单中的操作只作用于这一侧。"),
             ["L.CloseCompare"] = ("Exit compare", "退出对比"),
             ["L.LoadingFailed"] = ("Could not load this image", "无法加载这张图片"),
+            ["L.Preview"] = ("Preview", "预览"),
+            ["L.Region"] = ("Region", "区域"),
+            ["L.LoadingRegion"] = ("Loading original region…", "正在加载原始区域…"),
             ["L.FilmstripTarget"] = ("Targets canvas {0}", "作用于 {0} 画布"),
             ["L.DualEmptyTitle"] = ("Open this canvas", "打开这个画布"),
             ["L.DualEmptyDetail"] = ("Drop a folder or image here. Left and right panes are independent.", "把文件夹或图片拖到这里。左右画布各自独立。"),

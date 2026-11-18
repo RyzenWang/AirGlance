@@ -5,6 +5,7 @@ public enum ImageLoadFailure
     NotFound,
     AccessDenied,
     Unsupported,
+    TooLarge,
     Corrupt,
     Unknown
 }
