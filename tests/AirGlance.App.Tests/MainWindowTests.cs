@@ -69,8 +69,9 @@ public sealed class MainWindowTests
     {
         using var fixture = new WindowFixture();
         var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
         window.Show();
-        await WaitUntilAsync(() => window.IsVisible);
+        await WaitUntilAsync(() => window.IsVisible && viewModel.HasImage && window.Bounds.Width > 0);
         Dispatcher.UIThread.RunJobs();
 
         var visuals = window.GetVisualsAt(new Point(300, 260)).ToList();
