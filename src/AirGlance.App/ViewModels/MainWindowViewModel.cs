@@ -84,6 +84,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _fullCts;
     private CancellationTokenSource? _proxyCts;
     private bool _isUpgradingProxy;
+    private bool _isRegionOpening;
+    private bool _regionActive;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
     private bool _slideshowBusy;
@@ -436,6 +438,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         if (_rawDecoded is { IsProxy: true } proxy)
         {
+            if (_regionActive)
+            {
+                return;
+            }
+
+            if (proxy.Width >= ProxyMaximumEdge &&
+                percent >= 99 &&
+                !_isRegionOpening)
+            {
+                _ = OpenRegionAsync();
+                return;
+            }
+
             if (!_isUpgradingProxy &&
                 proxy.Width < ProxyMaximumEdge &&
                 percent / 100.0 > proxy.Scale * 1.15)
@@ -531,6 +546,55 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         return needed <= 4096 ? 4096 : ProxyMaximumEdge;
+    }
+
+    private async Task OpenRegionAsync()
+    {
+        if (_isRegionOpening || _regionActive)
+        {
+            return;
+        }
+
+        var path = _currentPath;
+        var metadata = _metadata;
+        if (path is null || metadata is null)
+        {
+            return;
+        }
+
+        _isRegionOpening = true;
+        var version = _loadVersion;
+        try
+        {
+            var tiles = await Task.Run(
+                () => TiledImageSource.OpenRegion(
+                    path,
+                    metadata.DisplayWidth,
+                    metadata.DisplayHeight),
+                _lifetimeCts.Token);
+            if (version != _loadVersion ||
+                !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                tiles.Dispose();
+                return;
+            }
+
+            _regionActive = true;
+            PublishTiled(tiles);
+            UpdateStatus(metadata);
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation or shutdown superseded the region source.
+        }
+        catch
+        {
+            // Keep the proxy preview when the region source cannot be opened.
+        }
+        finally
+        {
+            _isRegionOpening = false;
+        }
     }
 
     public async Task RotateClockwiseAsync()
@@ -759,6 +823,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         IsLoading = true;
         HasError = false;
         _fullLoaded = false;
+        _regionActive = false;
+        _isRegionOpening = false;
         _edit = EditTransform.None;
         _editVersion++;
 
@@ -1442,15 +1508,17 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             "{0} \u00D7 {1}",
             metadata.DisplayWidth,
             metadata.DisplayHeight);
-        StatusDimensions = _rawDecoded?.IsProxy == true
-            ? string.Concat(
-                dimensions,
-                " · ",
-                _services.Localization.T("L.Preview"),
-                " ",
-                _rawDecoded.Width.ToString(CultureInfo.InvariantCulture),
-                "px")
-            : dimensions;
+        StatusDimensions = _regionActive
+            ? string.Concat(dimensions, " · ", _services.Localization.T("L.Region"))
+            : _rawDecoded?.IsProxy == true
+                ? string.Concat(
+                    dimensions,
+                    " · ",
+                    _services.Localization.T("L.Preview"),
+                    " ",
+                    _rawDecoded.Width.ToString(CultureInfo.InvariantCulture),
+                    "px")
+                : dimensions;
         StatusPosition = _navigator.Count == 0
             ? string.Empty
             : $"{_navigator.CurrentIndex + 1}/{_navigator.Count}";
@@ -1589,6 +1657,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         _resizeTimer.Stop();
         if (_currentPath is null || _rawDecoded is null || _fullLoaded)
+        {
+            return;
+        }
+
+        if (_regionActive)
         {
             return;
         }

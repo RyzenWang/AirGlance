@@ -27,6 +27,27 @@
   - 状态栏显示源尺寸 + “预览”。
 - 预览失败返回 `TooLarge`，界面提示尝试原文件旁的 preview 图。
 
+## 100% 区域模式
+
+在代理达到 8192 px 且缩放达到约 100% 后，会切换到区域 tile：
+
+- 按 512×512 区域读取原图；
+- 只加载当前视口和周边 tile；
+- tile 未就绪时继续显示代理图；
+- tile 就绪后覆盖到代理图上，逐渐变清晰；
+- 状态栏显示 `区域`；
+- 不生成完整原图或金字塔；
+- 当前只对 libvips 可随机读取的 TIFF 生效，例如 Cosmic。
+
+P0 实测：
+
+- 第一个 512×512 tile 约 8.4 秒（首次访问/文件缓存）；
+- 后续随机 tile 约 0.01 秒；
+- 36 个视口 tile 约 0.25 秒；
+- 峰值内存约 295 MB。
+
+![100% 区域模式](implemented-large-tiff-region.png)
+
 ## 本地验证
 
 ### Cosmic Treasure Chest
@@ -60,8 +81,8 @@
 ## 包
 
 - `artifacts/local-0.4.0-plan-a/AirGlance-0.4.0-plan-a-win-x64.zip`
-- 约 **27.56 MB**（28,893,870 bytes；增加约 7.7 MB 压缩包体）
-- SHA256：`af85d5b4442c4e2fb40a07432b84d841f55225ac459df805433f76bcf8509724`
+- 约 **27.57 MB**（28,911,230 bytes；增加约 7.7 MB 压缩包体）
+- SHA256：`334a960526603f326f698467492e7b7f5434820dd53c01bdd37f60149ec6cdee`
 - 包含 `libvips-42.dll`
 
 ## 已知限制
@@ -74,7 +95,7 @@
 
 ## 验证结果
 
-- Core 测试：93 passed
+- Core 测试：94 passed
 - App 测试：34 passed
 - AOT：成功
 - 普通 TIFF/JPEG/PNG 无回归

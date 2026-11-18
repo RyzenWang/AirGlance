@@ -57,6 +57,7 @@ public sealed class LocalizationService : IDisposable
             ["L.CloseCompare"] = ("Exit compare", "退出对比"),
             ["L.LoadingFailed"] = ("Could not load this image", "无法加载这张图片"),
             ["L.Preview"] = ("Preview", "预览"),
+            ["L.Region"] = ("Region", "区域"),
             ["L.FilmstripTarget"] = ("Targets canvas {0}", "作用于 {0} 画布"),
             ["L.DualEmptyTitle"] = ("Open this canvas", "打开这个画布"),
             ["L.DualEmptyDetail"] = ("Drop a folder or image here. Left and right panes are independent.", "把文件夹或图片拖到这里。左右画布各自独立。"),
