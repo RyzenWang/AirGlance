@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The supported format list now includes `.svg`; SVG is no longer in the unsupported
   matrix. Animated WebP and APNG remain still images.
 - The portable package now carries Svg.Skia and HarfBuzzSharp 14.2.0; the Windows x64
-  zip grows from 15.55 MB to 19.50 MB, still under the 30 MB budget.
+  zip grows from 15.55 MB to 20.24 MB, still under the 30 MB budget.
 - The overlay chrome now follows the measurements in the interaction prototype:
   18 px top-bar margins, 38 px chips, a 52 px dock with 38 × 40 buttons and 18 px
   icons, 46 px circular navigation at 72% resting opacity, a 570 px empty card and
@@ -56,9 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
-- NativeAOT `win-x64`: 24 MP first window 199.4 ms median, first frame 365.4 ms;
-  peak working set 81.1 MB.
-- 100 MP fit-window first frame 292.7 ms; 100 MP at 100% peaks at 457.4 MB and
+- NativeAOT `win-x64`: 24 MP first window 227.1 ms median, first frame 404.9 ms;
+  peak working set 82.4 MB.
+- 100 MP fit-window first frame 358.6 ms; 100 MP at 100% peaks at 457.4 MB and
   settles at 87.9 MB working set.
 
 ## [0.1.3] - 2026-11-17

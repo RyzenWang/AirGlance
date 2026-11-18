@@ -63,25 +63,25 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | ≤ 500 ms | **199.4 ms** (542.7) | pass |
-| First frame | ≤ 500 ms | **365.4 ms** (724.5) | pass |
-| Decode | — | **58.0 ms** (63.6) | — |
-| Peak working set | ≤ 250 MB | **81.1 MB** (83.5) | pass |
+| First window | ≤ 500 ms | **227.1 ms** (487.8) | pass |
+| First frame | ≤ 500 ms | **404.9 ms** (662.1) | pass |
+| Decode | — | **58.9 ms** (69.4) | — |
+| Peak working set | ≤ 250 MB | **82.4 MB** (84.5) | pass |
 
 Raw runs:
 
 ```text
 Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
-  1 542.7           724.5           62.2       24.0     83.5       954.8
-  2 200.2           382.3           57.8       24.0     81.1       446.3
-  3 200.9           365.7           63.1       24.0     81.1       433.3
-  4 197.6           363.4           58.7       24.0     81.1       426.3
-  5 196.0           373.5           63.6       24.0     81.1       446.9
-  6 210.6           380.6           55.9       24.0     81.2       461.7
-  7 196.0           364.2           57.8       24.0     81.2       429.3
-  8 200.0           365.0           58.2       24.0     81.1       431.1
-  9 197.5           362.2           57.4       24.0     81.1       428.8
- 10 198.9           363.0           57.1       24.0     81.1       444.8
+  1 487.8           662.1           67.0       24.0     84.5       828.2
+  2 226.3           471.0           58.7       24.0     82.3       543.5
+  3 231.6           469.8           59.6       24.0     82.4       558.4
+  4 229.0           481.3           58.8       24.0     82.4       556.4
+  5 222.8           394.0           69.4       24.0     82.4       465.1
+  6 222.4           395.9           59.1       24.0     82.4       472.6
+  7 224.4           404.8           57.8       24.0     82.4       473.5
+  8 222.0           404.9           60.0       24.0     82.4       475.8
+  9 227.9           375.8           57.7       24.0     82.3       448.0
+ 10 229.0           375.0           57.8       24.0     82.1       450.9
 ```
 
 ### 100 MP JPEG, fit window
@@ -90,12 +90,12 @@ Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | — | 197.4 ms | — |
-| First frame | ≤ 2.0 s | **292.7 ms** | pass |
-| Decode | — | 141.3 ms | — |
-| Peak working set | — | 79.2 MB | — |
+| First window | — | 226.3 ms | — |
+| First frame | ≤ 2.0 s | **358.6 ms** | pass |
+| Decode | — | 145.8 ms | — |
+| Peak working set | — | 82.0 MB | — |
 
-Raw runs: 296.7, 292.7, 292.4, 309.9, 290.4 ms.
+Raw runs: 324.1, 360.4, 358.6, 375.5, 335.2 ms.
 
 ### 100 MP JPEG at 100%
 
@@ -148,7 +148,7 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 
 | Artifact | Size | SHA256 |
 | --- | --- | --- |
-| `AirGlance-0.2.0-win-x64.zip` | **19.50 MB** | see the release `SHA256SUMS.txt` |
+| `AirGlance-0.2.0-win-x64.zip` | **20.24 MB** | `27744e2fe501f5c67c48744068e603b94de69a7fb5e47ff49bca1b1977128d15` |
 
 The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md)
 and unpacks to about 37 MB. The 30 MB target applies to the zip, not the unpacked
