@@ -345,28 +345,41 @@ public partial class MainWindow : Window
             MaxWidth = 520
         };
         FileChip.Classes.Add("overlay-chip");
-        var fileRow = new StackPanel
+        var fileRow = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 14,
+            ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto,54"),
             VerticalAlignment = VerticalAlignment.Center
         };
-        FileNameText = new TextBlock();
+        FileNameText = new TextBlock { MaxWidth = 200, TextTrimming = TextTrimming.CharacterEllipsis };
         FileNameText.Classes.Add("chrome-file");
-        FileNameText.MaxWidth = 240;
         fileRow.Children.Add(FileNameText);
-        fileRow.Children.Add(new Border
+        var fileSeparator = new Border
         {
             Width = 1,
             Height = 16,
+            Margin = new Thickness(10, 0),
             Background = new SolidColorBrush(Color.Parse("#24FFFFFF")),
             VerticalAlignment = VerticalAlignment.Center
-        });
-        FileMetaText = new TextBlock();
+        };
+        Grid.SetColumn(fileSeparator, 1);
+        fileRow.Children.Add(fileSeparator);
+        FileMetaText = new TextBlock
+        {
+            MaxWidth = 300,
+            Margin = new Thickness(0, 0, 10, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
         FileMetaText.Classes.Add("chrome-meta");
+        Grid.SetColumn(FileMetaText, 2);
         fileRow.Children.Add(FileMetaText);
-        FilePositionText = new TextBlock { Foreground = new SolidColorBrush(Color.Parse("#F4A593")) };
+        FilePositionText = new TextBlock
+        {
+            Width = 54,
+            TextAlignment = TextAlignment.Right,
+            Foreground = new SolidColorBrush(Color.Parse("#F4A593"))
+        };
         FilePositionText.Classes.Add("chrome-meta");
+        Grid.SetColumn(FilePositionText, 3);
         fileRow.Children.Add(FilePositionText);
         FileChip.Child = fileRow;
         Grid.SetColumn(FileChip, 0);

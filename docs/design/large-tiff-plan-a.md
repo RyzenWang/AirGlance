@@ -60,8 +60,8 @@
 ## 包
 
 - `artifacts/local-0.4.0-plan-a/AirGlance-0.4.0-plan-a-win-x64.zip`
-- 约 **27.56 MB**（28,893,516 bytes；增加约 7.7 MB 压缩包体）
-- SHA256：`93f378e7b6a5c6563d4a09617f67675913c77953a5734e203cc08a7e5b263622`
+- 约 **27.56 MB**（28,893,870 bytes；增加约 7.7 MB 压缩包体）
+- SHA256：`af85d5b4442c4e2fb40a07432b84d841f55225ac459df805433f76bcf8509724`
 - 包含 `libvips-42.dll`
 
 ## 已知限制
