@@ -452,7 +452,12 @@ public sealed class DualCanvasView : UserControl, IDisposable
         };
         row.Children.Add(badge);
 
-        folderChip = new Border { Classes = { "overlay-chip" }, MaxWidth = 190, ClipToBounds = true };
+        folderChip = new Border
+        {
+            Classes = { "overlay-chip", "dual-folder-chip", index == 0 ? "a" : "b" },
+            MaxWidth = 190,
+            ClipToBounds = true
+        };
         var folderRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -478,7 +483,7 @@ public sealed class DualCanvasView : UserControl, IDisposable
 
         fileChip = new Border
         {
-            Classes = { "overlay-chip" },
+            Classes = { "overlay-chip", "dual-file-chip", index == 0 ? "a" : "b" },
             MaxWidth = 430,
             Padding = new Thickness(9, 0),
             ClipToBounds = true
@@ -1670,13 +1675,16 @@ public sealed class DualCanvasView : UserControl, IDisposable
             return;
         }
 
-        var compact = Bounds.Width > 0 && Bounds.Width < 1120;
+        var windowWidth = Bounds.Width;
+        var compact = windowWidth > 0 && windowWidth < 1120;
+        var narrow = windowWidth >= 1120 && windowWidth < 1240;
+        var wide = windowWidth >= 1600;
         var rightReserve = pane.PaneNumber == 1 ? 166 : 16;
         var available = Math.Max(160, paneWidth - 16 - rightReserve);
         pane.Header.MaxWidth = available;
 
         var folderMax = compact ? 120 : available >= 500 ? 190 : 150;
-        var fileMax = Math.Max(120, available - 44 - folderMax);
+        var fileMax = Math.Min(340, Math.Max(120, available - 44 - folderMax));
         if (compact)
         {
             fileMax = Math.Min(fileMax, 170);
@@ -1685,20 +1693,21 @@ public sealed class DualCanvasView : UserControl, IDisposable
         pane.FolderChip.MaxWidth = folderMax;
         pane.FileChip.MaxWidth = fileMax;
         pane.FileChip.Width = fileMax;
-        pane.FolderName.MaxWidth = compact ? 60 : 82;
-        pane.FileName.MaxWidth = compact ? 72 : 96;
 
         var folderChars = compact ? 8 : 12;
-        var fileChars = compact ? 10 : 14;
+        var fileChars = wide ? 14 : narrow ? 10 : 8;
+        pane.FolderName.MaxWidth = compact ? 60 : 82;
+        pane.FileName.MaxWidth = fileChars >= 14 ? 96 : fileChars >= 10 ? 70 : 52;
+
         var folderText = pane.Folder is null ? string.Empty : Path.GetFileName(pane.Folder);
         var fileText = pane.CurrentPath is null ? string.Empty : Path.GetFileName(pane.CurrentPath);
         pane.FolderName.Text = TruncateLabel(folderText, folderChars);
         pane.FileName.Text = TruncateFileName(fileText, fileChars);
-        ToolTip.SetTip(pane.FolderName, folderText);
-        ToolTip.SetTip(pane.FileName, fileText);
+        ToolTip.SetTip(pane.FolderChip, string.IsNullOrEmpty(folderText) ? null : folderText);
+        ToolTip.SetTip(pane.FileChip, string.IsNullOrEmpty(fileText) ? null : fileText);
 
-        var showDimensions = !compact && fileMax >= 220;
-        var showZoom = !compact && fileMax >= 300;
+        var showDimensions = !compact && !narrow;
+        var showZoom = !compact;
         pane.FileMeta.IsVisible = showDimensions;
         pane.FileSeparator1.IsVisible = showDimensions;
         pane.FileZoom.IsVisible = showZoom;

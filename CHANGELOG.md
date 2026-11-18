@@ -30,9 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-canvas previous/next capsules above each image. Each pair targets only its
   canvas; the inactive pair is at 60% opacity but remains clickable. The pair is
   hidden for an empty or single-image canvas.
-- The right pane header reserves a fixed 46 px page-counter slot and caps folder
-  names at 12 characters and file names at 14 characters with the extension kept.
-  Zoom hides before dimensions, and the header stays clear of the window controls.
+- The right pane header reserves a fixed 46 px page-counter slot and caps the file
+  chip at 340 px. Folder names use 12 characters; file names use 8 characters at the
+  default tier (14 wide) with the extension kept. Dimensions and zoom stay visible at
+  1240 px, and hovering the folder/file chips shows their complete names.
 - The pane menu's primary item no longer keeps a permanent hover-like fill; hover
   is applied only while the pointer is over an item.
 - Shared 30 × 30 A/B badges across the pane headers, dock, filmstrip halves and the

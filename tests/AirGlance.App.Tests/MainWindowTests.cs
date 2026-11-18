@@ -436,6 +436,33 @@ public sealed class MainWindowTests
     }
 
     [AvaloniaFact]
+    public async Task File_chip_is_capped_and_header_tooltips_show_full_names()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        window.Width = 1920;
+        window.Height = 1080;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => window.IsVisible && viewModel.HasImage);
+
+        window.KeyPressQwerty(PhysicalKey.D, RawInputModifiers.None);
+        await WaitUntilAsync(() =>
+            window.GetVisualDescendants().OfType<DualCanvasView>().Any(view => view.IsVisible));
+        var dualView = window.GetVisualDescendants().OfType<DualCanvasView>().Single(view => view.IsVisible);
+        var fileChip = dualView.GetVisualDescendants().OfType<Border>()
+            .Single(border => border.Classes.Contains("dual-file-chip") && border.Classes.Contains("b"));
+        var folderChip = dualView.GetVisualDescendants().OfType<Border>()
+            .Single(border => border.Classes.Contains("dual-folder-chip") && border.Classes.Contains("b"));
+        await WaitUntilAsync(() => fileChip.Bounds.Width > 0);
+
+        Assert.True(fileChip.Bounds.Width <= 341,
+            $"File chip should cap at 340 px, got {fileChip.Bounds.Width}");
+        Assert.Equal("b.jpg", ToolTip.GetTip(fileChip));
+        Assert.False(string.IsNullOrWhiteSpace(ToolTip.GetTip(folderChip) as string));
+    }
+
+    [AvaloniaFact]
     public async Task Pane_menu_primary_item_is_not_hovered_by_default_and_hovers_on_pointer()
     {
         using var fixture = new WindowFixture();
