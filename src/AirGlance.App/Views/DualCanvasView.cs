@@ -1654,13 +1654,14 @@ public sealed class DualCanvasView : UserControl, IDisposable
         var available = Math.Max(120, paneWidth - 16 - rightReserve);
         pane.Header.MaxWidth = available;
         var remaining = Math.Max(76, available - 44);
-        var folderMax = Math.Clamp(remaining * 0.28, 100, 190);
+        var fileMin = compact ? 80 : 120;
+        var folderMax = Math.Clamp(Math.Min(190, remaining - fileMin), 80, 190);
         var fileMax = Math.Clamp(remaining - folderMax, 80, 430);
         pane.FolderChip.MaxWidth = folderMax;
         pane.FileChip.MaxWidth = fileMax;
 
-        var showSecondary = !compact && available >= 300;
-        var showPosition = showSecondary && available >= 560;
+        var showSecondary = !compact && fileMax >= 200;
+        var showPosition = showSecondary && fileMax >= 340;
         pane.FileMeta.IsVisible = showSecondary;
         pane.FilePosition.IsVisible = showPosition;
         pane.FileSeparator1.IsVisible = showSecondary;

@@ -13,7 +13,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - Opens from the command line, a drag-and-drop, or the open dialog. The window appears first; the image follows as soon as it is decoded.
 - Browses one folder in natural order (`img2` before `img10`), with a 160 px filmstrip and wrap-around previous / next.
 - Opens a second canvas with `D` or the split-view button in the dock. The two canvases can show adjacent images from one folder or independent A/B folders; click a canvas or press `Tab` to choose the active one. The active canvas is marked by a 2 px identity border and badge ring; the other image is not dimmed. Right-click either canvas for a pane-specific menu, including Open folder… and Swap A/B.
-- The right pane header reserves the window-control area and truncates its file/folder chips instead of drawing under the Maximize button.
+- The right pane header reserves the window-control area, keeps the folder name complete where possible, and truncates the file chip instead of drawing under the Maximize button.
 - Each canvas has its own previous/next capsule above the image. It targets only that canvas; the inactive pair is at 60% opacity but still clickable, and the pair is hidden when that canvas is empty or has one image.
 - The dual filmstrip is split 50/50: A's folder list on the left, B's folder list on the right, each scrolling and selecting independently. An empty half shows only its A/B badge, with no text or button; if both sides are empty the filmstrip is disabled. The information drawer has A/B tabs.
 - Fit window, fit width and 100% views; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit.
