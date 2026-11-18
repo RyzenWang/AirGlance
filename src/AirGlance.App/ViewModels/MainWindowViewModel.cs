@@ -67,6 +67,7 @@ public sealed class TiledImagePresentedEventArgs(TiledImageSource tiles) : Event
 public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private const long TiledPixelThreshold = 40_000_000;
+    private const int ProxyMaximumEdge = 8192;
 
     private readonly AppServices _services;
     private readonly ImageLoadService _loader = new();
@@ -81,6 +82,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _prefetchCts;
     private CancellationTokenSource? _fullCts;
+    private CancellationTokenSource? _proxyCts;
+    private bool _isUpgradingProxy;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
     private bool _slideshowBusy;
@@ -431,6 +434,18 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ZoomPercent = percent;
         ZoomText = Math.Round(percent, MidpointRounding.AwayFromZero).ToString("0", CultureInfo.InvariantCulture) + "%";
 
+        if (_rawDecoded is { IsProxy: true } proxy)
+        {
+            if (!_isUpgradingProxy &&
+                proxy.Width < ProxyMaximumEdge &&
+                percent / 100.0 > proxy.Scale * 1.15)
+            {
+                _ = UpgradeProxyAsync();
+            }
+
+            return;
+        }
+
         if (_rawDecoded is { IsProxy: false } raw &&
             !_fullLoaded &&
             !_isLoadingFull &&
@@ -439,6 +454,83 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             _ = LoadFullResolutionAsync();
         }
+    }
+
+    private async Task UpgradeProxyAsync()
+    {
+        if (_isUpgradingProxy)
+        {
+            return;
+        }
+
+        _isUpgradingProxy = true;
+        try
+        {
+            // Coalesce a wheel/gesture burst and decode the final tier once.
+            await Task.Delay(500, _lifetimeCts.Token);
+            while (true)
+            {
+                var path = _currentPath;
+                var metadata = _metadata;
+                var current = _rawDecoded;
+                if (path is null || metadata is null || current is not { IsProxy: true })
+                {
+                    break;
+                }
+
+                var target = NextProxyEdge(metadata);
+                if (target <= current.Width * 1.05 || target > ProxyMaximumEdge)
+                {
+                    break;
+                }
+
+                var version = _loadVersion;
+                _proxyCts?.Cancel();
+                _proxyCts?.Dispose();
+                _proxyCts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+                var token = _proxyCts.Token;
+                var decoded = await _loader.DecodePreviewAsync(path, target, target, token);
+                token.ThrowIfCancellationRequested();
+                if (version != _loadVersion ||
+                    !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                _loader.Store(path, target, target, decoded);
+                _rawDecoded = decoded;
+                var edit = _edit;
+                var display = edit.IsIdentity ? decoded : ImageTransform.Apply(decoded, edit);
+                Present(display, metadata, resetView: false, animate: false, isNavigation: false);
+                UpdateStatus(metadata);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Navigation or shutdown superseded the upgrade.
+        }
+        catch
+        {
+            // Keep the current proxy if a larger one cannot be generated.
+        }
+        finally
+        {
+            _isUpgradingProxy = false;
+            _proxyCts?.Dispose();
+            _proxyCts = null;
+        }
+    }
+
+    private int NextProxyEdge(ImageMetadata metadata)
+    {
+        var needed = (int)Math.Ceiling(
+            metadata.DisplayWidth * (Math.Max(1, ZoomPercent) / 100.0) * 1.15);
+        if (needed <= 2048)
+        {
+            return 2048;
+        }
+
+        return needed <= 4096 ? 4096 : ProxyMaximumEdge;
     }
 
     public async Task RotateClockwiseAsync()
@@ -1351,7 +1443,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             metadata.DisplayWidth,
             metadata.DisplayHeight);
         StatusDimensions = _rawDecoded?.IsProxy == true
-            ? string.Concat(dimensions, " · ", _services.Localization.T("L.Preview"))
+            ? string.Concat(
+                dimensions,
+                " · ",
+                _services.Localization.T("L.Preview"),
+                " ",
+                _rawDecoded.Width.ToString(CultureInfo.InvariantCulture),
+                "px")
             : dimensions;
         StatusPosition = _navigator.Count == 0
             ? string.Empty
@@ -1496,6 +1594,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         var (width, height) = PreviewTarget();
+        if (_rawDecoded.IsProxy)
+        {
+            width = Math.Max(width, _rawDecoded.Width);
+            height = Math.Max(height, _rawDecoded.Height);
+        }
+
         if (_rawDecoded.Width >= width * 0.9 && _rawDecoded.Height >= height * 0.9)
         {
             return;
@@ -1604,6 +1708,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _fullCts?.Cancel();
         _fullCts?.Dispose();
         _fullCts = null;
+        _proxyCts?.Cancel();
+        _proxyCts?.Dispose();
+        _proxyCts = null;
         _isLoadingFull = false;
     }
 
