@@ -291,6 +291,10 @@ public sealed class MainWindowTests
             window.GetVisualDescendants().OfType<DualCanvasView>().Any(view => view.IsVisible));
 
         var dualView = window.GetVisualDescendants().OfType<DualCanvasView>().Single(view => view.IsVisible);
+        // The right canvas starts empty and its card appears once the initial
+        // dual-view load finishes, which is not the same moment the view shows.
+        await WaitUntilAsync(() => dualView.GetVisualDescendants().OfType<Border>()
+            .Any(border => border.Classes.Contains("dual-empty-card") && border.IsVisible));
         Assert.Null(dualView.PanePath(1));
         Assert.Contains(
             dualView.GetVisualDescendants().OfType<Border>(),
@@ -420,16 +424,32 @@ public sealed class MainWindowTests
         var dualView = window.GetVisualDescendants().OfType<DualCanvasView>().Single(view => view.IsVisible);
         var header = dualView.GetVisualDescendants().OfType<StackPanel>()
             .Single(panel => panel.Classes.Contains("dual-pane-header") && panel.Classes.Contains("b"));
-        await WaitUntilAsync(() => header.Bounds.Width > 0);
+        // Wait for the page counter to be populated so the header is measured at
+        // its final width instead of the empty placeholder width.
+        await WaitUntilAsync(() => dualView.GetVisualDescendants().OfType<TextBlock>()
+            .Any(text => text.Text == "02 / 02"));
+        dualView.UpdateLayout();
 
+        var headerRight = header.TranslatePoint(new Point(header.Bounds.Width, 0), window);
+        Assert.NotNull(headerRight);
         var maximize = window.GetVisualDescendants().OfType<Button>()
             .Single(button => Equals(button.Tag, "L.Maximize"));
-        var headerRight = header.TranslatePoint(new Point(header.Bounds.Width, 0), window);
-        var maximizeLeft = maximize.TranslatePoint(new Point(0, 0), window);
-        Assert.NotNull(headerRight);
-        Assert.NotNull(maximizeLeft);
-        Assert.True(headerRight.Value.X <= maximizeLeft.Value.X,
-            $"B header ends at {headerRight.Value.X}, Maximize starts at {maximizeLeft.Value.X}");
+        if (OperatingSystem.IsWindows())
+        {
+            var maximizeLeft = maximize.TranslatePoint(new Point(0, 0), window);
+            Assert.NotNull(maximizeLeft);
+            Assert.True(headerRight.Value.X <= maximizeLeft.Value.X,
+                $"B header ends at {headerRight.Value.X}, Maximize starts at {maximizeLeft.Value.X}");
+        }
+        else
+        {
+            // Only Windows draws the caption row inside the client area; other
+            // platforms use native decorations, so the header cannot reach them.
+            Assert.False(maximize.IsEffectivelyVisible);
+            Assert.True(headerRight.Value.X <= window.Bounds.Width,
+                $"B header ends at {headerRight.Value.X}, window ends at {window.Bounds.Width}");
+        }
+
         Assert.Contains(
             dualView.GetVisualDescendants().OfType<TextBlock>(),
             text => text.Text == "02 / 02" && text.IsEffectivelyVisible);
@@ -454,7 +474,10 @@ public sealed class MainWindowTests
             .Single(border => border.Classes.Contains("dual-file-chip") && border.Classes.Contains("b"));
         var folderChip = dualView.GetVisualDescendants().OfType<Border>()
             .Single(border => border.Classes.Contains("dual-folder-chip") && border.Classes.Contains("b"));
-        await WaitUntilAsync(() => fileChip.Bounds.Width > 0);
+        // The tooltips are assigned when the header applies its responsive layout,
+        // which can run after the dual view first becomes visible.
+        await WaitUntilAsync(() => ToolTip.GetTip(fileChip) is not null);
+        fileChip.UpdateLayout();
 
         Assert.True(fileChip.Bounds.Width <= 341,
             $"File chip should cap at 340 px, got {fileChip.Bounds.Width}");
