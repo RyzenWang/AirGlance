@@ -5,6 +5,60 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-11-18
+
+### Added
+
+- Side-by-side dual-canvas mode in the same window. Press `D` or click the split-view
+  button in the dock to enter or leave it. The left canvas keeps the current image,
+  the right canvas opens the next image in the same folder, and each canvas keeps
+  its own folder, image and navigation state.
+- Independent A/B folders. Drop a folder or image on either canvas, or click its
+  folder chip, to open a different folder on that side without moving the other one.
+- Active-canvas model. Click a canvas or press `Tab`; the dock, arrow keys, wheel,
+  information drawer and filmstrip target the active canvas. The active canvas has a
+  2 px identity border and a badge ring; the inactive canvas is not dimmed and shows
+  the original image. There is no top line or text label. `X` swaps the two canvases,
+  and the divider can be dragged between 25% and 75% (double-click resets 50/50).
+- A pane-specific right-click menu. Right-clicking a canvas activates that side first,
+  then offers Open folder…, Open image…, Show in folder, Copy image/path, Swap A/B and
+  Exit dual view; folder/image actions target only the clicked canvas.
+- A fixed 50/50 split filmstrip: the left half lists A's folder, the right half lists
+  B's folder, with independent scrolling and selection. An empty half shows only its
+  A/B badge (no text, button or placeholder); the filmstrip is disabled when both
+  sides are empty. The information drawer keeps its A/B tabs.
+- Per-canvas previous/next capsules above each image. Each pair targets only its
+  canvas; the inactive pair is at 60% opacity but remains clickable. The pair is
+  hidden for an empty or single-image canvas.
+- The right pane header now sizes its folder/file chips to the available width and
+  clips before the window controls, preventing overlap at the default window size.
+- The pane menu's primary item no longer keeps a permanent hover-like fill; hover
+  is applied only while the pointer is over an item.
+- Shared 30 × 30 A/B badges across the pane headers, dock, filmstrip halves and the
+  pane menu; the filmstrip header uses a fixed 30 px row with vertically centred
+  badge, folder name and count.
+- Empty-canvas state with folder and image actions, pane-local loading and error
+  states, drag/drop, per-canvas fit/zoom/pan, animated GIF playback and the existing
+  decoder formats (including TIFF and SVG).
+- `Esc` closes the pane menu, then the information drawer or split filmstrip, then
+  exits fullscreen, then leaves dual view. Dual view keeps both canvases in fullscreen.
+- Localized pane-menu items, filmstrip empty states and empty-canvas strings in English
+  and Chinese.
+
+### Changed
+
+- The dual-canvas design at `docs/design/dual-view-v2.md` is implemented; the v1 and
+  v2 interactive HTML prototypes remain available for comparison.
+- The window-caption controls are now a root overlay so they remain available in
+  dual view while the single-view chrome is hidden.
+
+### Notes
+
+- Dual view is a viewing mode. Per-canvas rotate/flip, save-copy and slideshow are
+  deferred; copy (`Ctrl+C`) copies the active preview. Two 100 MP images at 100%
+  simultaneously are not supported; each pane loads a bounded preview.
+- Pair stepping and physical dual-monitor windows are not part of this release.
+
 ## [0.3.0] - 2026-11-18
 
 ### Added
@@ -199,7 +253,8 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0
 [0.2.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.2.0
 [0.1.3]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.3

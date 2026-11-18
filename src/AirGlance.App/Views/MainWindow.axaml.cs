@@ -39,6 +39,9 @@ public partial class MainWindow : Window
     private bool _initialZoomApplied;
     private bool _cursorHidden;
     private bool _chromeVisible = true;
+    private bool _dualMode;
+    private DualCanvasView? _dualView;
+    private Grid _root = null!;
 
     private Border TopBar = null!;
     private Border FolderChip = null!;
@@ -82,6 +85,7 @@ public partial class MainWindow : Window
     private Button RotateButton = null!;
     private Button InfoToggle = null!;
     private Button FilmstripToggle = null!;
+    private Button DualViewButton = null!;
     private Button SlideshowButton = null!;
     private Button FullscreenButton = null!;
     private Button SettingsButton = null!;
@@ -187,7 +191,8 @@ public partial class MainWindow : Window
         Title = "AirGlance";
         Classes.Add("shell");
 
-        var root = new Grid();
+        _root = new Grid();
+        var root = _root;
 
         // The image owns the whole window. Overlay chrome floats above it.
         CanvasBorder = new Border
@@ -381,8 +386,11 @@ public partial class MainWindow : Window
         CaptionButtons.Children.Add(MaximizeButton);
         CaptionButtons.Children.Add(CloseButton);
         WindowChip.Child = CaptionButtons;
-        Grid.SetColumn(WindowChip, 2);
-        topGrid.Children.Add(WindowChip);
+        WindowChip.HorizontalAlignment = HorizontalAlignment.Right;
+        WindowChip.VerticalAlignment = VerticalAlignment.Top;
+        WindowChip.Margin = new Thickness(0, 16, 18, 0);
+        WindowChip.SetValue(Panel.ZIndexProperty, 60);
+        root.Children.Add(WindowChip);
 
         TopBar.Child = topGrid;
         root.Children.Add(TopBar);
@@ -484,6 +492,12 @@ public partial class MainWindow : Window
 
         FilmstripToggle = CreateToolButton("IconFilmstrip", "L.Filmstrip", OnFilmstripToggleClick);
         dockRow.Children.Add(FilmstripToggle);
+
+        DualViewButton = CreateToolButton(
+            "IconSplitView",
+            "L.DualView",
+            (_, _) => _ = ToggleDualAsync());
+        dockRow.Children.Add(DualViewButton);
 
         SlideshowButton = CreateToolButton("IconPlay", "L.Slideshow", (_, _) => _viewModel.ToggleSlideshow());
         dockRow.Children.Add(SlideshowButton);
@@ -706,6 +720,7 @@ public partial class MainWindow : Window
         ApplyTool(RotateButton, "L.RotateClockwise");
         ApplyTool(InfoToggle, "L.InfoPanel");
         ApplyTool(FilmstripToggle, "L.Filmstrip");
+        ApplyTool(DualViewButton, "L.DualView");
         ApplyTool(SlideshowButton, "L.Slideshow");
         ApplyTool(FullscreenButton, "L.Fullscreen");
         ApplyTool(SettingsButton, "L.Settings");
@@ -817,6 +832,35 @@ public partial class MainWindow : Window
         }
 
         RefreshChromeVisibility();
+
+        if (_dualMode)
+        {
+            CanvasBorder.IsVisible = false;
+            EmptyCard.IsVisible = false;
+            TopBar.IsVisible = false;
+            Dock.IsVisible = false;
+            PrevHost.IsVisible = false;
+            NextHost.IsVisible = false;
+            FilmstripHost.IsVisible = false;
+            InfoHost.IsVisible = false;
+            FullscreenHint.IsVisible = false;
+            DragOverlay.IsVisible = false;
+            WindowChip.IsVisible = OperatingSystem.IsWindows() && !_viewModel.IsFullscreen;
+            if (_dualView is not null)
+            {
+                _dualView.IsVisible = true;
+            }
+
+            return;
+        }
+
+        if (_dualView is not null)
+        {
+            _dualView.IsVisible = false;
+        }
+
+        CanvasBorder.IsVisible = true;
+        WindowChip.IsVisible = OperatingSystem.IsWindows() && !_viewModel.IsFullscreen;
     }
 
     private void UpdateTopBarLayout()
@@ -1056,6 +1100,175 @@ public partial class MainWindow : Window
         InfoContentHost.Content = _infoPanel;
     }
 
+    private async Task ToggleDualAsync()
+    {
+        if (_dualMode)
+        {
+            await ExitDualAsync();
+        }
+        else
+        {
+            await EnterDualAsync();
+        }
+    }
+
+    private async Task EnterDualAsync()
+    {
+        if (_dualMode)
+        {
+            return;
+        }
+
+        if (_dualView is null)
+        {
+            _dualView = new DualCanvasView(_services);
+            _dualView.OpenRequested += OnDualOpenRequested;
+            _dualView.ExitRequested += OnDualExitRequested;
+            _dualView.RevealRequested += OnDualRevealRequested;
+            _dualView.PointerPressed += OnDualPointerPressed;
+            _dualView.SetValue(Panel.ZIndexProperty, 45);
+            _root.Children.Add(_dualView);
+        }
+
+        _dualMode = true;
+        _dualView.IsVisible = true;
+        MinWidth = 1000;
+        if (WindowState == WindowState.Normal && Width < 1000)
+        {
+            Width = 1000;
+        }
+
+        ApplyViewModelState();
+        Title = "AirGlance — Compare";
+        await _dualView.InitializeAsync(_viewModel.CurrentFilePath);
+        _dualView.Focus();
+    }
+
+    private async Task ExitDualAsync()
+    {
+        if (!_dualMode)
+        {
+            return;
+        }
+
+        var path = _dualView?.ActivePath ?? _viewModel.CurrentFilePath;
+        _dualMode = false;
+        if (_dualView is not null)
+        {
+            _dualView.ResetOverlays();
+            _dualView.IsVisible = false;
+        }
+
+        MinWidth = 720;
+        ApplyViewModelState();
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            await _viewModel.OpenPathAsync(path);
+        }
+
+        Title = _viewModel.WindowTitle;
+        Viewer.Focus();
+    }
+
+    private async void OnDualOpenRequested(object? sender, DualOpenRequest e) =>
+        await OpenDualPaneAsync(e.PaneIndex, e.Folder);
+
+    private async void OnDualExitRequested(object? sender, EventArgs e) =>
+        await ExitDualAsync();
+
+    private void OnDualRevealRequested(object? sender, DualRevealRequest e)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Process.Start("explorer.exe", $"/select,\"{e.Path}\"");
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                Process.Start("open", ["-R", e.Path]);
+            }
+            else
+            {
+                Process.Start("xdg-open", Path.GetDirectoryName(e.Path) ?? e.Path);
+            }
+        }
+        catch
+        {
+            // File managers differ; nothing useful to say beyond the failure.
+        }
+    }
+
+    private async Task OpenDualAsync(bool folder) =>
+        await OpenDualPaneAsync(_dualView?.ActiveIndex ?? 0, folder);
+
+    private async Task OpenDualPaneAsync(int paneIndex, bool folder)
+    {
+        if (_dualView is null)
+        {
+            return;
+        }
+
+        string? path;
+        if (folder)
+        {
+            var folders = await StorageProvider.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title = _services.Localization.T("L.OpenFolder"),
+                    AllowMultiple = false
+                });
+            path = folders.FirstOrDefault()?.TryGetLocalPath();
+        }
+        else
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(
+                new FilePickerOpenOptions
+                {
+                    Title = _services.Localization.T("L.OpenFile"),
+                    AllowMultiple = false,
+                    FileTypeFilter =
+                    [
+                        new FilePickerFileType("Images")
+                        {
+                            Patterns = SupportedFormats.Extensions.Select(extension => "*" + extension).ToList()
+                        }
+                    ]
+                });
+            path = files.FirstOrDefault()?.TryGetLocalPath();
+        }
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            await _dualView.OpenPathAsync(paneIndex, path);
+        }
+    }
+
+    private void OnDualPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed &&
+            e.GetPosition(this).Y < 58)
+        {
+            BeginMoveDrag(e);
+        }
+    }
+
+    private async Task CopyDualImageAsync()
+    {
+        var bitmap = _dualView?.ActiveBitmap;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (bitmap is null || clipboard is null)
+        {
+            return;
+        }
+
+        using var transfer = new DataTransfer();
+        var item = new DataTransferItem();
+        item.SetBitmap(bitmap);
+        transfer.Add(item);
+        await clipboard.SetDataAsync(transfer);
+    }
+
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (_viewModel.IsSlideshowRunning)
@@ -1075,6 +1288,67 @@ public partial class MainWindow : Window
 
         try
         {
+            if (!control && e.Key == Key.D)
+            {
+                await ToggleDualAsync();
+                e.Handled = true;
+                return;
+            }
+
+            if (_dualMode && _dualView is not null)
+            {
+                if (e.Key == Key.Escape && _isFullscreen && !_dualView.HasOverlay)
+                {
+                    ExitFullscreen();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (control && e.Key == Key.O)
+                {
+                    await OpenDualAsync(folder: shift);
+                    e.Handled = true;
+                    return;
+                }
+
+                if (control && e.Key == Key.C && !shift)
+                {
+                    await CopyDualImageAsync();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (control && e.Key == Key.L && shift)
+                {
+                    ToggleLanguage();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (e.Key is Key.F11 or Key.F)
+                {
+                    ToggleFullscreen();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (e.Key == Key.F1)
+                {
+                    ShowShortcuts();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (_dualView.HandleKeyDown(e))
+                {
+                    e.Handled = true;
+                    return;
+                }
+
+                e.Handled = true;
+                return;
+            }
+
             if (control)
             {
                 switch (e.Key)
@@ -1802,6 +2076,8 @@ public partial class MainWindow : Window
         _chromeTimer.Stop();
         _benchmarkTimeout?.Stop();
         Viewer.ClearImage();
+        _dualView?.Dispose();
+        _dualView = null;
         _viewModel.Dispose();
     }
 }

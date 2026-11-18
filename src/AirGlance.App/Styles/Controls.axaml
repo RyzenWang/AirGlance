@@ -1,4 +1,4 @@
-<Styles xmlns="https://github.com/avaloniaui"
+﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:AirGlance.App.Controls">
   <Style Selector="TextBlock">
@@ -357,6 +357,403 @@
   </Style>
 
   <!-- Image-first overlay chrome. Dark translucent surfaces sit over any photo. -->
+  <Style Selector="Grid.dual-root">
+    <Setter Property="Background" Value="{DynamicResource CanvasBackdrop}" />
+  </Style>
+
+  <Style Selector="Border.dual-pane">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="Border.dual-active-frame">
+    <Setter Property="Margin" Value="8" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="IsVisible" Value="False" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+    <Setter Property="BoxShadow" Value="0 0 24 -8 #33E3563B" />
+  </Style>
+
+  <Style Selector="Border.dual-active-frame.a">
+    <Setter Property="BorderBrush" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.dual-active-frame.b">
+    <Setter Property="BorderBrush" Value="{DynamicResource Teal}" />
+    <Setter Property="BoxShadow" Value="0 0 24 -8 #332E6F63" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav">
+    <Setter Property="Height" Value="38" />
+    <Setter Property="Padding" Value="3" />
+    <Setter Property="Margin" Value="0,64,0,0" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+    <Setter Property="Background" Value="#E00A0E13" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="BoxShadow" Value="0 12 34 0 #3D05080B" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav.a">
+    <Setter Property="BorderBrush" Value="#7AE3563B" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav.b">
+    <Setter Property="BorderBrush" Value="#7A2E6F63" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav-badge">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="CornerRadius" Value="9" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav-badge.a">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav-badge.b">
+    <Setter Property="Background" Value="{DynamicResource Teal}" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav-badge.a.active">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #44E3563B" />
+  </Style>
+
+  <Style Selector="Border.dual-pane-nav-badge.b.active">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #442E6F63" />
+  </Style>
+
+  <Style Selector="Button.dual-pane-nav-button">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Foreground" Value="#F7F3EA" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.dual-pane-nav-button:pointerover">
+    <Setter Property="Background" Value="#20FFFFFF" />
+  </Style>
+
+  <Style Selector="Border.dual-divider-line">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource BorderStrong}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.dual-badge">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Margin" Value="0,4,0,0" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+  </Style>
+
+  <Style Selector="Border.dual-badge.a">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.dual-badge.b">
+    <Setter Property="Background" Value="{DynamicResource Teal}" />
+  </Style>
+
+  <Style Selector="Border.dual-badge.a.active">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #44E3563B" />
+  </Style>
+
+  <Style Selector="Border.dual-badge.b.active">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #442E6F63" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-badge-text">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#FFF9EF" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Border.dual-empty-card">
+    <Setter Property="Width" Value="330" />
+    <Setter Property="Padding" Value="26,24" />
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-empty-detail">
+    <Setter Property="FontSize" Value="10.5" />
+    <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="MaxWidth" Value="270" />
+  </Style>
+
+  <Style Selector="Border.dual-filmstrip">
+    <Setter Property="Height" Value="154" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="#0A0E13" />
+    <Setter Property="BorderBrush" Value="#24FFFFFF" />
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+    <Setter Property="ClipToBounds" Value="True" />
+    <Setter Property="BoxShadow" Value="0 -16 40 0 #3D04070A" />
+  </Style>
+
+  <Style Selector="Border.dual-film-half">
+    <Setter Property="Padding" Value="9,18,12,18" />
+    <Setter Property="Background" Value="#0A0E13" />
+  </Style>
+
+  <Style Selector="Border.dual-film-half.a">
+    <Setter Property="Padding" Value="9,18,12,18" />
+  </Style>
+
+  <Style Selector="Border.dual-film-half.b">
+    <Setter Property="Padding" Value="9,18,12,42" />
+  </Style>
+
+  <Style Selector="Border.dual-film-half.a.active">
+    <Setter Property="Background" Value="#2A1A17" />
+  </Style>
+
+  <Style Selector="Border.dual-film-half.b.active">
+    <Setter Property="Background" Value="#152522" />
+  </Style>
+
+  <Style Selector="Border.dual-film-split">
+    <Setter Property="Width" Value="1" />
+    <Setter Property="Background" Value="#24FFFFFF" />
+  </Style>
+
+  <Style Selector="Border.dual-film-badge">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="CornerRadius" Value="9" />
+  </Style>
+
+  <Style Selector="Border.dual-film-badge.a">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.dual-film-badge.b">
+    <Setter Property="Background" Value="{DynamicResource Teal}" />
+  </Style>
+
+  <Style Selector="Border.dual-film-badge.active.a">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #44E3563B" />
+  </Style>
+
+  <Style Selector="Border.dual-film-badge.active.b">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #442E6F63" />
+  </Style>
+
+  <Style Selector="Button.dual-film-close">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#B9B1A5" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+
+  <Style Selector="Button.dual-film-close:pointerover">
+    <Setter Property="Background" Value="#22FFFFFF" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item">
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="0,9" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#E4DED3" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item:pointerover">
+    <Setter Property="Background" Value="#18FFFFFF" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#18FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item.primary">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="#F4FFFB" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item.primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#332E6F63" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item.hover">
+    <Setter Property="Background" Value="#18FFFFFF" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item.hover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#18FFFFFF" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item.primary.hover">
+    <Setter Property="Background" Value="#332E6F63" />
+    <Setter Property="Foreground" Value="#F4FFFB" />
+  </Style>
+
+  <Style Selector="Button.dual-menu-item.primary.hover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#332E6F63" />
+  </Style>
+
+  <Style Selector="Border.dual-menu">
+    <Setter Property="Width" Value="274" />
+    <Setter Property="Padding" Value="7" />
+    <Setter Property="Background" Value="#F20A0E13" />
+    <Setter Property="BorderBrush" Value="#24FFFFFF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="13" />
+    <Setter Property="BoxShadow" Value="0 26 70 0 #6B030609" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Top" />
+  </Style>
+
+  <Style Selector="Border.dual-menu-head">
+    <Setter Property="Padding" Value="5,5,7,9" />
+    <Setter Property="Margin" Value="0,0,0,5" />
+    <Setter Property="BorderBrush" Value="#24FFFFFF" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+  </Style>
+
+  <Style Selector="Border.dual-menu-badge">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="CornerRadius" Value="9" />
+  </Style>
+
+  <Style Selector="Border.dual-menu-badge.a">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.dual-menu-badge.b">
+    <Setter Property="Background" Value="{DynamicResource Teal}" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-menu-folder">
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#F7F3EA" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-menu-meta">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="9" />
+    <Setter Property="Foreground" Value="#B9B1A5" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-menu-shortcut">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="8.5" />
+    <Setter Property="Foreground" Value="#8F887C" />
+  </Style>
+
+  <Style Selector="Border.dual-menu-sep">
+    <Setter Property="Height" Value="1" />
+    <Setter Property="Margin" Value="7,4" />
+    <Setter Property="Background" Value="#24FFFFFF" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-menu-note">
+    <Setter Property="FontSize" Value="9" />
+    <Setter Property="Foreground" Value="#8F887C" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Margin" Value="9,8,9,4" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-film-title">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#F7F3EA" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-film-meta">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="9.5" />
+    <Setter Property="Foreground" Value="#B9B1A5" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.dual-tab">
+    <Setter Property="Height" Value="24" />
+    <Setter Property="Padding" Value="9,0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="9.5" />
+    <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
+  </Style>
+
+  <Style Selector="Button.dual-tab.a.active">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+    <Setter Property="Foreground" Value="#FFF9EF" />
+  </Style>
+
+  <Style Selector="Button.dual-tab.b.active">
+    <Setter Property="Background" Value="{DynamicResource Teal}" />
+    <Setter Property="Foreground" Value="#F4FFFB" />
+  </Style>
+
+  <Style Selector="Border.dual-dock-pane">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Margin" Value="0,0,4,0" />
+    <Setter Property="CornerRadius" Value="9" />
+  </Style>
+
+  <Style Selector="Border.dual-dock-pane.a">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.dual-dock-pane.b">
+    <Setter Property="Background" Value="{DynamicResource Teal}" />
+  </Style>
+
+  <Style Selector="Border.dual-dock-pane.a.active">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #44E3563B" />
+  </Style>
+
+  <Style Selector="Border.dual-dock-pane.b.active">
+    <Setter Property="BoxShadow" Value="0 0 0 3 #442E6F63" />
+  </Style>
+
+  <Style Selector="TextBlock.dual-dock-pane-text">
+    <Setter Property="FontFamily" Value="{DynamicResource MonoFont}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#FFF9EF" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
   <Style Selector="Border.overlay-chip">
     <Setter Property="Background" Value="#A80D1218" />
     <Setter Property="BorderBrush" Value="#24FFFFFF" />
@@ -775,4 +1172,3 @@
     <Setter Property="Margin" Value="22,0,0,88" />
   </Style>
 </Styles>
-

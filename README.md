@@ -4,7 +4,7 @@
 
 **Whole folders, one glance.** · 「一个文件夹，一眼看完。」
 
-AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.3.0 is the current build; 0.1.0 was the first public build. It is deliberately small.
+AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.4.0 is the current development build; 0.3.0 is the latest public release. It is deliberately small.
 
 - [Download](#install) · [Image formats](#image-formats) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
 
@@ -12,6 +12,10 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 
 - Opens from the command line, a drag-and-drop, or the open dialog. The window appears first; the image follows as soon as it is decoded.
 - Browses one folder in natural order (`img2` before `img10`), with a 160 px filmstrip and wrap-around previous / next.
+- Opens a second canvas with `D` or the split-view button in the dock. The two canvases can show adjacent images from one folder or independent A/B folders; click a canvas or press `Tab` to choose the active one. The active canvas is marked by a 2 px identity border and badge ring; the other image is not dimmed. Right-click either canvas for a pane-specific menu, including Open folder… and Swap A/B.
+- The right pane header reserves the window-control area and truncates its file/folder chips instead of drawing under the Maximize button.
+- Each canvas has its own previous/next capsule above the image. It targets only that canvas; the inactive pair is at 60% opacity but still clickable, and the pair is hidden when that canvas is empty or has one image.
+- The dual filmstrip is split 50/50: A's folder list on the left, B's folder list on the right, each scrolling and selecting independently. An empty half shows only its A/B badge, with no text or button; if both sides are empty the filmstrip is disabled. The information drawer has A/B tabs.
 - Fit window, fit width and 100% views; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit.
 - Applies the EXIF orientation before the first pixel is shown, and converts embedded ICC profiles (Display P3, Adobe RGB) to sRGB for display.
 - Rotates and flips for display only. Save a copy as JPEG, PNG or WebP, or copy the image; the original file is never written.
@@ -32,6 +36,10 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 | Dark theme | Fullscreen |
 | --- | --- |
 | ![Dark theme](docs/design/implemented-dark.png) | ![Fullscreen with Esc hint](docs/design/implemented-fullscreen.png) |
+
+| Dual canvas |
+| --- |
+| ![Two independent canvases with 30 px A/B badges and an active border](docs/design/implemented-dual.png) |
 
 ## Image formats
 
@@ -116,6 +124,8 @@ Mouse and trackpad:
 | Drag | Pan when the image is larger than the viewport |
 | Double-click | Toggle fit window and 100% |
 | Left/right edge buttons | Previous / next image |
+| Click a canvas | Make it the active A/B canvas |
+| Drag the divider | Change the dual-canvas split (25%–75%); double-click resets 50/50 |
 
 | Key | Action |
 | --- | --- |
@@ -125,17 +135,21 @@ Mouse and trackpad:
 | `Space` / `Backspace` | Next / previous image |
 | `+` `-` | Zoom in / out around the pointer |
 | `0` `1` `2` | Fit window / 100% / fit width |
-| `R` / `Shift+R` | Rotate clockwise / counter-clockwise |
-| `H` / `V` | Flip horizontally / vertically |
+| `R` / `Shift+R` | Rotate clockwise / counter-clockwise (single view; deferred in dual view) |
+| `H` / `V` | Flip horizontally / vertically (single view; deferred in dual view) |
 | `F` / `F11` / `Esc` | Fullscreen; exit fullscreen or close overlays |
-| `S` | Start or stop the slideshow; any key stops it |
-| `I` / `C` | Information panel / filmstrip |
-| `Ctrl+C` / `Ctrl+Shift+C` | Copy the image / copy the path |
-| `Ctrl+Shift+S` | Save a copy |
+| `S` | Start or stop the slideshow; any key stops it (disabled in dual view) |
+| `I` / `C` | Information panel / split filmstrip |
+| `D` | Enter or leave dual view |
+| `Tab` / `Shift+Tab` | Switch the active A/B canvas |
+| `X` | Swap the two dual-view canvases |
+| `Ctrl+C` | Copy the image (active preview in dual view) |
+| `Ctrl+Shift+C` | Copy the active image path (single view) |
+| `Ctrl+Shift+S` | Save a copy (single view; deferred in dual view) |
 | `Ctrl+Shift+L` | Switch English / Chinese |
 | `F1` | The full shortcut list |
 
-Right-click the image for open, copy, show-in-folder, open-with and settings.
+Right-click the image for open, copy, show-in-folder, open-with and settings. In dual view, right-clicking a canvas opens that pane’s menu first and targets only that pane.
 
 ## Performance
 
@@ -159,7 +173,8 @@ These are limitations, not a promise list.
 - Animated GIFs play; animated WebP and APNG remain still images. Video is not supported.
 - TIFF shows the first page only. CMYK, multi-page and some exotic compression variants are not part of the initial support contract.
 - No gallery, database, tags, ratings, search, batch conversion or rename, filters, layers, text, stitching, cloud sync or accounts.
-- No tabs. The viewer is one folder per window. No tray icon and no single-instance forwarding.
+- No tabs. Dual view is one window with two explicit A/B canvases, not a tab strip. No tray icon and no single-instance forwarding.
+- Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.
 - No cropping and no lossless JPEG rotation. Rotate and flip only change what is on screen.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
 - 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **458 MB**, settling to about **88 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
@@ -217,4 +232,4 @@ AirGlance contains no `HttpClient`, no sockets, no telemetry, no crash upload an
 
 MIT. See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-More detail: [architecture](docs/architecture.md) · [format matrix](docs/formats.md) · [performance method](docs/performance.md) · [shipping](docs/shipping.md) · [interaction design](docs/design/interaction-v2.en.md) · [dual-canvas design](docs/design/dual-view-v1.en.md) · [changelog](CHANGELOG.md).
+More detail: [architecture](docs/architecture.md) · [format matrix](docs/formats.md) · [performance method](docs/performance.md) · [shipping](docs/shipping.md) · [interaction design](docs/design/interaction-v2.en.md) · [dual-canvas design v4](docs/design/dual-view-v4.en.md) · [changelog](CHANGELOG.md).

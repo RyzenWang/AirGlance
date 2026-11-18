@@ -5,6 +5,8 @@
 > Interaction design draft. This document describes behaviour, layout and states only; it does not change application code.
 >
 > **Confirmed (2026-11-18):** two side-by-side canvases in one window; the right canvas shows the next image when entering from a folder; v1 does not include pair stepping; viewing two 100 MP images at 100% simultaneously is not an acceptance requirement.
+>
+> **Implementation status (0.4.0 local build, pending review and remote push):** Phase 1 is implemented. See [implemented-dual.png](implemented-dual.png).
 
 ![Same-folder dual canvas](dual-view-same.png)
 
@@ -131,7 +133,7 @@ Each pane's top-left contains:
 - All dock actions target the active pane.
 - A “side by side” button is highlighted in dual view.
 - Slideshow is disabled in dual view.
-- Below 900 px, compress spacing and labels; below 720 px, comparing two images is not recommended.
+- Below 1120 px, the pane headers switch to compact mode (dimensions, zoom, position and folder count hidden). The dual-view minimum window is 1000 px.
 
 ### Filmstrip and information
 
@@ -201,7 +203,7 @@ Each pane's top-left contains:
 | Pane header | 38 px chip, 28 × 38 A/B badge |
 | Filmstrip | 138 px, follows active pane |
 | Info panel | 330 px, A/B tabs at the top |
-| Recommended minimum | 900 px window; 720 px compact fallback |
+| Minimum window | 1000 px; compact headers below 1120 px |
 
 ## 9. Interaction trade-offs
 
@@ -213,7 +215,7 @@ Each pane's top-left contains:
 
 ## 10. Phases
 
-### Phase 1
+### Phase 1 (implemented)
 
 - Single-window dual canvas with independent folder, image and navigation;
 - same folder starts with the next image;
@@ -244,7 +246,21 @@ Each pane's top-left contains:
 
 The v1 interaction scope is settled; there are no open interaction questions. Only Phase 1 start approval remains.
 
-## 12. Interactive prototype
+## 12. Implementation notes
+
+The 0.4.0 local build implements:
+
+- same-window A/B canvases, same-folder next image, and independent folders;
+- active pane, `Tab`, `X` swap, 25%–75% divider drag and double-click reset;
+- independent zoom/pan/fit per canvas; the wheel activates the canvas under the pointer;
+- shared dock, filmstrip and information drawer following the active pane;
+- empty right canvas, per-canvas open actions, drag/drop and error states;
+- dual-view fullscreen, with `Esc` ordered overlays → fullscreen → dual view;
+- GIF playback in a pane, 2.5 s chrome auto-hide, and copying the active preview.
+
+Not included: per-canvas rotate/flip, save-copy, slideshow; two 100 MP images at 100%; pair stepping; physical dual monitors. Both canvases load bounded previews, so memory does not grow without limit with source dimensions.
+
+## 13. Interactive prototype
 
 Open:
 

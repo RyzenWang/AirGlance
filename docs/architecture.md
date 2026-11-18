@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-AirGlance 0.3.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
+AirGlance 0.4.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
 
@@ -101,6 +101,8 @@ The filmstrip and information panel are separate views (`FilmstripView`, `InfoPa
 - the current path, bitmap, metadata and `EditTransform`;
 - load version, load/prefetch/full-resolution cancellation tokens;
 - info-panel sections, transient messages, slideshow and empty/error overlays.
+
+Dual view is a separate view (`DualCanvasView`) owned by `MainWindow`. It creates two `PaneSlot` sessions, each with its own folder list, file index, metadata, preview bitmap/animation and `ImageViewer`. Both decode through the same `ImageDecoder` with a bounded 2400 x 1600 preview, so entering dual view does not require a second full-resolution source. The view owns the active-pane state, divider, dock, fixed 50/50 split filmstrip, information drawer, a pane context menu and a top-centre previous/next capsule for each canvas. The paging capsule targets only its own canvas; it is hidden for an empty or single-image canvas. The active pane uses a 2 px identity frame and a 30 x 30 badge ring; the inactive image is not dimmed. `MainWindow` hides the single-view canvas/chrome and keeps the window caption buttons in a root overlay. `D` enters or leaves; the active pane's path is handed back to `MainWindowViewModel` on exit.
 
 `ImageViewer` is a custom `Control` that owns zoom and pan. `MainWindow` forwards the presented bitmap and source dimensions to it and forwards its zoom and viewport events back to the view model. When a `TiledImageSource` is attached, the viewer draws the intersecting tiles instead of the preview bitmap; otherwise it draws the preview bitmap scaled to the image rectangle.
 

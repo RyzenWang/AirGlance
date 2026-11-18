@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirGlance · 双画布查看 v3</title>
+<style>
+  :root {
+    --paper: #F1EEE7;
+    --canvas-a: #F7F3EA;
+    --canvas-b: #EFE9DD;
+    --ink: #1D232C;
+    --muted: #6F6A61;
+    --faint: #9C9487;
+    --line: rgba(29, 35, 44, .13);
+    --a: #E3563B;
+    --b: #2E6F63;
+    --a-soft: rgba(227, 86, 59, .14);
+    --b-soft: rgba(46, 111, 99, .14);
+    --glass: rgba(13, 18, 24, .72);
+    --glass-strong: rgba(10, 14, 19, .9);
+    --glass-line: rgba(255, 255, 255, .14);
+    --glass-text: #F8F4EB;
+    --glass-muted: #BDB5A8;
+    --tool: #DAD4C8;
+    --shadow: 0 24px 64px rgba(32, 25, 14, .18), 0 2px 8px rgba(32, 25, 14, .1);
+    --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+    --ui: "Inter", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  }
+
+  body[data-theme="dark"] {
+    --paper: #0E1217;
+    --canvas-a: #172028;
+    --canvas-b: #10171E;
+    --ink: #F1ECE2;
+    --muted: #AAA398;
+    --faint: #7C766E;
+    --line: rgba(255, 255, 255, .11);
+    --a: #FF6B4E;
+    --b: #69B3A4;
+    --a-soft: rgba(255, 107, 78, .16);
+    --b-soft: rgba(105, 179, 164, .16);
+    --glass: rgba(8, 12, 17, .76);
+    --glass-strong: rgba(6, 9, 13, .93);
+    --shadow: 0 26px 76px rgba(0, 0, 0, .45), 0 2px 10px rgba(0, 0, 0, .3);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  body {
+    font-family: var(--ui);
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  .app { position: relative; width: 100vw; height: 100vh; isolation: isolate; overflow: hidden; }
+
+  /* ---------- two canvases ---------- */
+  .canvas {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    background: var(--paper);
+  }
+  .pane {
+    position: relative;
+    flex: 1 1 50%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 76px 30px 66px;
+    overflow: hidden;
+    background:
+      radial-gradient(760px 560px at 50% 36%, var(--canvas-a) 0%, var(--canvas-b) 100%);
+  }
+  .pane-b {
+    background:
+      radial-gradient(760px 560px at 50% 36%, #F3EFE5 0%, #E8E1D4 100%);
+  }
+  body[data-theme="dark"] .pane-b {
+    background: radial-gradient(760px 560px at 50% 36%, #192128 0%, #0F151B 100%);
+  }
+  .pane-a { --accent: var(--a); }
+  .pane-b { --accent: var(--b); }
+  .pane::after {
+    content: "";
+    position: absolute;
+    z-index: 23;
+    inset: 8px;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    pointer-events: none;
+    transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+  }
+  .pane.is-active::after {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .3) inset, 0 0 34px -10px var(--accent);
+  }
+  .pane.is-active .pane-head { opacity: 1; }
+  .pane.is-active .pane-badge {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 26%, transparent), 0 10px 24px rgba(14, 11, 8, .18);
+  }
+
+  .photo-wrap {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .photo {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 2px;
+    box-shadow: 0 22px 54px rgba(38, 30, 18, .2);
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  body[data-theme="dark"] .photo { box-shadow: 0 24px 60px rgba(0, 0, 0, .42); }
+
+  /* ---------- per-pane headers ---------- */
+  .pane-head {
+    position: absolute;
+    z-index: 35;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .pane-head > * { pointer-events: auto; }
+  .pane-b .pane-head { right: 166px; }
+  .pane-badge {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    margin-top: 4px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #FFF9EF;
+    background: var(--accent, var(--a));
+    font: 700 10px/1 var(--mono);
+    letter-spacing: .04em;
+    box-shadow: 0 10px 24px rgba(14, 11, 8, .18);
+  }
+  .pane-b .pane-badge { color: #F4FFFB; }
+  .glass-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 11px;
+    color: var(--glass-text);
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    border-radius: 11px;
+    box-shadow: 0 10px 26px rgba(5, 8, 11, .2);
+    white-space: nowrap;
+  }
+  .folder-chip { max-width: 190px; }
+  .folder-name { overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 650; }
+  .folder-count { color: var(--glass-muted); font: 9.5px var(--mono); }
+  .file-chip { min-width: 0; gap: 10px; padding: 0 11px; }
+  .file-title { max-width: 196px; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 600; }
+  .file-meta { color: var(--glass-muted); font: 9.5px var(--mono); }
+  .file-sep { width: 1px; height: 15px; background: var(--glass-line); flex: 0 0 auto; }
+  .file-index { color: #F4A593; font: 9.5px var(--mono); }
+  .pane-b .file-index { color: #8BC8BB; }
+  .folders-only { display: none; }
+  body[data-state="folders"] .same-only,
+  body[data-state="menu"] .same-only,
+  body[data-state="filmstrip"] .same-only { display: none; }
+  body[data-state="folders"] .folders-only,
+  body[data-state="menu"] .folders-only,
+  body[data-state="filmstrip"] .folders-only { display: inline; }
+  body[data-state="empty"] .pane-b .file-chip,
+  body[data-state="filmempty"] .pane-b .file-chip { display: none; }
+  body[data-state="empty"] .pane-b .folder-name .same-only,
+  body[data-state="filmempty"] .pane-b .folder-name .same-only { display: none; }
+  body[data-state="empty"] .pane-b .folder-name::after,
+  body[data-state="filmempty"] .pane-b .folder-name::after { content: "选择 B 文件夹"; }
+  body[data-state="empty"] .pane-b .folder-count,
+  body[data-state="filmempty"] .pane-b .folder-count { display: none; }
+
+  /* ---------- divider ---------- */
+  .divider {
+    position: absolute;
+    z-index: 40;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: var(--line);
+    pointer-events: none;
+  }
+  .divider-hit {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -9px;
+    width: 19px;
+    pointer-events: auto;
+    cursor: col-resize;
+  }
+  .divider-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px;
+    height: 52px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--glass-muted);
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-line);
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(3, 6, 9, .25);
+    pointer-events: auto;
+    cursor: col-resize;
+    transition: color .14s ease, background .14s ease, transform .14s ease;
+  }
+  .divider-handle:hover { color: #fff; background: rgba(16, 22, 29, .96); transform: translate(-50%, -50%) scale(1.04); }
+  .divider-handle i { display: block; width: 10px; height: 1px; background: currentColor; border-radius: 2px; opacity: .72; }
+  .divider-label {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    color: var(--glass-muted);
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    font: 9px var(--mono);
+    letter-spacing: .06em;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .divider-label b { color: var(--glass-text); font-weight: 600; }
+  .divider-swap {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 38px);
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    color: var(--glass-text);
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-line);
+    border-radius: 50%;
+    pointer-events: auto;
+    opacity: 0;
+    transition: opacity .14s ease, transform .14s ease;
+  }
+  .divider:hover .divider-swap, .divider-swap:focus-visible { opacity: 1; }
+  .divider-swap:hover { transform: translate(-50%, 38px) scale(1.06); }
+
+  /* ---------- top-right window controls ---------- */
+  .window-chip {
+    position: absolute;
+    z-index: 60;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(5, 8, 11, .2);
+  }
+  .win-btn {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--glass-muted);
+  }
+  .win-btn:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+  .win-btn.close:hover { background: #C94A38; }
+
+  /* ---------- per-pane navigation pair ---------- */
+  .pane-nav-group {
+    position: absolute;
+    z-index: 38;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    opacity: .6;
+    transition: opacity .14s ease;
+  }
+  .pane-a .pane-nav-group { --nav-accent: var(--a); left: 20px; }
+  .pane-b .pane-nav-group { --nav-accent: var(--b); right: 20px; }
+  .pane.is-active .pane-nav-group { opacity: 1; }
+  .pane-nav-group:hover { opacity: 1; }
+  .nav-pair-tag {
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 15px;
+    height: 15px;
+    display: grid;
+    place-items: center;
+    border-radius: 4px;
+    color: #FFF9EF;
+    background: var(--nav-accent);
+    font: 700 8px/1 var(--mono);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .3);
+  }
+  .pane-nav {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    color: var(--glass-text);
+    background: var(--glass);
+    border: 1px solid color-mix(in srgb, var(--nav-accent) 55%, transparent);
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(5, 8, 11, .2);
+    transition: background .14s ease, transform .14s ease;
+  }
+  .pane-nav:hover { background: rgba(8, 12, 17, .92); transform: scale(1.06); }
+  body[data-state="empty"] .pane-b .pane-nav-group,
+  body[data-state="filmempty"] .pane-b .pane-nav-group { display: none; }
+
+  /* ---------- bottom dock ---------- */
+  .dock {
+    position: absolute;
+    z-index: 50;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    height: 52px;
+    padding: 6px;
+    color: var(--glass-text);
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-line);
+    border-radius: 16px;
+    box-shadow: 0 18px 52px rgba(4, 7, 10, .36);
+    transition: bottom .22s ease, opacity .2s ease;
+  }
+  .dock-pane {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    margin-right: 4px;
+    border-radius: 9px;
+    color: #FFF8EF;
+    background: var(--a);
+    font: 700 10px/1 var(--mono);
+    letter-spacing: .05em;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .12) inset;
+  }
+  body:has(.pane-b.is-active) .dock-pane { background: var(--b); }
+
+  body[data-state="folders"] .dock-pane,
+  body[data-state="empty"] .dock-pane { background: var(--b); }
+  .tool {
+    width: 36px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    color: var(--tool);
+    transition: background .14s ease, color .14s ease;
+  }
+  .tool:hover { color: #FFF9EF; background: rgba(255, 255, 255, .09); }
+  .tool.is-active { color: #FF9A82; background: var(--a-soft); }
+  .tool.split { color: #FF9A82; background: var(--a-soft); }
+  body[data-state="folders"] .tool.split,
+  body[data-state="empty"] .tool.split { color: #8BC8BB; background: var(--b-soft); }
+  body[data-state="empty"] .dock .tool:not(.split):not(.settings):not(.fullscreen),
+  body[data-state="empty"] .zoom-value { opacity: .32; pointer-events: none; }
+
+  .tool.is-disabled { opacity: .32; }
+  .tool svg { width: 17px; height: 17px; }
+  .tool.wide { width: 42px; font: 10px var(--mono); }
+  .zoom-value {
+    width: 45px;
+    text-align: center;
+    color: #F5F0E6;
+    font: 11px var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+  .dock-divider { width: 1px; height: 22px; margin: 0 4px; background: var(--glass-line); }
+  .tip {
+    position: absolute;
+    bottom: 47px;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    padding: 5px 8px;
+    border-radius: 6px;
+    color: #F7F3EA;
+    background: rgba(10, 14, 19, .95);
+    border: 1px solid var(--glass-line);
+    font-size: 10px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .12s ease, transform .12s ease;
+  }
+  .tool { position: relative; }
+  .tool:hover .tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ---------- split filmstrip ---------- */
+  .filmstrip {
+    position: absolute;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 154px;
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    color: var(--glass-text);
+    background: var(--glass-strong);
+    border-top: 1px solid var(--glass-line);
+    box-shadow: 0 -16px 40px rgba(4, 7, 10, .22);
+    transform: translateY(100%);
+    transition: transform .24s ease;
+  }
+  body[data-state="filmstrip"] .filmstrip,
+  body[data-state="filmempty"] .filmstrip { transform: translateY(0); }
+  body[data-state="filmstrip"] .dock,
+  body[data-state="filmempty"] .dock { bottom: 166px; }
+
+  .film-half {
+    position: relative;
+    min-width: 0;
+    padding: 9px 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    background: #0A0E13;
+    transition: background .16s ease;
+  }
+  .film-half.a { --accent: var(--a); }
+  .film-half.b { --accent: var(--b); }
+  .film-half.is-active { background: color-mix(in srgb, var(--accent) 10%, #0A0E13); }
+  .film-half.b { padding-right: 42px; }
+  body[data-state="filmempty"] .film-half.b .film-name,
+  body[data-state="filmempty"] .film-half.b .film-count,
+  body[data-state="filmempty"] .film-half.b .thumbs { display: none; }
+  body[data-state="filmempty"] .film-half.b { background: #080C10; }
+  .film-split { background: var(--glass-line); }
+  .film-head { display: flex; align-items: center; gap: 8px; height: 30px; min-width: 0; }
+  .film-badge {
+    flex: 0 0 30px;
+    line-height: 1;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #FFF9EF;
+    background: var(--accent);
+    font: 700 10px/1 var(--mono);
+    letter-spacing: .04em;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .12) inset;
+  }
+  .film-half.b .film-badge { color: #F4FFFB; }
+  .film-half.is-active .film-badge { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 26%, transparent), 0 0 0 1px rgba(255, 255, 255, .12) inset; }
+  .film-name {
+    min-width: 0;
+    align-self: center;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 650;
+  }
+  .film-count { flex: 0 0 auto; align-self: center; line-height: 1.2; color: var(--glass-muted); font: 9.5px var(--mono); }
+  .film-close {
+    position: absolute;
+    z-index: 3;
+    top: 9px;
+    right: 11px;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    color: var(--glass-muted);
+  }
+  .film-close:hover { color: #fff; background: rgba(255, 255, 255, .1); }
+  .thumbs {
+    min-height: 0;
+    display: flex;
+    gap: 8px;
+    padding-top: 0;
+    overflow: hidden;
+  }
+  .thumb { flex: 0 0 88px; min-width: 0; color: var(--glass-muted); font: 9px var(--mono); }
+  .thumb-img {
+    position: relative;
+    width: 88px;
+    height: 54px;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: #20262E;
+  }
+  .thumb-img img { width: 100%; height: 100%; object-fit: cover; opacity: .7; }
+  .thumb.current .thumb-img { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .thumb.current .thumb-img img { opacity: 1; }
+  .thumb-mark {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 15px;
+    height: 15px;
+    display: none;
+    place-items: center;
+    border-radius: 4px;
+    color: #FFF9EF;
+    background: var(--accent);
+    font: 700 8px var(--mono);
+  }
+  .thumb.current .thumb-mark { display: grid; }
+  .thumb-name { display: block; padding-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---------- info drawer ---------- */
+  .info {
+    position: absolute;
+    z-index: 45;
+    top: 80px;
+    right: 18px;
+    bottom: 92px;
+    width: 330px;
+    display: none;
+    flex-direction: column;
+    padding: 16px 16px 10px;
+    color: var(--ink);
+    background: #FCFAF5;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    box-shadow: 0 22px 62px rgba(28, 21, 12, .16);
+  }
+  body[data-theme="dark"] .info { background: #1D242C; }
+  body[data-state="info"] .info { display: flex; }
+  .info-head { display: flex; align-items: center; gap: 7px; }
+  .info-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 9px; background: rgba(29,35,44,.06); }
+  body[data-theme="dark"] .info-tabs { background: rgba(255,255,255,.06); }
+  .info-tab {
+    height: 23px;
+    padding: 0 9px;
+    border-radius: 6px;
+    color: var(--muted);
+    font: 9.5px var(--mono);
+  }
+  .info-tab.on-a { color: #FFF9EF; background: var(--a); }
+  .info-tab.on-b { color: #F4FFFB; background: var(--b); }
+  .info-title { margin-left: auto; color: var(--faint); font: 9px var(--mono); letter-spacing: .08em; }
+  .info-close { width: 26px; height: 26px; display: grid; place-items: center; color: var(--muted); border-radius: 7px; }
+  .info-close:hover { background: rgba(29,35,44,.07); }
+  .info-file { padding: 15px 2px 13px; border-bottom: 1px solid var(--line); }
+  .info-file b { display: block; font-size: 13px; }
+  .info-file span { color: var(--muted); font: 9.5px var(--mono); }
+  .info-section { padding: 13px 2px 0; }
+  .info-label { margin-bottom: 7px; color: var(--faint); font: 700 8.5px var(--mono); letter-spacing: .12em; }
+  .info-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px; padding: 4px 0; font-size: 10.5px; }
+  .info-row span { color: var(--muted); }
+  .info-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-family: var(--mono); font-size: 9.5px; }
+
+  /* ---------- empty pane ---------- */
+  .empty {
+    display: none;
+    width: min(350px, 80%);
+    padding: 28px 24px;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 1px dashed rgba(46, 111, 99, .4);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .2);
+  }
+  body[data-state="empty"] .pane-b .empty,
+  body[data-state="filmempty"] .pane-b .empty { display: flex; }
+  body[data-state="empty"] .pane-b .photo-wrap,
+  body[data-state="filmempty"] .pane-b .photo-wrap { display: none; }
+  .empty-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    margin-bottom: 12px;
+    color: var(--b);
+    background: var(--b-soft);
+    border-radius: 13px;
+  }
+  .empty h2 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+  .empty p { margin: 7px 0 15px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+  .empty-actions { display: flex; gap: 7px; }
+  .btn-primary, .btn-ghost {
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    border-radius: 8px;
+    font-size: 10.5px;
+  }
+  .btn-primary { color: #FFF9EF; background: var(--b); }
+  .btn-ghost { color: var(--muted); background: rgba(255,255,255,.35); border: 1px solid var(--line); }
+  .empty-hint { margin-top: 13px; color: var(--faint); font: 9px var(--mono); }
+
+  /* ---------- pane context menu ---------- */
+  .ctx-menu {
+    position: absolute;
+    z-index: 55;
+    top: 132px;
+    left: calc(50% + 100px);
+    width: 274px;
+    display: none;
+    flex-direction: column;
+    padding: 7px;
+    color: var(--glass-text);
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-line);
+    border-radius: 13px;
+    box-shadow: 0 26px 70px rgba(3, 6, 9, .42), 0 2px 8px rgba(3, 6, 9, .28);
+  }
+  body[data-state="menu"] .ctx-menu { display: flex; }
+  .ctx-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 7px 9px;
+    border-bottom: 1px solid var(--glass-line);
+    margin-bottom: 5px;
+  }
+  .ctx-badge {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #F4FFFB;
+    background: var(--b);
+    font: 700 10px/1 var(--mono);
+  }
+  .ctx-head b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+  .ctx-head span { display: block; margin-top: 2px; color: var(--glass-muted); font: 9px var(--mono); }
+  .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 34px;
+    padding: 0 9px;
+    border-radius: 8px;
+    color: #E4DED3;
+    font-size: 11px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ctx-item:hover { color: #fff; background: rgba(255, 255, 255, .09); }
+  .ctx-item svg { flex: 0 0 15px; width: 15px; height: 15px; opacity: .82; }
+  .ctx-item .shortcut { margin-left: auto; color: #8F887C; font: 8.5px var(--mono); }
+  .ctx-item.primary {
+    color: #F4FFFB;
+    background: color-mix(in srgb, var(--b) 20%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--b) 36%, transparent) inset;
+  }
+  .ctx-item.primary svg { opacity: 1; }
+  .ctx-item.primary .shortcut { color: #9ACFC3; }
+  .ctx-sep { height: 1px; margin: 4px 7px; background: var(--glass-line); }
+  .ctx-note { padding: 8px 9px 4px; color: #8F887C; font-size: 9px; line-height: 1.45; }
+  .ctx-anchor {
+    position: absolute;
+    left: calc(50% + 91px);
+    top: 122px;
+    width: 13px;
+    height: 13px;
+    border: 2px solid var(--b);
+    border-radius: 50%;
+    opacity: 0;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--b) 16%, transparent);
+  }
+  body[data-state="menu"] .ctx-anchor { opacity: 1; }
+
+  /* ---------- state switch (prototype only) ---------- */
+  .state-switch {
+    position: absolute;
+    z-index: 80;
+    left: 18px;
+    bottom: 166px;
+    display: flex;
+    gap: 3px;
+    padding: 4px;
+    border-radius: 10px;
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    box-shadow: 0 10px 28px rgba(4,7,10,.2);
+  }
+  body[data-ui="0"] .state-switch { display: none; }
+  .state-switch a {
+    padding: 6px 8px;
+    border-radius: 6px;
+    color: var(--glass-muted);
+    font: 9px var(--mono);
+    text-decoration: none;
+  }
+  .state-switch a:hover, .state-switch a.on { color: #FFF9EF; background: rgba(255,255,255,.1); }
+  .state-switch .sep { width: 1px; margin: 3px 2px; background: var(--glass-line); }
+
+  @media (max-width: 1100px) {
+    .pane { padding: 66px 18px 54px; }
+    .file-title { max-width: 110px; }
+    .file-meta { display: none; }
+    .folder-chip { max-width: 130px; }
+    .pane-b .pane-head { right: 154px; }
+    .pane-nav { width: 34px; height: 34px; }
+    .pane-nav-group { gap: 5px; }
+  }
+</style>
+</head>
+<body data-state="same" data-theme="light" data-ui="1">
+<div class="app">
+
+  <main class="canvas" aria-label="双画布查看">
+    <section class="pane pane-a is-active" data-pane="a">
+      <div class="pane-head">
+        <span class="pane-badge">A</span>
+        <span class="glass-chip folder-chip">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.8a1.8 1.8 0 0 1 1.8-1.8h4l2 2h7.4a1.8 1.8 0 0 1 1.8 1.8v9.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/></svg>
+          <span class="folder-name"><span class="same-only">Burst-2026</span><span class="folders-only">Trip-2026</span></span>
+          <span class="folder-count"><span class="same-only">27</span><span class="folders-only">18</span></span>
+        </span>
+        <span class="glass-chip file-chip">
+          <span class="file-title"><span class="same-only">DSC_0142.jpg</span><span class="folders-only">fjord-0142.jpg</span></span>
+          <span class="file-sep"></span>
+          <span class="file-meta">1600 × 1067 · 71%</span>
+          <span class="file-sep"></span>
+          <span class="file-index"><span class="same-only">03 / 27</span><span class="folders-only">03 / 18</span></span>
+        </span>
+      </div>
+      <div class="photo-wrap"><img class="photo" src="assets/sample-photo.jpg" alt="左侧图片"></div>
+      <div class="pane-nav-group" role="group" aria-label="A 画布翻页">
+        <span class="nav-pair-tag">A</span>
+        <button class="pane-nav prev" title="A · 上一张（并选中 A）" aria-label="A 画布上一张">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>
+        </button>
+        <button class="pane-nav next" title="A · 下一张（并选中 A）" aria-label="A 画布下一张">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <div class="divider" aria-hidden="false">
+      <div class="divider-hit"></div>
+      <div class="divider-handle" title="拖动调整左右比例，双击恢复 50%">
+        <i></i><i></i><i></i>
+      </div>
+      <button class="divider-swap" title="交换左右画布（X）" aria-label="交换左右画布">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10l-3-3M17 17H7l3 3"/></svg>
+      </button>
+    </div>
+
+    <section class="pane pane-b" data-pane="b">
+      <div class="pane-head">
+        <span class="pane-badge">B</span>
+        <span class="glass-chip folder-chip">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.8a1.8 1.8 0 0 1 1.8-1.8h4l2 2h7.4a1.8 1.8 0 0 1 1.8 1.8v9.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/></svg>
+          <span class="folder-name"><span class="same-only">Burst-2026</span><span class="folders-only">Studio-B</span></span>
+          <span class="folder-count"><span class="same-only">27</span><span class="folders-only">12</span></span>
+        </span>
+        <span class="glass-chip file-chip">
+          <span class="file-title"><span class="same-only">DSC_0143.jpg</span><span class="folders-only">still-life-08.jpg</span></span>
+          <span class="file-sep"></span>
+          <span class="file-meta">1600 × 1067 · 71%</span>
+          <span class="file-sep"></span>
+          <span class="file-index"><span class="same-only">04 / 27</span><span class="folders-only">08 / 12</span></span>
+        </span>
+      </div>
+      <div class="photo-wrap"><img class="photo" src="assets/sample-photo-b.jpg" alt="右侧图片"></div>
+      <div class="pane-nav-group" role="group" aria-label="B 画布翻页">
+        <span class="nav-pair-tag">B</span>
+        <button class="pane-nav prev" title="B · 上一张（并选中 B）" aria-label="B 画布上一张">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>
+        </button>
+        <button class="pane-nav next" title="B · 下一张（并选中 B）" aria-label="B 画布下一张">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+        </button>
+      </div>
+      <div class="empty">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.2a1.8 1.8 0 0 1 1.8-1.8h4.1l2 2h7.3a1.8 1.8 0 0 1 1.8 1.8v8.6a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M12 11v4M10 13h4"/></svg>
+        </div>
+        <h2>把 B 文件夹拖进来</h2>
+        <p>左右画布各自独立。可以放同一文件夹的另一张图，也可以换成完全不同的文件夹。</p>
+        <div class="empty-actions">
+          <button class="btn-primary">打开文件夹</button>
+          <button class="btn-ghost">打开图片</button>
+        </div>
+        <div class="empty-hint">也可以把缩略图或文件拖到这个画布</div>
+      </div>
+    </section>
+  </main>
+
+
+  <div class="window-chip">
+    <button class="win-btn" title="切换明暗"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M5.9 5.9l1.4 1.4M16.7 16.7l1.4 1.4M18.1 5.9l-1.4 1.4M7.3 16.7l-1.4 1.4"/><circle cx="12" cy="12" r="3.3"/></svg></button>
+    <button class="win-btn" title="最小化"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 12h14"/></svg></button>
+    <button class="win-btn" title="最大化"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5.5" y="5.5" width="13" height="13" rx="1"/></svg></button>
+    <button class="win-btn close" title="关闭"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+
+  <aside class="filmstrip" aria-label="双画布胶片条：左侧 A，右侧 B">
+    <section class="film-half a is-active" data-pane="a">
+      <div class="film-head">
+        <span class="film-badge">A</span>
+        <span class="film-name">Trip-2026</span>
+        <span class="film-count">18 张</span>
+      </div>
+      <div class="thumbs">
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""></div><span class="thumb-name">DSC_0140.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo-b.jpg" alt=""></div><span class="thumb-name">DSC_0141.jpg</span></div>
+        <div class="thumb current"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""><span class="thumb-mark">A</span></div><span class="thumb-name">DSC_0142.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo-b.jpg" alt=""></div><span class="thumb-name">DSC_0143.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""></div><span class="thumb-name">DSC_0144.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo-b.jpg" alt=""></div><span class="thumb-name">DSC_0145.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""></div><span class="thumb-name">DSC_0146.jpg</span></div>
+      </div>
+    </section>
+    <div class="film-split" aria-hidden="true"></div>
+    <section class="film-half b" data-pane="b">
+      <div class="film-head">
+        <span class="film-badge">B</span>
+        <span class="film-name">Studio-B</span>
+        <span class="film-count">12 张</span>
+      </div>
+      <div class="thumbs">
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo-b.jpg" alt=""></div><span class="thumb-name">still-life-06.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""></div><span class="thumb-name">still-life-07.jpg</span></div>
+        <div class="thumb current"><div class="thumb-img"><img src="assets/sample-photo-b.jpg" alt=""><span class="thumb-mark">B</span></div><span class="thumb-name">still-life-08.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""></div><span class="thumb-name">still-life-09.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo-b.jpg" alt=""></div><span class="thumb-name">still-life-10.jpg</span></div>
+        <div class="thumb"><div class="thumb-img"><img src="assets/sample-photo.jpg" alt=""></div><span class="thumb-name">still-life-11.jpg</span></div>
+      </div>
+    </section>
+    <button class="film-close" title="收起胶片条（C）" aria-label="收起胶片条">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+  </aside>
+
+  <aside class="info" aria-label="信息面板：当前画布">
+    <div class="info-head">
+      <div class="info-tabs"><button class="info-tab on-a">A</button><button class="info-tab">B</button></div>
+      <span class="info-title">信息面板</span>
+      <button class="info-close" title="关闭信息面板（I）"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="info-file"><b>DSC_0142.jpg</b><span>Burst-2026 · 03 / 27</span></div>
+    <div class="info-section">
+      <div class="info-label">文件</div>
+      <div class="info-row"><span>大小</span><b>7.8 MB</b></div>
+      <div class="info-row"><span>修改时间</span><b>2026-11-17 17:30</b></div>
+    </div>
+    <div class="info-section">
+      <div class="info-label">图片</div>
+      <div class="info-row"><span>尺寸</span><b>1600 × 1067</b></div>
+      <div class="info-row"><span>格式</span><b>JPEG</b></div>
+      <div class="info-row"><span>位深</span><b>8 位</b></div>
+      <div class="info-row"><span>色彩空间</span><b>sRGB</b></div>
+    </div>
+    <div class="info-section">
+      <div class="info-label">画布</div>
+      <div class="info-row"><span>当前画布</span><b>A</b></div>
+      <div class="info-row"><span>并排模式</span><b>双画布</b></div>
+    </div>
+  </aside>
+
+  <div class="dock" aria-label="图片工具栏">
+    <span class="dock-pane">A</span>
+    <button class="tool" title="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 12h14"/></svg><span class="tip">缩小</span></button>
+    <span class="zoom-value">71%</span>
+    <button class="tool" title="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="tip">放大</span></button>
+    <span class="dock-divider"></span>
+    <button class="tool" title="适应窗口"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4H5a1 1 0 0 0-1 1v3M16 4h3a1 1 0 0 1 1 1v3M8 20H5a1 1 0 0 1-1-1v-3M16 20h3a1 1 0 0 0 1-1v-3"/></svg><span class="tip">适应窗口</span></button>
+    <button class="tool wide" title="实际大小"><span>1:1</span><span class="tip">实际大小</span></button>
+    <span class="dock-divider"></span>
+    <button class="tool" title="顺时针旋转"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg><span class="tip">旋转（当前画布）</span></button>
+    <button class="tool" title="信息"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.3"/><path d="M12 11v5.2M12 7.8h.01"/></svg><span class="tip">信息（当前画布）</span></button>
+    <button class="tool" title="胶片条"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="7" width="5" height="10" rx="1"/><rect x="9.5" y="7" width="5" height="10" rx="1"/><rect x="15" y="7" width="5" height="10" rx="1"/></svg><span class="tip">胶片条（当前画布）</span></button>
+    <button class="tool split" title="并排查看"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="5.5" width="7" height="13" rx="1"/><rect x="13" y="5.5" width="7" height="13" rx="1"/></svg><span class="tip">并排查看（D）</span></button>
+    <button class="tool is-disabled" title="双画布下不启动幻灯片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 5.5l10 6.5-10 6.5z"/></svg><span class="tip">双画布下禁用幻灯片</span></button>
+    <span class="dock-divider"></span>
+    <button class="tool" title="全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="tip">全屏（F11）</span></button>
+    <button class="tool" title="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.1"/><circle cx="8" cy="17" r="2.1"/></svg><span class="tip">设置</span></button>
+  </div>
+
+  <div class="ctx-anchor" aria-hidden="true"></div>
+  <section class="ctx-menu" aria-label="当前画布右键菜单">
+    <div class="ctx-head">
+      <span class="ctx-badge">B</span>
+      <div><b>Studio-B</b><span>B 画布 · 第 08 / 12 张</span></div>
+    </div>
+    <button class="ctx-item primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.8a1.8 1.8 0 0 1 1.8-1.8h4l2 2h7.4a1.8 1.8 0 0 1 1.8 1.8v9.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M12 11v4M10 13h4"/></svg>
+      <span>打开文件夹…</span><span class="shortcut">Ctrl+Shift+O</span>
+    </button>
+    <button class="ctx-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><circle cx="9" cy="10" r="1.2"/><path d="M5 17l4.5-4 3 2.5 2.5-2 4 4"/></svg>
+      <span>打开图片…</span><span class="shortcut">Ctrl+O</span>
+    </button>
+    <div class="ctx-sep"></div>
+    <button class="ctx-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h6l2 2h8v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 13h6"/></svg>
+      <span>在文件夹中显示</span>
+    </button>
+    <button class="ctx-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="7" y="7" width="11" height="11" rx="2"/><path d="M10 7V5h9v9h-2"/></svg>
+      <span>复制当前图片</span><span class="shortcut">Ctrl+C</span>
+    </button>
+    <button class="ctx-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M10 13a4 4 0 0 0 5.7 0l2.3-2.3a4 4 0 0 0-5.7-5.7L11 6.3"/><path d="M14 11a4 4 0 0 0-5.7 0L6 13.3a4 4 0 0 0 5.7 5.7l1.3-1.3"/></svg>
+      <span>复制路径</span>
+    </button>
+    <div class="ctx-sep"></div>
+    <button class="ctx-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10l-3-3M17 17H7l3 3"/></svg>
+      <span>交换 A / B</span><span class="shortcut">X</span>
+    </button>
+    <button class="ctx-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      <span>退出双画布</span><span class="shortcut">D</span>
+    </button>
+    <div class="ctx-note">右键会先选中该画布，菜单中的操作只作用于 B。</div>
+  </section>
+
+  <nav class="state-switch" aria-label="原型状态">
+    <a href="?state=same&ui=1" data-state-link="same">同文件夹</a>
+    <a href="?state=folders&ui=1" data-state-link="folders">不同文件夹</a>
+    <a href="?state=empty&ui=1" data-state-link="empty">空画布</a>
+    <a href="?state=menu&ui=1" data-state-link="menu">右键菜单</a>
+    <a href="?state=filmstrip&ui=1" data-state-link="filmstrip">分割胶片条</a>
+    <a href="?state=filmempty&ui=1" data-state-link="filmempty">空胶片侧</a>
+    <a href="?state=info&ui=1" data-state-link="info">信息</a>
+    <span class="sep"></span>
+    <a href="?state=same&ui=1&theme=dark" data-theme-link="dark">暗色</a>
+    <a href="?state=same&ui=1&theme=light" data-theme-link="light">亮色</a>
+  </nav>
+
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const state = params.get("state") || "same";
+  const theme = params.get("theme") || "light";
+  const ui = params.get("ui") || "1";
+  document.body.dataset.state = state;
+  document.body.dataset.theme = theme;
+  document.body.dataset.ui = ui;
+  const active = (state === "folders" || state === "empty" || state === "menu") ? "b" : "a";
+  document.querySelectorAll(".pane").forEach(pane => {
+    pane.classList.toggle("is-active", pane.dataset.pane === active);
+  });
+  document.querySelectorAll(".film-half").forEach(half => {
+    half.classList.toggle("is-active", half.dataset.pane === active);
+  });
+  document.querySelector(".dock-pane").textContent = active.toUpperCase();
+  document.querySelector(".state-switch a[data-theme-link='" + theme + "']").classList.add("on");
+  const activeLink = document.querySelector(".state-switch a[data-state-link='" + state + "']");
+  if (activeLink) activeLink.classList.add("on");
+</script>
+</body>
+</html>
