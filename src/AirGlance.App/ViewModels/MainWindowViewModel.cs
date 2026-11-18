@@ -86,6 +86,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isUpgradingProxy;
     private bool _isRegionOpening;
     private bool _regionActive;
+    private bool _regionLoading;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
     private bool _slideshowBusy;
@@ -443,9 +444,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (proxy.Width >= ProxyMaximumEdge &&
-                percent >= 99 &&
-                !_isRegionOpening)
+            if (percent >= 30 && !_isRegionOpening)
             {
                 _ = OpenRegionAsync();
                 return;
@@ -580,6 +579,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             _regionActive = true;
+            _regionLoading = true;
             PublishTiled(tiles);
             UpdateStatus(metadata);
         }
@@ -1049,9 +1049,26 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void PublishTiled(TiledImageSource tiles)
     {
         var old = _tiledSource;
+        if (old is not null)
+        {
+            old.TileLoadingChanged -= OnRegionTileLoadingChanged;
+        }
+
         _tiledSource = tiles;
+        tiles.TileLoadingChanged += OnRegionTileLoadingChanged;
         TiledImagePresented?.Invoke(this, new TiledImagePresentedEventArgs(tiles));
         old?.Dispose();
+    }
+
+    private void OnRegionTileLoadingChanged(object? sender, EventArgs e)
+    {
+        if (!_regionActive || _metadata is not { } metadata)
+        {
+            return;
+        }
+
+        _regionLoading = _tiledSource?.PendingTileCount > 0;
+        UpdateStatus(metadata);
     }
 
     private void DisposeTiled()
@@ -1153,6 +1170,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         bool animate)
     {
         var oldTiles = _tiledSource;
+        if (oldTiles is not null)
+        {
+            oldTiles.TileLoadingChanged -= OnRegionTileLoadingChanged;
+        }
+
         _tiledSource = null;
         var oldBitmap = _currentBitmap;
         var oldAnimation = _currentAnimation;
@@ -1509,7 +1531,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             metadata.DisplayWidth,
             metadata.DisplayHeight);
         StatusDimensions = _regionActive
-            ? string.Concat(dimensions, " · ", _services.Localization.T("L.Region"))
+            ? string.Concat(
+                dimensions,
+                " · ",
+                _services.Localization.T("L.Region"),
+                _regionLoading ? " · " + _services.Localization.T("L.LoadingRegion") : string.Empty)
             : _rawDecoded?.IsProxy == true
                 ? string.Concat(
                     dimensions,

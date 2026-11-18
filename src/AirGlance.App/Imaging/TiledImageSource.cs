@@ -34,6 +34,10 @@ public sealed class TiledImageSource : IDisposable
 
     public event EventHandler? TileAvailable;
 
+    public event EventHandler? TileLoadingChanged;
+
+    public int PendingTileCount => _pendingRegionTiles.Count;
+
     private TiledImageSource(
         string path,
         FileStream stream,
@@ -280,6 +284,7 @@ public sealed class TiledImageSource : IDisposable
         {
             if (_pendingRegionTiles.TryAdd(index, 0))
             {
+                TileLoadingChanged?.Invoke(this, EventArgs.Empty);
                 _ = LoadRegionTileAsync(column, row, index);
             }
 
@@ -334,6 +339,7 @@ public sealed class TiledImageSource : IDisposable
                     CacheTile(index, bitmap);
                     _pendingRegionTiles.TryRemove(index, out _);
                     TileAvailable?.Invoke(this, EventArgs.Empty);
+                    TileLoadingChanged?.Invoke(this, EventArgs.Empty);
                 });
             }
             finally
@@ -343,7 +349,11 @@ public sealed class TiledImageSource : IDisposable
         }
         catch
         {
-            _pendingRegionTiles.TryRemove(index, out _);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _pendingRegionTiles.TryRemove(index, out _);
+                TileLoadingChanged?.Invoke(this, EventArgs.Empty);
+            });
         }
     }
 
