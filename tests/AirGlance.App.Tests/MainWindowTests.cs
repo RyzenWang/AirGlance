@@ -166,6 +166,21 @@ public sealed class MainWindowTests
         Assert.Equal(48, viewer.SourcePixelHeight);
     }
 
+    [AvaloniaFact]
+    public async Task Tiff_is_presented_as_an_image()
+    {
+        using var fixture = new WindowFixture("rgb-lzw.tif");
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        Assert.NotNull(viewer.Source);
+        Assert.Equal(80, viewer.SourcePixelWidth);
+        Assert.Equal(40, viewer.SourcePixelHeight);
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 10_000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);

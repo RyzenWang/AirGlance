@@ -1,8 +1,8 @@
-# Shipping AirGlance 0.2.0
+# Shipping AirGlance 0.3.0
 
 **English** · [简体中文](shipping.zh-CN.md)
 
-This is the release procedure for AirGlance 0.2.0 (2026-11-18). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used only for Partner Center, WACK and the Store listing.
+This is the release procedure for AirGlance 0.3.0 (2026-11-18). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used only for Partner Center, WACK and the Store listing.
 
 The 0.1 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The packaging scripts and CI workflows exist in the tree, but no signing certificate or Store submission is part of 0.1.
 
@@ -10,26 +10,26 @@ The 0.1 release is a portable, unsigned desktop release. It has no installer, up
 
 | Target | Public artifact | Signature | Built by | Distribution |
 | --- | --- | --- | --- | --- |
-| Windows x64 | `AirGlance-0.2.0-win-x64.zip` | None | `packaging/scripts/pack.ps1` | GitHub release |
-| Windows arm64 | `AirGlance-0.2.0-win-arm64.zip` | None | `packaging/scripts/pack.ps1` on `windows-latest` | GitHub release |
-| macOS arm64 | `AirGlance-0.2.0-osx-arm64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15` | GitHub release |
-| macOS x64 | `AirGlance-0.2.0-osx-x64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15-intel` | GitHub release |
-| Linux x64 | `AirGlance-0.2.0-linux-x64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-22.04` | GitHub release |
-| Linux arm64 | `AirGlance-0.2.0-linux-arm64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-24.04-arm` | GitHub release |
-| Windows x64 MSIX | `AirGlance_0.2.0.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
-| Windows arm64 MSIX | `AirGlance_0.2.0.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
+| Windows x64 | `AirGlance-0.3.0-win-x64.zip` | None | `packaging/scripts/pack.ps1` | GitHub release |
+| Windows arm64 | `AirGlance-0.3.0-win-arm64.zip` | None | `packaging/scripts/pack.ps1` on `windows-latest` | GitHub release |
+| macOS arm64 | `AirGlance-0.3.0-osx-arm64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15` | GitHub release |
+| macOS x64 | `AirGlance-0.3.0-osx-x64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15-intel` | GitHub release |
+| Linux x64 | `AirGlance-0.3.0-linux-x64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-22.04` | GitHub release |
+| Linux arm64 | `AirGlance-0.3.0-linux-arm64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-24.04-arm` | GitHub release |
+| Windows x64 MSIX | `AirGlance_0.3.0.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
+| Windows arm64 MSIX | `AirGlance_0.3.0.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
 
-Archive names use the three-part product version `0.2.0`. MSIX names use the four-part package version `0.2.0.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
+Archive names use the three-part product version `0.3.0`. MSIX names use the four-part package version `0.3.0.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
 
 The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for review and Partner Center.
 
 ## Runtime verification status
 
-The release matrix is about artifacts, not runtime coverage. The v0.2.0 status is:
+The release matrix is about artifacts, not runtime coverage. The v0.3.0 status is:
 
 | Target | Artifact built | AOT binary run |
 | --- | --- | --- |
-| Windows x64 | yes | **yes** — 0.2.0 AOT launched and benchmarked; 100 MP tile path, animated GIF and SVG smoke-tested |
+| Windows x64 | yes | **yes** — 0.3.0 AOT launched and benchmarked; 100 MP tile path, animated GIF and SVG smoke-tested |
 | Linux x64 | yes | **yes** — verified by the maintainer against 0.1.1 outside this repository's CI |
 | Windows arm64 | yes | unverified |
 | macOS arm64 | yes | unverified |
@@ -40,7 +40,7 @@ Two further gaps are recorded rather than claimed as passing:
 
 - Clipboard image copy was checked on Windows x64 with an unmodified PNG and JPEG. The Windows clipboard contained `image/png` or `image/jpeg` alongside `CF_DIB`, `CF_DIBV5`, `CF_BITMAP` and a bitmap payload. The copy-path action and pasting the original bytes into a second application were not separately exercised.
 - Windows display scaling at 125%, 150% and 200% was not tested. The reference machine runs at 100% (96 DPI); text clipping at higher scaling is unverified.
-- No WACK pass or Store installation has been recorded for 0.2.0. The MSIX packages are unsigned.
+- No WACK pass or Store installation has been recorded for 0.3.0. The MSIX packages are unsigned.
 
 The macOS and arm64 archives remain published because they are useful for testing, but treat them as unverified until someone runs them on that platform.
 
@@ -75,17 +75,17 @@ NativeAOT cannot cross-compile between operating-system families. `pack.sh` refu
 Windows x64 or arm64:
 
 ```powershell
-./packaging/scripts/pack.ps1 -Version 0.2.0 -Runtime win-x64 -Aot
-./packaging/scripts/pack.ps1 -Version 0.2.0 -Runtime win-x64 -Aot -Msix
+./packaging/scripts/pack.ps1 -Version 0.3.0 -Runtime win-x64 -Aot
+./packaging/scripts/pack.ps1 -Version 0.3.0 -Runtime win-x64 -Aot -Msix
 ```
 
 macOS or Linux, on the matching host:
 
 ```sh
-./packaging/scripts/pack.sh 0.2.0 osx-arm64
-./packaging/scripts/pack.sh 0.2.0 osx-x64
-./packaging/scripts/pack.sh 0.2.0 linux-x64
-./packaging/scripts/pack.sh 0.2.0 linux-arm64
+./packaging/scripts/pack.sh 0.3.0 osx-arm64
+./packaging/scripts/pack.sh 0.3.0 osx-x64
+./packaging/scripts/pack.sh 0.3.0 linux-x64
+./packaging/scripts/pack.sh 0.3.0 linux-arm64
 ```
 
 The scripts call `dotnet publish -c Release -r <rid> -p:PublishAot=true -p:StripSymbols=true -p:Version=<version>`. `pack.ps1` also removes any remaining PDBs and enforces a 30 MB zip budget. `pack.sh` removes PDB, DBG and MDB files before packaging.
@@ -123,7 +123,7 @@ The current `Info.plist` declares:
 - `CFBundleExecutable` = `AirGlance`;
 - `CFBundleIdentifier` = `dev.airworks.AirGlance`;
 - `CFBundleName` and `CFBundleDisplayName` = `AirGlance`;
-- `CFBundleShortVersionString` = `0.2.0`, stamped by `pack.sh` from the version argument;
+- `CFBundleShortVersionString` = `0.3.0`, stamped by `pack.sh` from the version argument;
 - `CFBundleVersion` = `1`, not stamped per build;
 - `CFBundleIconFile` = `airglance.icns`;
 - `LSMinimumSystemVersion` = `12.0`;
@@ -151,13 +151,13 @@ The archive has no wrapper directory. The desktop entry uses `Exec=AirGlance %f`
 
 ```powershell
 ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.2.0 `
+  -Version 0.3.0 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
 ```
 
-The output is `AirGlance_0.2.0.0_x64.msix`, or `AirGlance_0.2.0.0_arm64.msix` for `-Architecture arm64`. `store.yml` runs this for both architectures. The packages are unsigned.
+The output is `AirGlance_0.3.0.0_x64.msix`, or `AirGlance_0.3.0.0_arm64.msix` for `-Architecture arm64`. `store.yml` runs this for both architectures. The packages are unsigned.
 
 ## Smoke test
 
@@ -219,7 +219,7 @@ An ad-hoc signature does not satisfy Gatekeeper or notarization requirements. Th
 Extract the archive and run the binary:
 
 ```sh
-tar -xzf AirGlance-0.2.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -251,8 +251,8 @@ For a system-wide install, use `/usr/local/bin/AirGlance`, `/usr/share/applicati
 
 The MSIX packages are only for the Microsoft Store submission:
 
-- `AirGlance_0.2.0.0_x64.msix`
-- `AirGlance_0.2.0.0_arm64.msix`
+- `AirGlance_0.3.0.0_x64.msix`
+- `AirGlance_0.3.0.0_arm64.msix`
 
 They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
 
@@ -264,7 +264,7 @@ They are not public release assets. `store.yml` builds them on demand and upload
 <Identity
   Name="AirWorks.AirGlance"
   Publisher="CN=AirWorks"
-  Version="0.2.0.0"
+  Version="0.3.0.0"
   ProcessorArchitecture="x64" />
 ```
 
@@ -293,7 +293,7 @@ Pack with the Windows SDK:
 ```powershell
 makeappx.exe pack `
   /d artifacts/msix/x64 `
-  /p AirGlance_0.2.0.0_x64.msix `
+  /p AirGlance_0.3.0.0_x64.msix `
   /o
 ```
 
@@ -303,9 +303,9 @@ Sign and verify:
 signtool.exe sign /fd SHA256 /a `
   /f publisher-certificate.pfx `
   /p "<password>" `
-  AirGlance_0.2.0.0_x64.msix
+  AirGlance_0.3.0.0_x64.msix
 
-signtool.exe verify /pa /v AirGlance_0.2.0.0_x64.msix
+signtool.exe verify /pa /v AirGlance_0.3.0.0_x64.msix
 ```
 
 Use a timestamp server in a production signature. Do not commit the `.pfx` or its password. Build and sign the arm64 package separately for its architecture.
@@ -326,14 +326,14 @@ $appcert = Get-ChildItem `
 & $appcert.FullName reset
 
 & $appcert.FullName test `
-  -appxpackagepath (Resolve-Path '.\AirGlance_0.2.0.0_x64.msix').Path `
+  -appxpackagepath (Resolve-Path '.\AirGlance_0.3.0.0_x64.msix').Path `
   -reportoutputpath (Join-Path (Get-Location) 'wack-x64.xml')
 ```
 
 4. Review `wack-x64.xml` and the WACK logs. Fix every failure or warning that blocks Store certification.
 5. Repeat for the arm64 package on arm64 Windows.
 
-`store.yml` runs WACK against the unsigned packages as an informational preflight and uploads the reports. Signature-related failures are expected for unsigned packages. A meaningful WACK pass requires a trusted signed package, and no signed package or passing WACK report is recorded for 0.2.0.
+`store.yml` runs WACK against the unsigned packages as an informational preflight and uploads the reports. Signature-related failures are expected for unsigned packages. A meaningful WACK pass requires a trusted signed package, and no signed package or passing WACK report is recorded for 0.3.0.
 
 ## Store listing
 
@@ -361,7 +361,7 @@ The listing needs:
 
 The category is selected in Partner Center. Use **照片与视频** for the Chinese listing; the English Store UI shows the corresponding Photos & video category.
 
-The listing, screenshots, privacy policy and submission are not complete for 0.2.0.
+The listing, screenshots, privacy policy and submission are not complete for 0.3.0.
 
 ## No network and no telemetry
 
@@ -374,12 +374,12 @@ This claim was checked against the source: there are no `HttpClient`, `WebReques
 The release workflow writes a checksum file named `SHA256SUMS.txt`. It contains all six public archives, sorted by file name, in standard `sha256sum` format. It deliberately excludes MSIX packages.
 
 ```text
-<64 lowercase hex characters>  AirGlance-0.2.0-linux-arm64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.2.0-linux-x64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.2.0-osx-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.2.0-osx-x64.zip
-<64 lowercase hex characters>  AirGlance-0.2.0-win-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.2.0-win-x64.zip
+<64 lowercase hex characters>  AirGlance-0.3.0-linux-arm64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.3.0-linux-x64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.3.0-osx-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.3.0-osx-x64.zip
+<64 lowercase hex characters>  AirGlance-0.3.0-win-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.3.0-win-x64.zip
 ```
 
 The checked-in workflow uses the `.txt` suffix; it is the SHA256SUMS file for the release. The conventional unsuffixed `SHA256SUMS` name is not produced by the current workflow.
@@ -389,11 +389,11 @@ The checked-in workflow uses the `.txt` suffix; it is the SHA256SUMS file for th
 Verify a download:
 
 ```powershell
-Get-FileHash .\AirGlance-0.2.0-win-x64.zip -Algorithm SHA256
+Get-FileHash .\AirGlance-0.3.0-win-x64.zip -Algorithm SHA256
 ```
 
 ```sh
-shasum -a 256 AirGlance-0.2.0-osx-arm64.zip
+shasum -a 256 AirGlance-0.3.0-osx-arm64.zip
 sha256sum -c SHA256SUMS.txt
 ```
 
@@ -416,7 +416,7 @@ Three workflows are checked in:
 3. Downloads exactly six archives and rejects any MSIX in the release set.
 4. Sorts the archive names and writes `SHA256SUMS.txt`.
 5. Builds release notes from `CHANGELOG.md` for the tag version, falling back to the tag message.
-6. Creates or updates the GitHub release `v0.2.0` with the six archives and `SHA256SUMS.txt`.
+6. Creates or updates the GitHub release `v0.3.0` with the six archives and `SHA256SUMS.txt`.
 
 `store.yml` does not submit anything to Partner Center. It builds the MSIX files, runs WACK when the kit is present, and uploads the packages and reports for manual review. Partner Center submission remains a manual action after the publisher is replaced and the packages are signed.
 
@@ -425,7 +425,7 @@ Three workflows are checked in:
 - Windows portable archives, macOS app bundles and MSIX packages are unsigned. There is no Authenticode certificate, Developer ID identity, notarization, hardened runtime, MSIX publisher certificate or timestamp.
 - macOS release archives are not ad-hoc signed either. `pack.sh` does not call `codesign`. The optional ad-hoc signing command is documented for local testing only.
 - The MSIX publisher is still the placeholder `CN=AirWorks`, and the package identity `AirWorks.AirGlance` is a placeholder. Both must be replaced before Partner Center submission.
-- No signed MSIX has been installed, no WACK pass has been recorded and no Store submission or listing approval has been completed for 0.2.0.
+- No signed MSIX has been installed, no WACK pass has been recorded and no Store submission or listing approval has been completed for 0.3.0.
 - Windows arm64 is built on the x64 `windows-latest` runner. No Windows arm64 hardware launch test is recorded. Linux arm64 and macOS x64 are built on native runners, but no packaged-artifact smoke test is recorded in CI.
 - No packaged-artifact launch test or `--bench` run is part of the workflows. The release workflow tests the source tree, not the extracted zip, tar.gz or app bundle.
 - The Windows zip, macOS app and Linux tar.gz do not include `LICENSE`, `THIRD-PARTY-NOTICES.md` or `README.md`. The repository contains these files, but the packaging scripts do not copy them into the archives.

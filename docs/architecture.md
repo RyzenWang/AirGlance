@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-AirGlance 0.2.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
+AirGlance 0.3.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
 
@@ -13,6 +13,7 @@ AirGlance 0.2.0 is a desktop image viewer. It opens one folder at a time and dis
 | CommunityToolkit.Mvvm | 8.4.2 | Observable view models and commands |
 | SkiaSharp | 4.150.1 | Image decoding and encoding |
 | Svg.Skia | 5.2.3 | SVG parsing and rasterization |
+| BitMiracle.LibTiff.NET | 2.4.660 | TIFF first-page decoding |
 | NativeAOT | .NET 10 | Release publishing on Windows, macOS and Linux |
 
 The SkiaSharp 3.x line is superseded. 4.150.1 is the version that unifies with Avalonia 11.3.22's native asset graph on Windows, macOS and Linux. All projects use the versions from `Directory.Packages.props`; do not mix a 3.x SkiaSharp package into the graph.
@@ -45,7 +46,7 @@ The rule is deliberate:
 
 `src/AirGlance.Core/Files`
 
-- `SupportedFormats` is the extension gate: `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif`, `.ico`, `.svg`. Extension checks are case-insensitive. `Describe` provides a format label when the codec cannot be asked.
+- `SupportedFormats` is the extension gate: `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif`, `.ico`, `.svg`, `.tif`, `.tiff`. Extension checks are case-insensitive. `Describe` provides a format label when the codec cannot be asked.
 - `NaturalStringComparer` compares digit runs numerically, so `img2.jpg` comes before `img10.jpg`. Equal numeric runs with fewer leading zeros sort first; an ordinal comparison breaks remaining ties. `NaturalPathComparer` sorts full paths by file name.
 - `FolderScanner.EnumerateImages` lists one folder only. It does not recurse. Hidden and system files are skipped, inaccessible entries are ignored, only supported extensions are kept, and the result is naturally sorted. Descending order reverses the list.
 - `ImageSourceResolver` turns a path into a folder, a file list and an index. A file selects itself in its folder; a folder starts at its first image. A directly opened hidden file that the scan skipped still opens alone. A folder scan failure for a directly opened file falls back to that single file.
@@ -59,7 +60,7 @@ The rule is deliberate:
 - `ImageDecoder` is the raster decode path. It opens files with `FileShare.ReadWrite | FileShare.Delete`, creates an `SKCodec`, reads `SKCodec.EncodedOrigin`, and applies the reported EXIF orientation (1–8) to the decoded pixels. For a preview it asks `SKCodec.GetScaledDimensions` for a screen-sized decode, then steps the scale up once or more if the nearest codec step would look soft. Pixels are decoded into an 8-bit BGRA, premultiplied buffer with an sRGB `SKImageInfo`; Skia converts an embedded ICC profile to sRGB during that decode. The result is a `DecodedBitmap` with source dimensions, decode scale and alpha capability.
 - `DecodedBitmap` carries the pixel buffer, stride, source width/height after orientation, decode scale and `HasAlpha`. `IsFullResolution` is true at a scale of at least 0.999.
 - `ImageDecoder.DecodeAnimation` decodes every GIF frame, applies frame disposal and blend rules into one canvas, and returns `DecodedAnimation` with per-frame delays. The viewer owns playback; the decoder caps frame memory at 24 million pixels.
-- SVG files bypass `SKCodec`: `SvgGeometry` reads the intrinsic size, `SKSvg` parses the document, and the picture is drawn into a transparent BGRA surface at the requested scale.
+- SVG files bypass `SKCodec`: `SvgGeometry` reads the intrinsic size, `SKSvg` parses the document, and the picture is drawn into a transparent BGRA surface at the requested scale. TIFF takes the first page through LibTiff.NET, converts its RGBA raster to BGRA, applies the TIFF orientation tag and passes the raw orientation to the tile writer.
 
 - `ImageDecoder.DecodeFullRaw` is the tile-cache decode path. It decodes into unmanaged memory (`NativeMemory.Alloc`) instead of a managed `byte[]`, so a 100 MP buffer can be freed immediately after the tile file is written. It returns `DecodedImageBuffer` with raw dimensions, oriented source dimensions, EXIF orientation and alpha capability; it does not apply the orientation copy.
 - `TiledImageSource` (App) writes 512 px tiles to a temporary file-backed cache. Each tile is 512 × 512 BGRA padded to a fixed size; the last row/column is partial. Orientation and display edits are applied while copying into the tile, so no full oriented or edited intermediate buffer exists. The tile file is deleted on dispose; files older than one day are cleaned at startup. Only 32 tile bitmaps are cached, and the viewer draws the tiles intersecting the viewport.
@@ -106,7 +107,7 @@ The filmstrip and information panel are separate views (`FilmstripView`, `InfoPa
 ### App services
 
 - `AppServices` is created once per process. It loads settings, applies the saved language and theme, opens the thumbnail cache and starts the 30-day cleanup on the thread pool. It saves settings when a setting changes and again on exit. It also exposes the assembly version and a shell helper for the project links. It has no network client.
-- `LocalizationService` keeps a catalog of roughly 150 English/Chinese key pairs (153 at 0.2.0). XAML text uses `{DynamicResource L.*}`; text built in code uses `T` and `Format`. Applying a language builds a merged `ResourceDictionary`, removes the previous language dictionary and adds the new one. `LanguageChanged` refreshes view models and windows, so switching English/Chinese does not restart the app. The default follows the OS UI culture: a `zh*` culture selects Simplified Chinese, everything else English.
+- `LocalizationService` keeps a catalog of roughly 150 English/Chinese key pairs (153 at 0.3.0). XAML text uses `{DynamicResource L.*}`; text built in code uses `T` and `Format`. Applying a language builds a merged `ResourceDictionary`, removes the previous language dictionary and adds the new one. `LanguageChanged` refreshes view models and windows, so switching English/Chinese does not restart the app. The default follows the OS UI culture: a `zh*` culture selects Simplified Chinese, everything else English.
 - `ThemeService` normalizes `System`, `Light` or `Dark` and sets `Application.RequestedThemeVariant`. System mode follows `PlatformSettings.ColorValuesChanged`. When the OS reports high contrast, the service adds a high-contrast `ResourceDictionary` on top of the selected light/dark theme and maps the system accent to the `Coral` and `Teal` marks used for selection and focus. High contrast follows the OS even when light/dark is an explicit choice.
 - `BenchmarkRecorder` measures from the operating system's process start time. Startup mode records first window, first frame, decode time, image megapixels and peak working set, then exits after the first frame. Decode mode exits after a 1600 × 1000 decode. Scan mode times folder enumeration and the first eight 160 px thumbnails, and reports `scan_ms`, `thumbnail_ms`, `total_ms`, `files` and `peak_ws_mb`. All modes write `key=value` lines to stdout and exit 1 with `error=<message>` on failure.
 - `StartupTrace` reads `AIRGLANCE_STARTUP_TRACE` once. When it is `1`, it writes marks to stderr relative to the process start time. Normal runs only pay for the environment read.
@@ -289,7 +290,7 @@ dotnet test AirGlance.sln -c Release
 ## Related documents
 
 - [Format support matrix](formats.md)
-- [Shipping AirGlance 0.2.0](shipping.md)
+- [Shipping AirGlance 0.3.0](shipping.md)
 - [Third-party notices](../THIRD-PARTY-NOTICES.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)

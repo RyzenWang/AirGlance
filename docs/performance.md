@@ -59,29 +59,29 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 
 ### 24 MP JPEG, fit window
 
-10 runs of the published `v0.2.0` Windows x64 artifact, median (p95 in brackets).
+10 runs of the published `v0.3.0` Windows x64 artifact, median (p95 in brackets).
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | ≤ 500 ms | **227.1 ms** (487.8) | pass |
-| First frame | ≤ 500 ms | **404.9 ms** (662.1) | pass |
-| Decode | — | **58.9 ms** (69.4) | — |
-| Peak working set | ≤ 250 MB | **82.4 MB** (84.5) | pass |
+| First window | ≤ 500 ms | **222.9 ms** (489.2) | pass |
+| First frame | ≤ 500 ms | **451.6 ms** (732.8) | pass |
+| Decode | — | **57.8 ms** (60.8) | — |
+| Peak working set | ≤ 250 MB | **84.6 MB** (86.9) | pass |
 
 Raw runs:
 
 ```text
 Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
-  1 487.8           662.1           67.0       24.0     84.5       828.2
-  2 226.3           471.0           58.7       24.0     82.3       543.5
-  3 231.6           469.8           59.6       24.0     82.4       558.4
-  4 229.0           481.3           58.8       24.0     82.4       556.4
-  5 222.8           394.0           69.4       24.0     82.4       465.1
-  6 222.4           395.9           59.1       24.0     82.4       472.6
-  7 224.4           404.8           57.8       24.0     82.4       473.5
-  8 222.0           404.9           60.0       24.0     82.4       475.8
-  9 227.9           375.8           57.7       24.0     82.3       448.0
- 10 229.0           375.0           57.8       24.0     82.1       450.9
+  1 489.2           732.8           60.8       24.0     86.9       963.9
+  2 218.1           464.3           58.7       24.0     84.5       546.7
+  3 218.7           445.5           56.3       24.0     84.6       524.8
+  4 222.8           375.0           57.3       24.0     84.2       454.2
+  5 222.1           434.7           57.8       24.0     84.5       508.6
+  6 224.0           451.6           56.6       24.0     84.6       524.9
+  7 217.7           441.2           57.9       24.0     84.5       515.2
+  8 225.8           452.2           57.8       24.0     84.5       531.3
+  9 223.0           465.8           58.8       24.0     84.6       535.7
+ 10 224.0           451.6           56.2       24.0     84.6       525.8
 ```
 
 ### 100 MP JPEG, fit window
@@ -90,18 +90,18 @@ Run first_window_ms first_frame_ms decode_ms image_mp peak_ws_mb wall_ms
 
 | Metric | Target | Measured | Result |
 | --- | --- | --- | --- |
-| First window | — | 226.3 ms | — |
-| First frame | ≤ 2.0 s | **358.6 ms** | pass |
-| Decode | — | 145.8 ms | — |
-| Peak working set | — | 82.0 MB | — |
+| First window | — | 218.6 ms | — |
+| First frame | ≤ 2.0 s | **338.5 ms** | pass |
+| Decode | — | 145.1 ms | — |
+| Peak working set | — | 82.1 MB | — |
 
-Raw runs: 324.1, 360.4, 358.6, 375.5, 335.2 ms.
+Raw runs: 338.5, 330.8, 339.4, 341.2, 345.1 ms.
 
 ### 100 MP JPEG at 100%
 
 The workflow was:
 
-1. Launch the `v0.2.0` `win-x64` AOT artifact with `tools/testdata/photo-100mp.jpg`
+1. Launch the `v0.3.0` `win-x64` AOT artifact with `tools/testdata/photo-100mp.jpg`
    in a folder by itself (the filmstrip's preview decodes of neighbouring large images
    would otherwise dominate the sample).
 2. Wait for the fit-window preview.
@@ -110,11 +110,11 @@ The workflow was:
 
 | Point | Working set | Private bytes |
 | --- | --- | --- |
-| Fit-window preview | 74.7 MB | 43.6 MB |
-| 1 second after pressing `1` | 457.4 MB | 427.9 MB |
-| 2 seconds after pressing `1` | 87.9 MB | 57.7 MB |
-| Peak during the run | 457.4 MB | — |
-| Steady state at 100% | 87.9 MB | 57.7 MB |
+| Fit-window preview | 74.8 MB | 43.3 MB |
+| 1 second after pressing `1` | 457.6 MB | 427.6 MB |
+| 2 seconds after pressing `1` | 88.2 MB | 57.4 MB |
+| Peak during the run | 457.6 MB | — |
+| Steady state at 100% | 88.2 MB | 57.4 MB |
 
 The temporary tile file is about 400 MB while the image is open. The 400 MB full decode
 is unmanaged and is freed as soon as the 512 px tiles are written; only the visible tile
@@ -148,7 +148,7 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 
 | Artifact | Size | SHA256 |
 | --- | --- | --- |
-| `AirGlance-0.2.0-win-x64.zip` | **20.24 MB** | `27744e2fe501f5c67c48744068e603b94de69a7fb5e47ff49bca1b1977128d15` |
+| `AirGlance-0.3.0-win-x64.zip` | **19.76 MB** | see the release `SHA256SUMS.txt` |
 
 The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md)
 and unpacks to about 37 MB. The 30 MB target applies to the zip, not the unpacked
@@ -177,7 +177,7 @@ image-initialized=200.7
 ```
 
 The window content now takes about 14 ms (`window-ctor-ui`). The old MainWindow XAML
-build cost about 370 ms; 0.1.1–0.2.0 build the same chrome in C# and leave the filmstrip,
+build cost about 370 ms; 0.1.1–0.3.0 build the same chrome in C# and leave the filmstrip,
 information panel and context menu in XAML, loaded after the first frame. The 24 MP
 decode (about 57 ms) overlaps window construction and image initialisation. The
 remaining gap from `image-initialized` to the first painted frame is about 100 ms.
@@ -198,6 +198,6 @@ by default. `AIRGLANCE_GPU_RENDER=1` switches back to the default Avalonia GPU p
 | 500-image list + first thumbnails ≤ 1 s | met |
 | Next image ≤ 60 ms when prefetched | not separately measured |
 
-The 0.2.0 code and the measurement script are in the repository so the numbers can be
+The 0.3.0 code and the measurement script are in the repository so the numbers can be
 reproduced or improved. The startup targets are met; the remaining large-image work is
 tile-cache policy, not first-frame latency.

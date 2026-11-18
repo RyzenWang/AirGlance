@@ -129,6 +129,29 @@ def main():
             "</svg>\n"
         )
 
+    # TIFF fixtures: RGB with four corner colours, an alpha image and an
+    # orientation-6 file. LZW is the most common lossless TIFF compression.
+    tiff_rgb = Image.new("RGB", (80, 40), (245, 245, 245))
+    tiff_draw = ImageDraw.Draw(tiff_rgb)
+    tiff_draw.rectangle([0, 0, 9, 9], fill=(255, 0, 0))
+    tiff_draw.rectangle([70, 0, 79, 9], fill=(0, 180, 60))
+    tiff_draw.rectangle([0, 30, 9, 39], fill=(0, 90, 255))
+    tiff_draw.rectangle([70, 30, 79, 39], fill=(255, 220, 0))
+    tiff_rgb.save(os.path.join(OUT, "rgb-lzw.tif"), compression="tiff_lzw")
+
+    tiff_alpha = Image.new("RGBA", (48, 32), (0, 0, 0, 0))
+    ImageDraw.Draw(tiff_alpha).rectangle([8, 8, 40, 24], fill=(227, 86, 59, 255))
+    tiff_alpha.save(os.path.join(OUT, "alpha.tif"), compression="tiff_lzw")
+
+    tiff_orientation = tiff_rgb.copy()
+    tiff_exif = tiff_orientation.getexif()
+    tiff_exif[274] = 6
+    tiff_orientation.save(
+        os.path.join(OUT, "orientation-6.tif"),
+        compression="tiff_lzw",
+        exif=tiff_exif.tobytes(),
+    )
+
     gradient = np.linspace(0, 65535, 64 * 32, dtype=np.uint16).reshape(32, 64)
     Image.fromarray(gradient, mode="I;16").save(os.path.join(OUT, "gradient-16bit.png"))
 

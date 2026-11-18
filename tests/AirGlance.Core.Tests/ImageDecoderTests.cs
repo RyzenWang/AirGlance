@@ -187,6 +187,80 @@ public sealed class ImageDecoderTests
     }
 
     [Fact]
+    public void Tiff_decodes_rgb_and_lzw()
+    {
+        var bitmap = ImageDecoder.DecodeFull(Asset("rgb-lzw.tif"));
+
+        Assert.Equal(80, bitmap.Width);
+        Assert.Equal(40, bitmap.Height);
+        Assert.Equal("red", Classify(Pixel(bitmap, 6, 6)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 7, 6)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 6, bitmap.Height - 7)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 7, bitmap.Height - 7)));
+    }
+
+    [Fact]
+    public void Tiff_alpha_is_preserved()
+    {
+        var bitmap = ImageDecoder.DecodeFull(Asset("alpha.tif"));
+
+        Assert.Equal(48, bitmap.Width);
+        Assert.Equal(32, bitmap.Height);
+        Assert.Equal((byte)0, Pixel(bitmap, 0, 0).A);
+        Assert.Equal((byte)255, Pixel(bitmap, 24, 16).A);
+    }
+
+    [Fact]
+    public void Tiff_orientation_is_applied()
+    {
+        var bitmap = ImageDecoder.DecodeFull(Asset("orientation-6.tif"));
+
+        Assert.Equal(40, bitmap.Width);
+        Assert.Equal(80, bitmap.Height);
+        Assert.Equal(80, bitmap.SourceWidth);
+        Assert.Equal(40, bitmap.SourceHeight);
+        Assert.Equal("blue", Classify(Pixel(bitmap, 6, 6)));
+        Assert.Equal("red", Classify(Pixel(bitmap, bitmap.Width - 7, 6)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, 6, bitmap.Height - 7)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 7, bitmap.Height - 7)));
+    }
+
+    [Fact]
+    public void Tiff_scaled_decode_respects_the_requested_box()
+    {
+        var bitmap = ImageDecoder.Decode(Asset("rgb-lzw.tif"), 40, 20);
+
+        Assert.Equal(40, bitmap.Width);
+        Assert.Equal(20, bitmap.Height);
+        Assert.Equal(80, bitmap.SourceWidth);
+        Assert.Equal(40, bitmap.SourceHeight);
+        Assert.Equal(0.5, bitmap.Scale, 6);
+    }
+
+    [Fact]
+    public void Tiff_metadata_reports_format_and_dimensions()
+    {
+        var metadata = ImageDecoder.ReadMetadata(Asset("rgb-lzw.tif"));
+
+        Assert.Equal(80, metadata.DisplayWidth);
+        Assert.Equal(40, metadata.DisplayHeight);
+        Assert.Equal("TIFF", metadata.FormatName);
+        Assert.Equal(8, metadata.BitDepth);
+    }
+
+    [Fact]
+    public void Tiff_raw_decode_carries_the_orientation_for_the_tile_writer()
+    {
+        using var raw = ImageDecoder.DecodeFullRaw(Asset("orientation-6.tif"));
+
+        Assert.Equal(80, raw.Width);
+        Assert.Equal(40, raw.Height);
+        Assert.Equal(40, raw.SourceWidth);
+        Assert.Equal(80, raw.SourceHeight);
+        Assert.Equal(ImageOrientation.RightTop, raw.Orientation);
+    }
+
+    [Fact]
     public void Webp_decodes()
     {
         var bitmap = ImageDecoder.DecodeFull(Asset("alpha.webp"));

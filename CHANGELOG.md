@@ -5,6 +5,30 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-11-18
+
+### Added
+
+- TIFF support through LibTiff.NET. The first page is decoded, the TIFF orientation
+  tag is applied, alpha is preserved, and LZW, Deflate and JPEG-compressed TIFFs are
+  covered by fixtures. 16-bit sources are reported as 16-bit and displayed at 8-bit.
+- TIFF raw decoding feeds the existing tile cache so very large TIFFs can use the same
+  512 px tile path as other large images.
+
+### Changed
+
+- `.tif` and `.tiff` are now supported extensions; TIFF is no longer in the
+  unsupported matrix. CMYK, multi-page files, BigTIFF and exotic compression variants
+  remain outside the first-page support contract.
+- The portable package now carries BitMiracle.LibTiff.NET 2.4.660.
+
+### Performance
+
+- NativeAOT `win-x64`: 24 MP first window 222.9 ms median, first frame 451.6 ms;
+  peak working set 84.6 MB.
+- 100 MP fit-window first frame 338.5 ms; 100 MP at 100% peaks at 457.6 MB and
+  settles at 88.2 MB working set.
+
 ## [0.2.0] - 2026-11-18
 
 ### Added
@@ -175,7 +199,8 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0
 [0.2.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.2.0
 [0.1.3]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.3
 [0.1.2]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.1.2

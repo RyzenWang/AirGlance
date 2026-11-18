@@ -5,7 +5,7 @@
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.
-2. A raster format must also decode with SkiaSharp's `SKCodec`; SVG is parsed and rasterized with Svg.Skia. A supported extension with unreadable content is reported as corrupt, not unsupported.
+2. Raster formats decode with SkiaSharp's `SKCodec`, except TIFF (LibTiff) and SVG (Svg.Skia), which have their own first-page/rasterization path. A supported extension with unreadable content is reported as corrupt, not unsupported.
 
 A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension.
 
@@ -19,6 +19,7 @@ A file with an unsupported extension is refused even if its content happens to b
 | BMP | `.bmp` | Decoded by `SKCodec` | 1 | Not test-covered | Not read | Not read | No fixture |
 | GIF | `.gif` | 8-bit BGRA output; every frame composited with GIF disposal rules | All frames | Carried through the composited output; no dedicated transparency fixture | Not read | Not read | `animated.gif` |
 | ICO | `.ico` | One image selected by the codec | 1 | Carried through the BGRA decode path; not fixture-tested | Not read | Not read | No fixture |
+| TIFF | `.tif`, `.tiff` | First page, decoded to RGBA by LibTiff.NET; LZW, Deflate and JPEG-compressed fixtures | 1 (first page) | Preserved | Applied from the TIFF orientation tag | Tag read for the info panel; pixels are not colour-managed from TIFF ICC | `rgb-lzw.tif`, `alpha.tif`, `orientation-6.tif` |
 | SVG | `.svg` | Rasterized by Svg.Skia at the requested display size | 1 | Transparent background preserved | Not applicable | Not read | `vector.svg` |
 
 "Preserved" means the decoded buffer is BGRA with premultiplied alpha and the PNG/WebP encoders keep that alpha. GIF frames are composited into a transparent canvas before they reach the viewer; SVG is rendered to a transparent BGRA surface. A JPEG copy is first drawn onto white, so transparent pixels become white. See [alpha and bit depth](#alpha-and-bit-depth).
@@ -42,7 +43,6 @@ The info panel reads the profile separately from the file header:
 | HEIC / HEIF | Not listed and not opened |
 | AVIF | Not listed and not opened |
 | RAW (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2 and others) | Not listed and not opened |
-| TIFF (`.tif`, `.tiff`) | Not listed and not opened |
 | Animated WebP / APNG | First frame is shown as a still image; no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 
@@ -58,7 +58,7 @@ PNG `eXIf` metadata is read but its orientation is not applied as a display tran
 
 WebP EXIF is also read for the info panel. There is no WebP orientation fixture, so WebP display rotation is not measured. Do not assume that a WebP EXIF orientation rotates the image.
 
-BMP, GIF, ICO and SVG have no EXIF block reader.
+BMP, GIF, ICO and SVG have no EXIF block reader. TIFF orientation is read from the TIFF tag and applied to pixels.
 
 ### ICC conversion
 
@@ -75,7 +75,7 @@ A missing profile is treated as sRGB. CMYK JPEG, exotic transfer curves and very
 
 PNG and WebP alpha are preserved. The test fixtures have a fully transparent corner and a fully opaque centre; `alpha.png` checks the decoded alpha values, and `alpha.webp` checks the transparent corner after WebP decoding. PNG export keeps transparency. JPEG export flattens onto white, which is checked on a transparent PNG.
 
-ICO uses the same premultiplied BGRA path and `HasAlpha` is set for the ICO container, but there is no ICO fixture. GIF frames are composited with transparency; a dedicated transparency fixture is not included. BMP alpha is not documented or tested.
+ICO uses the same premultiplied BGRA path and `HasAlpha` is set for the ICO container, but there is no ICO fixture. GIF frames are composited with transparency; a dedicated transparency fixture is not included. TIFF RGBA alpha is preserved (`alpha.tif`). BMP alpha is not documented or tested.
 
 A 16-bit PNG is reported as 16-bit from its IHDR. It is decoded into 8-bit BGRA and displayed and exported as 8-bit. The test asserts the reported bit depth, not the precision of the resulting pixels. There is no 16-bit export path.
 
@@ -119,6 +119,9 @@ All paths are under `tests/Assets` and are copied next to the test binaries.
 | `srgb.jpg` | 64 × 32 | `ImageDecoderTests.Display_p3_is_converted_to_srgb` | sRGB reference image for the P3 conversion comparison |
 | `alpha.png` | 48 × 32 | `ImageDecoderTests.Png_alpha_is_preserved_and_premultiplied`, `ImageExporterTests.Jpeg_flattens_transparency_to_white`, `ImageExporterTests.Png_keeps_transparency` | PNG alpha is decoded, preserved on PNG export and flattened on JPEG export |
 | `alpha.webp` | 48 × 32 | `ImageDecoderTests.Webp_decodes` | WebP decodes and keeps a transparent corner |
+| `rgb-lzw.tif` | 80 × 40 | `ImageDecoderTests.Tiff_decodes_rgb_and_lzw`, `Tiff_scaled_decode_respects_the_requested_box` | LZW RGB TIFF, colour channels and scaled decode |
+| `alpha.tif` | 48 × 32 | `ImageDecoderTests.Tiff_alpha_is_preserved` | TIFF alpha is preserved |
+| `orientation-6.tif` | 80 × 40 stored; 40 × 80 displayed | `ImageDecoderTests.Tiff_orientation_is_applied`, `Tiff_raw_decode_carries_the_orientation_for_the_tile_writer` | TIFF orientation is applied and passed to the tile path |
 | `animated.gif` | 40 × 40, 3 frames | `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay`, `MainWindowTests.Animated_gif_is_presented_as_an_animation` | GIF frames, delays and playback are exercised |
 | `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`, `Svg_scaled_decode_keeps_the_vector_aspect_ratio` | SVG is rasterized at intrinsic and scaled sizes |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | PNG source bit depth 16 is reported |
@@ -137,6 +140,7 @@ The matrix is a description of tested behavior, not a claim that every supported
 - PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
 - WebP ICC and WebP EXIF are not covered by fixtures.
 - ICO alpha, GIF transparency and BMP alpha are not covered by dedicated fixtures.
+- TIFF CMYK conversion, multi-page files, BigTIFF and exotic compression/16-bit colour paths are not covered by fixtures.
 - CMYK JPEG, progressive JPEG and very large JPEGs are not separately tested.
 - The 16-bit PNG test checks the reported depth, not the precision of the 8-bit result.
 - Animated WebP and APNG are not decoded as animations.
@@ -160,6 +164,6 @@ The test projects copy `tests/Assets` into their output directories, so the fixt
 ## Related documents
 
 - [Architecture](architecture.md)
-- [Shipping AirGlance 0.2.0](shipping.md)
+- [Shipping AirGlance 0.3.0](shipping.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)

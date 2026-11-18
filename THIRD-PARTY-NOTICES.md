@@ -13,6 +13,7 @@ AirGlance uses the components below. Full license texts are available at the lin
 | SkiaSharp | 4.150.1 | MIT | [mono/SkiaSharp](https://github.com/mono/SkiaSharp), [LICENSE.md](https://github.com/mono/SkiaSharp/blob/main/LICENSE.md) |
 | Svg.Skia (and Svg.Model, Svg.Custom, Svg.Animation, Svg.SceneGraph) | 5.2.3 | MIT | [wieslawsoltes/Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia), [LICENSE](https://github.com/wieslawsoltes/Svg.Skia/blob/main/LICENSE) |
 | ShimSkiaSharp | 5.2.3 | MIT | [wieslawsoltes/Svg.Skia](https://github.com/wieslawsoltes/Svg.Skia), [LICENSE](https://github.com/wieslawsoltes/Svg.Skia/blob/main/LICENSE) |
+| BitMiracle.LibTiff.NET | 2.4.660 | BSD-3-Clause | [BitMiracle/libtiff.net](https://github.com/BitMiracle/libtiff.net), [LICENSE](https://bitmiracle.github.io/libtiff.net/help/articles/license.html) |
 | HarfBuzzSharp | 14.2.0 | MIT | [mono/SkiaSharp](https://github.com/mono/SkiaSharp), [LICENSE.md](https://github.com/mono/SkiaSharp/blob/main/LICENSE.md) |
 | CommunityToolkit.Mvvm | 8.4.2 | MIT | [CommunityToolkit/dotnet](https://github.com/CommunityToolkit/dotnet), [License.md](https://github.com/CommunityToolkit/dotnet/blob/main/License.md) |
 | .NET runtime and libraries | 10 | MIT | [dotnet/runtime](https://github.com/dotnet/runtime), [LICENSE.TXT](https://github.com/dotnet/runtime/blob/main/LICENSE.TXT) |

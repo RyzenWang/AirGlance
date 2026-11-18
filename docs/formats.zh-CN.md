@@ -5,7 +5,7 @@
 AirGlance 在图像显示到屏幕之前会做两项检查：
 
 1. 文件扩展名必须位于受支持列表中（`SupportedFormats`）。这决定了该文件是否会出现在文件夹列表中，以及命令行或拖放处理程序是否接受它。
-2. 位图格式还必须能由 SkiaSharp 的 `SKCodec` 解码；SVG 由 Svg.Skia 解析并光栅化。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
+2. 位图格式通常由 SkiaSharp 的 `SKCodec` 解码；TIFF（LibTiff）和 SVG（Svg.Skia）有各自的第一页/光栅化路径。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
 
 即使文件内容恰好是受支持的图像，扩展名不受支持的文件也会被拒绝。信息面板中显示的格式名称优先取自编解码器，无法获取时回退到扩展名。
 
@@ -19,6 +19,7 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | BMP | `.bmp` | 由 `SKCodec` 解码 | 1 | 未纳入测试覆盖 | 未读取 | 未读取 | 无测试夹具 |
 | GIF | `.gif` | 8 位 BGRA 输出；按 GIF 处置规则合成每一帧 | 全部帧 | 通过合成输出保留；没有专门的透明度测试夹具 | 未读取 | 未读取 | `animated.gif` |
 | ICO | `.ico` | 由编解码器选择的一幅图像 | 1 | 沿 BGRA 解码路径保留；未做测试夹具验证 | 未读取 | 未读取 | 无测试夹具 |
+| TIFF | `.tif`、`.tiff` | 第一页，由 LibTiff.NET 解码为 RGBA；测试覆盖 LZW、Deflate 和 JPEG 压缩 | 1（第一页） | 保留 | 从 TIFF 方向标签读取并应用 | 为信息面板读取标签；像素不做 TIFF ICC 色彩管理 | `rgb-lzw.tif`、`alpha.tif`、`orientation-6.tif` |
 | SVG | `.svg` | 由 Svg.Skia 按请求的显示尺寸光栅化 | 1 | 保留透明背景 | 不适用 | 未读取 | `vector.svg` |
 
 “保留”指解码后的缓冲区是带预乘 Alpha 的 BGRA，并且 PNG/WebP 编码器会保留该 Alpha。GIF 帧会先合成到透明画布再交给查看器；SVG 会渲染到透明的 BGRA 表面。JPEG 副本会先绘制到白色背景上，因此透明像素会变成白色。参见 [Alpha 与位深](#alpha-与位深)。
@@ -42,7 +43,6 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | HEIC / HEIF | 不列出，也不打开 |
 | AVIF | 不列出，也不打开 |
 | RAW（CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2 等） | 不列出，也不打开 |
-| TIFF（`.tif`、`.tiff`） | 不列出，也不打开 |
 | 动画 WebP / APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 视频（MP4、MOV、WebM、MKV 等） | 不列出，也不打开 |
 
@@ -58,7 +58,7 @@ PNG 的 `eXIf` 元数据会被读取，但其方向不会作为显示变换应�
 
 WebP 的 EXIF 也会为信息面板而读取。没有 WebP 方向测试夹具，因此 WebP 的显示旋转未经测量。不要假定 WebP 的 EXIF 方向会旋转图像。
 
-BMP、GIF、ICO 和 SVG 没有 EXIF 块读取器。
+BMP、GIF、ICO 和 SVG 没有 EXIF 块读取器。TIFF 方向从 TIFF 标签读取并应用到像素。
 
 ### ICC 转换
 
@@ -75,7 +75,7 @@ JPEG、PNG 和 WebP 的配置文件在解码过程中会转换为 sRGB。覆盖�
 
 PNG 和 WebP 的 Alpha 会被保留。测试夹具中有一个完全透明的角和一个完全不透明的中心；`alpha.png` 检查解码后的 Alpha 值，`alpha.webp` 检查 WebP 解码后的透明角。PNG 导出会保留透明度。JPEG 导出会压平到白色背景上，这一点会在一块透明 PNG 上检查。
 
-ICO 使用相同的预乘 BGRA 路径，并且 `HasAlpha` 会为 ICO 容器设置，但没有 ICO 测试夹具。GIF 帧会在合成时处理透明度；没有专门的透明度测试夹具。BMP 的 Alpha 既未记录也未测试。
+ICO 使用相同的预乘 BGRA 路径，并且 `HasAlpha` 会为 ICO 容器设置，但没有 ICO 测试夹具。GIF 帧会在合成时处理透明度；没有专门的透明度测试夹具。TIFF 的 RGBA 透明度会保留（`alpha.tif`）。BMP 的 Alpha 既未记录也未测试。
 
 16 位 PNG 会从 IHDR 报告为 16 位。它会被解码为 8 位 BGRA，并以 8 位显示和导出。测试断言的是所报告的位深，而不是结果像素的精度。没有 16 位导出路径。
 
@@ -119,6 +119,9 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 | `srgb.jpg` | 64 × 32 | `ImageDecoderTests.Display_p3_is_converted_to_srgb` | 用于 P3 转换比较的 sRGB 参考图像 |
 | `alpha.png` | 48 × 32 | `ImageDecoderTests.Png_alpha_is_preserved_and_premultiplied`、`ImageExporterTests.Jpeg_flattens_transparency_to_white`、`ImageExporterTests.Png_keeps_transparency` | PNG 的 Alpha 被解码、在 PNG 导出时保留，并在 JPEG 导出时被压平 |
 | `alpha.webp` | 48 × 32 | `ImageDecoderTests.Webp_decodes` | WebP 能解码并保留透明角 |
+| `rgb-lzw.tif` | 80 × 40 | `ImageDecoderTests.Tiff_decodes_rgb_and_lzw`、`Tiff_scaled_decode_respects_the_requested_box` | LZW RGB TIFF、颜色通道和缩放解码 |
+| `alpha.tif` | 48 × 32 | `ImageDecoderTests.Tiff_alpha_is_preserved` | TIFF Alpha 保留 |
+| `orientation-6.tif` | 存储 80 × 40；显示 40 × 80 | `ImageDecoderTests.Tiff_orientation_is_applied`、`Tiff_raw_decode_carries_the_orientation_for_the_tile_writer` | TIFF 方向应用并传给瓦片路径 |
 | `animated.gif` | 40 × 40，3 帧 | `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay`、`MainWindowTests.Animated_gif_is_presented_as_an_animation` | 验证 GIF 的帧、延迟和播放 |
 | `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`、`Svg_scaled_decode_keeps_the_vector_aspect_ratio` | 验证 SVG 在固有尺寸和缩放尺寸下的光栅化 |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | 报告 PNG 源位深为 16 |
@@ -137,6 +140,7 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 - PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
 - WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。
 - ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。
+- TIFF 的 CMYK 转换、多页文件、BigTIFF 和特殊压缩/16 位颜色路径没有测试夹具。
 - CMYK JPEG、渐进式 JPEG 和超大 JPEG 没有单独测试。
 - 16 位 PNG 测试检查的是所报告的位深，而不是 8 位结果的精度。
 - 动画 WebP 和 APNG 不会按动画解码。
@@ -160,6 +164,6 @@ dotnet test tests/AirGlance.Core.Tests/AirGlance.Core.Tests.csproj -c Release --
 ## 相关文档
 
 - [架构](architecture.zh-CN.md)
-- [发布 AirGlance 0.2.0](shipping.zh-CN.md)
+- [发布 AirGlance 0.3.0](shipping.zh-CN.md)
 - [更新日志](../CHANGELOG.md)
 - [README](../README.zh-CN.md)

@@ -2,7 +2,7 @@
 
 [English](architecture.md) · **简体中文**
 
-AirGlance 0.2.0 是一款桌面图像查看器。它一次打开一个文件夹，并一次显示一张图像。代码拆分为一个不依赖 UI 的核心库和一个 Avalonia 应用程序。
+AirGlance 0.3.0 是一款桌面图像查看器。它一次打开一个文件夹，并一次显示一张图像。代码拆分为一个不依赖 UI 的核心库和一个 Avalonia 应用程序。
 
 ## 技术栈
 
@@ -13,6 +13,7 @@ AirGlance 0.2.0 是一款桌面图像查看器。它一次打开一个文件夹�
 | CommunityToolkit.Mvvm | 8.4.2 | 可观察视图模型和命令 |
 | SkiaSharp | 4.150.1 | 图像解码与编码 |
 | Svg.Skia | 5.2.3 | SVG 解析与光栅化 |
+| BitMiracle.LibTiff.NET | 2.4.660 | TIFF 第一页解码 |
 | NativeAOT | .NET 10 | 在 Windows、macOS 和 Linux 上的发布 |
 
 SkiaSharp 3.x 系列已被取代。4.150.1 是能够在 Windows、macOS 和 Linux 上与 Avalonia 11.3.22 的原生资产图统一的版本。所有项目都使用 `Directory.Packages.props` 中的版本；不要把 3.x 的 SkiaSharp 包混入该依赖图。
@@ -45,7 +46,7 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 `src/AirGlance.Core/Files`
 
-- `SupportedFormats` 是扩展名的准入门槛：`.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.svg`。扩展名检查不区分大小写。当无法询问编解码器时，`Describe` 会提供一个格式标签。
+- `SupportedFormats` 是扩展名的准入门槛：`.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.svg`、`.tif`、`.tiff`。扩展名检查不区分大小写。当无法询问编解码器时，`Describe` 会提供一个格式标签。
 - `NaturalStringComparer` 按数值比较连续数字，因此 `img2.jpg` 排在 `img10.jpg` 之前。数值相同但前导零更少的排在前面；其余并列项用序数比较打破平局。`NaturalPathComparer` 按文件名对完整路径排序。
 - `FolderScanner.EnumerateImages` 只列出一个文件夹，不递归。隐藏文件和系统文件会被跳过，无法访问的条目会被忽略，只保留受支持的扩展名，结果按自然顺序排序。降序会反转该列表。
 - `ImageSourceResolver` 将路径转换为一个文件夹、一个文件列表和一个索引。文件会在其所在文件夹中选中自身；文件夹从它的第一张图像开始。直接打开的隐藏文件即使被扫描跳过，仍会单独打开。对于直接打开的文件，如果文件夹扫描失败，则回退到该单个文件。
@@ -58,6 +59,7 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 - `ImageDecoder` 是位图解码路径。它使用 `FileShare.ReadWrite | FileShare.Delete` 打开文件，创建 `SKCodec`，读取 `SKCodec.EncodedOrigin`，并将报告的 EXIF 方向（1–8）应用到解码后的像素。对于预览，它向 `SKCodec.GetScaledDimensions` 请求一个屏幕尺寸的解码，然后如果最近的编解码器档位看起来会发虚，就把缩放提高一档或更多。像素被解码到一个 8 位 BGRA、预乘、使用 sRGB `SKImageInfo` 的缓冲区中；Skia 在该解码过程中会把内嵌的 ICC 配置文件转换为 sRGB。结果是带有源尺寸、解码缩放和 alpha 能力的 `DecodedBitmap`。
 - SVG 文件使用单独的分支，把 `SKSvg` 图片渲染成相同形状的 `DecodedBitmap`。
+- TIFF 通过 LibTiff.NET 读取第一页，把 RGBA 光栅转换为 BGRA，应用 TIFF 方向标签，并把原始方向传给瓦片写入器。
 - `ImageDecoder.DecodeAnimation` 逐帧解码 GIF，按帧处置和混合规则合成到同一画布，并返回带每帧延迟的 `DecodedAnimation`。播放由查看器负责；解码器把总帧内存限制在 2400 万像素。
 - `DecodedBitmap` 携带像素缓冲区、stride、方向应用后的源宽/高、解码缩放和 `HasAlpha`。当缩放至少为 0.999 时，`IsFullResolution` 为 true。
 
@@ -106,7 +108,7 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 ### App 服务
 
 - `AppServices` 每个进程创建一次。它加载设置，应用已保存的语言和主题，打开缩略图缓存，并在线程池上启动 30 天清理。它在设置更改时保存设置，并在退出时再次保存。它还对外提供程序集版本，以及用于项目链接的 shell 辅助方法。它没有网络客户端。
-- `LocalizationService` 维护一个约 150 组英/中键值对的目录（0.2.0 中为 153 组）。XAML 文本使用 `{DynamicResource L.*}`；代码中构建的文本使用 `T` 和 `Format`。应用语言会构建一个合并的 `ResourceDictionary`，移除之前的语言字典并添加新的字典。`LanguageChanged` 会刷新视图模型和窗口，因此切换英文/中文不需要重启应用。默认值遵循操作系统 UI 区域性：`zh*` 区域性选择简体中文，其他情况均为英文。
+- `LocalizationService` 维护一个约 150 组英/中键值对的目录（0.3.0 中为 153 组）。XAML 文本使用 `{DynamicResource L.*}`；代码中构建的文本使用 `T` 和 `Format`。应用语言会构建一个合并的 `ResourceDictionary`，移除之前的语言字典并添加新的字典。`LanguageChanged` 会刷新视图模型和窗口，因此切换英文/中文不需要重启应用。默认值遵循操作系统 UI 区域性：`zh*` 区域性选择简体中文，其他情况均为英文。
 - `ThemeService` 规范化 `System`、`Light` 或 `Dark`，并设置 `Application.RequestedThemeVariant`。系统模式遵循 `PlatformSettings.ColorValuesChanged`。当操作系统报告高对比度时，该服务会在所选的浅色/深色主题之上叠加一个高对比度 `ResourceDictionary`，并把系统强调色映射到用于选择和焦点的 `Coral` 和 `Teal` 标记。即使浅色/深色是显式选择，高对比度仍遵循操作系统。
 - `BenchmarkRecorder` 从操作系统的进程启动时间开始测量。启动模式记录首个窗口、第一帧、解码时间、图像百万像素和峰值工作集，然后在第一帧后退出。解码模式在完成一次 1600 × 1000 解码后退出。扫描模式计时文件夹枚举和前八个 160 px 缩略图，并报告 `scan_ms`、`thumbnail_ms`、`total_ms`、`files` 和 `peak_ws_mb`。所有模式都向 stdout 写入 `key=value` 行，失败时以 `error=<message>` 退出并返回代码 1。
 - `StartupTrace` 只读取一次 `AIRGLANCE_STARTUP_TRACE`。当它为 `1` 时，会向 stderr 写入相对于进程启动时间的标记。正常运行时只付出读取环境变量的代价。
@@ -291,7 +293,7 @@ dotnet test AirGlance.sln -c Release
 ## 相关文档
 
 - [格式支持矩阵](formats.zh-CN.md)
-- [交付 AirGlance 0.2.0](shipping.zh-CN.md)
+- [交付 AirGlance 0.3.0](shipping.zh-CN.md)
 - [第三方声明](../THIRD-PARTY-NOTICES.md)
 - [变更日志](../CHANGELOG.md)
 - [README](../README.zh-CN.md)

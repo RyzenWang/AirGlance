@@ -17,7 +17,9 @@ public static class SupportedFormats
         ".bmp",
         ".gif",
         ".ico",
-        ".svg"
+        ".svg",
+        ".tif",
+        ".tiff"
     ];
 
     /// <summary>Pattern used by the open-file dialog, for example <c>*.jpg</c>.</summary>
@@ -29,6 +31,10 @@ public static class SupportedFormats
 
     public static bool IsSvg(string? path) =>
         string.Equals(Path.GetExtension(path), ".svg", StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsTiff(string? path) =>
+        string.Equals(Path.GetExtension(path), ".tif", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(Path.GetExtension(path), ".tiff", StringComparison.OrdinalIgnoreCase);
 
     public static bool IsSupportedExtension(string? extension)
     {
@@ -61,6 +67,7 @@ public static class SupportedFormats
             ".gif" => "GIF",
             ".ico" => "ICO",
             ".svg" => "SVG",
+            ".tif" or ".tiff" => "TIFF",
             _ => extension is { Length: > 1 } ? extension[1..].ToUpperInvariant() : "Unknown"
         };
     }
