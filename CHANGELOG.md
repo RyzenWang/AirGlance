@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AVIF still-image decoding through the bundled libvips native codec. The first
+  frame is shown; HEIC remains unsupported because its HEVC codec is not bundled.
 - Side-by-side dual-canvas mode in the same window. Press `D` or click the split-view
   button in the dock to enter or leave it. The left canvas keeps the current image,
   the right canvas opens the next image in the same folder, and each canvas keeps

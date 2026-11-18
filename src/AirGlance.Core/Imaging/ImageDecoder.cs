@@ -31,6 +31,11 @@ public static class ImageDecoder
             return DecodeTiff(path, maxWidth, maxHeight, cancellationToken, allowLargePreview);
         }
 
+        if (SupportedFormats.IsAvif(path))
+        {
+            return NetVipsImageDecoder.Decode(path, maxWidth, maxHeight, cancellationToken);
+        }
+
         if (SupportedFormats.IsSvg(path))
         {
             return DecodeSvg(path, maxWidth, maxHeight, cancellationToken);
@@ -187,6 +192,11 @@ public static class ImageDecoder
         Validate(path);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (SupportedFormats.IsAvif(path))
+        {
+            return DecodeFullRawAvif(path, cancellationToken);
+        }
+
         if (SupportedFormats.IsTiff(path))
         {
             if (IsLargeTiff(path))
@@ -315,6 +325,10 @@ public static class ImageDecoder
     public static ImageMetadata ReadMetadata(string path)
     {
         Validate(path);
+        if (SupportedFormats.IsAvif(path))
+        {
+            return NetVipsImageDecoder.ReadMetadata(path);
+        }
 
         if (SupportedFormats.IsTiff(path))
         {
@@ -826,6 +840,37 @@ public static class ImageDecoder
         catch (Exception exception)
         {
             throw TiffFailure(ImageLoadFailure.Corrupt, "The TIFF could not be decoded.", path, exception);
+        }
+    }
+
+    private static unsafe DecodedImageBuffer DecodeFullRawAvif(string path, CancellationToken cancellationToken)
+    {
+        var decoded = NetVipsImageDecoder.Decode(path, 0, 0, cancellationToken);
+        var bytes = checked(decoded.Width * decoded.Height * 4);
+        var pixels = (IntPtr)NativeMemory.Alloc((nuint)bytes);
+        try
+        {
+            unsafe
+            {
+                fixed (byte* source = decoded.Pixels)
+                {
+                    Buffer.MemoryCopy(source, (void*)pixels, bytes, bytes);
+                }
+            }
+
+            return new DecodedImageBuffer(
+                pixels,
+                decoded.Width,
+                decoded.Height,
+                decoded.SourceWidth,
+                decoded.SourceHeight,
+                ImageOrientation.TopLeft,
+                decoded.HasAlpha);
+        }
+        catch
+        {
+            NativeMemory.Free((void*)pixels);
+            throw;
         }
     }
 

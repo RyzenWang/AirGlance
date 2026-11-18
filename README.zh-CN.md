@@ -50,6 +50,7 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 | JPEG | `.jpg`、`.jpeg`、`.jfif` | 应用 EXIF 方向，内嵌 ICC 转为 sRGB。JPEG 副本会把透明区域压平到白色。 |
 | PNG | `.png` | 保留透明通道和内嵌 ICC。16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。 |
 | WebP | `.webp` | 支持带透明通道的静态图片；内嵌 ICC 转为 sRGB。 |
+| AVIF | `.avif` | 通过内置 libvips 原生库解码；仅第一帧。 |
 | BMP | `.bmp` | 通过 SkiaSharp 解码。 |
 | GIF | `.gif` | 动画 GIF 自动播放并循环；静态 GIF 只显示一帧。 |
 | ICO | `.ico` | 由编解码器从图标中选择一张图片。 |
@@ -59,7 +60,6 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 不支持：
 
 - HEIC / HEIF
-- AVIF
 - RAW 相机格式，例如 CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2
 - 视频文件，例如 MP4、MOV、WebM、MKV
 
@@ -169,7 +169,7 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 
 这些是限制，不是承诺清单。
 
-- 不支持 HEIC、AVIF 或 RAW。SkiaSharp 无法解码这些格式，AirGlance 也不附带平台编解码器。
+- 不支持 HEIC 或 RAW；AVIF 在 Windows 上通过 libvips 支持。SkiaSharp 无法解码这些格式，AirGlance 也不附带平台编解码器。
 - 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
 - TIFF 只显示第一页。CMYK、多页和部分特殊压缩变体不在首版支持范围内。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。
