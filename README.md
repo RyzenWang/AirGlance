@@ -217,4 +217,4 @@ AirGlance contains no `HttpClient`, no sockets, no telemetry, no crash upload an
 
 MIT. See [LICENSE](LICENSE) and [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-More detail: [architecture](docs/architecture.md) · [format matrix](docs/formats.md) · [performance method](docs/performance.md) · [shipping](docs/shipping.md) · [interaction design](docs/design/interaction-v2.en.md) · [changelog](CHANGELOG.md).
+More detail: [architecture](docs/architecture.md) · [format matrix](docs/formats.md) · [performance method](docs/performance.md) · [shipping](docs/shipping.md) · [interaction design](docs/design/interaction-v2.en.md) · [dual-canvas design](docs/design/dual-view-v1.en.md) · [changelog](CHANGELOG.md).

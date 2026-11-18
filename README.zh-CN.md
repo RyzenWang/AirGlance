@@ -217,4 +217,4 @@ AirGlance 不包含 `HttpClient`、socket、遥测、崩溃上传或更新检查
 
 MIT。见 [LICENSE](LICENSE) 和 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
-更多细节：[架构](docs/architecture.zh-CN.md) · [格式矩阵](docs/formats.zh-CN.md) · [性能方法](docs/performance.zh-CN.md) · [发布流程](docs/shipping.zh-CN.md) · [交互设计](docs/design/interaction-v2.md) · [变更日志](CHANGELOG.md)。
+更多细节：[架构](docs/architecture.zh-CN.md) · [格式矩阵](docs/formats.zh-CN.md) · [性能方法](docs/performance.zh-CN.md) · [发布流程](docs/shipping.zh-CN.md) · [交互设计](docs/design/interaction-v2.md) · [双画布设计](docs/design/dual-view-v1.md) · [变更日志](CHANGELOG.md)。
