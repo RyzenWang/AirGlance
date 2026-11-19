@@ -17,13 +17,9 @@ internal sealed class EditPanelView : UserControl
     private readonly TextBlock _subtitle;
     private readonly TextBlock _transformLabel;
     private readonly TextBlock _cropLabel;
-    private readonly TextBlock _exportLabel;
     private readonly TextBlock _cropSize;
     private readonly TextBlock _safeNote;
-    private readonly TextBlock _exportCardTitle;
-    private readonly TextBlock _exportCardSub;
     private readonly Button _resetButton;
-    private readonly Button _resetCropButton;
     private readonly Button _rotateLeft;
     private readonly Button _rotateRight;
     private readonly Button _flipH;
@@ -32,10 +28,8 @@ internal sealed class EditPanelView : UserControl
     private readonly TextBlock _rotateRightLabel;
     private readonly TextBlock _flipHLabel;
     private readonly TextBlock _flipVLabel;
-    private readonly Button[] _ratioButtons;
     private readonly Button _cropButton;
     private readonly TextBlock _cropButtonLabel;
-    private readonly Button _exportCard;
     private readonly Button _cancel;
     private readonly Button _export;
     private readonly TextBlock _cancelLabel;
@@ -48,7 +42,7 @@ internal sealed class EditPanelView : UserControl
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto")
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto")
         };
 
         _title = new TextBlock { Classes = { "edit-title" } };
@@ -122,8 +116,7 @@ internal sealed class EditPanelView : UserControl
         body.Children.Add(tools);
         body.Children.Add(Separator());
 
-        _cropLabel = SectionLabel(out _resetCropButton, out var cropHeader);
-        _resetCropButton.Click += (_, _) => ResetCropRequested?.Invoke(this, EventArgs.Empty);
+        _cropLabel = SectionLabel(out _, out var cropHeader, showAction: false);
         body.Children.Add(cropHeader);
 
         _cropButtonLabel = CenteredLabel(_localization.T("L.EditCropEnter"), 12, FontWeight.SemiBold);
@@ -139,98 +132,15 @@ internal sealed class EditPanelView : UserControl
         _cropButton.Click += (_, _) => CropRequested?.Invoke(this, EventArgs.Empty);
         body.Children.Add(_cropButton);
 
-        var ratios = new WrapPanel();
-        _ratioButtons =
-        [
-            RatioButton("free", out var free),
-            RatioButton("original", out var original),
-            RatioButton("1:1", out var square),
-            RatioButton("4:3", out var fourThree),
-            RatioButton("16:9", out var sixteenNine)
-        ];
-        foreach (var button in _ratioButtons)
-        {
-            ratios.Children.Add(button);
-        }
-
-        body.Children.Add(ratios);
-
         _cropSize = new TextBlock
         {
             Classes = { "caption" },
             FontSize = 11,
-            Margin = new Thickness(0, 5, 0, 0)
+            Margin = new Thickness(0, 1, 0, 0)
         };
         body.Children.Add(_cropSize);
         body.Children.Add(Separator());
 
-        _exportLabel = SectionLabel(out _, out var exportHeader, showAction: false);
-        body.Children.Add(exportHeader);
-        _exportCardTitle = new TextBlock
-        {
-            Text = _localization.T("L.EditExportCopy"),
-            FontSize = 12.5,
-            FontWeight = FontWeight.SemiBold
-        };
-        _exportCardSub = new TextBlock
-        {
-            Text = _localization.T("L.EditExportCard"),
-            Classes = { "caption" },
-            FontSize = 10.5,
-            Margin = new Thickness(0, 3, 0, 0)
-        };
-        var exportIcon = new Border
-        {
-            Width = 34,
-            Height = 34,
-            CornerRadius = new CornerRadius(9),
-            Background = new SolidColorBrush(Color.Parse("#FBE9E2")),
-            VerticalAlignment = VerticalAlignment.Center,
-            Child = new IconPath
-            {
-                Data = FindGeometry("IconDownload"),
-                Width = 18,
-                Height = 18,
-                Stroke = new SolidColorBrush(Color.Parse("#D65A43")),
-                StrokeThickness = 1.8,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            }
-        };
-        var exportText = new StackPanel
-        {
-            Children = { _exportCardTitle, _exportCardSub },
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        var exportChevron = new IconPath
-        {
-            Data = FindGeometry("IconChevronRight"),
-            Width = 16,
-            Height = 16,
-            Stroke = new SolidColorBrush(Color.Parse("#948A7E")),
-            StrokeThickness = 1.7,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        var exportContent = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-            ColumnSpacing = 10,
-            HorizontalAlignment = HorizontalAlignment.Stretch
-        };
-        exportContent.Children.Add(exportIcon);
-        Grid.SetColumn(exportText, 1);
-        exportContent.Children.Add(exportText);
-        Grid.SetColumn(exportChevron, 2);
-        exportContent.Children.Add(exportChevron);
-        _exportCard = new Button
-        {
-            Classes = { "edit-card" },
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            Content = exportContent
-        };
-        _exportCard.Click += (_, _) => ExportRequested?.Invoke(this, EventArgs.Empty);
-        body.Children.Add(_exportCard);
 
         var scroll = new ScrollViewer
         {
@@ -307,8 +217,8 @@ internal sealed class EditPanelView : UserControl
             Width = 350,
             Child = grid,
             HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Margin = new Thickness(0, 82, 22, 82)
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 82, 22, 0)
         };
         panelBorder.Classes.Add("edit-panel");
         Content = panelBorder;
@@ -319,10 +229,8 @@ internal sealed class EditPanelView : UserControl
     public event EventHandler? CancelRequested;
     public event EventHandler? ExportRequested;
     public event EventHandler? ResetRequested;
-    public event EventHandler? ResetCropRequested;
     public event EventHandler? CropRequested;
     public event EventHandler<EditAction>? TransformRequested;
-    public event EventHandler<string>? CropAspectRequested;
 
     public enum EditAction
     {
@@ -338,9 +246,7 @@ internal sealed class EditPanelView : UserControl
         _subtitle.Text = _localization.T("L.EditSub");
         _transformLabel.Text = _localization.T("L.EditTransform");
         _cropLabel.Text = _localization.T("L.EditCrop");
-        _exportLabel.Text = _localization.T("L.EditExport");
         _resetButton.Content = _localization.T("L.EditReset");
-        _resetCropButton.Content = _localization.T("L.EditResetCrop");
         _rotateLeftLabel.Text = _localization.T("L.EditRotateLeft");
         _rotateRightLabel.Text = _localization.T("L.EditRotateRight");
         _flipHLabel.Text = _localization.T("L.EditFlipH");
@@ -349,24 +255,9 @@ internal sealed class EditPanelView : UserControl
         _safeNote.Text = _localization.T("L.EditOriginalUnchanged");
         _cancelLabel.Text = _localization.T("L.EditCancel");
         _exportLabelControl.Text = _localization.T("L.EditExportCopy");
-        _exportCardTitle.Text = _localization.T("L.EditExportCopy");
-        _exportCardSub.Text = _localization.T("L.EditExportCard");
-        _ratioButtons[0].Content = _localization.T("L.EditFree");
-        _ratioButtons[1].Content = _localization.T("L.EditOriginalRatio");
-        _ratioButtons[2].Content = "1:1";
-        _ratioButtons[3].Content = "4:3";
-        _ratioButtons[4].Content = "16:9";
     }
 
     public void SetCropSize(string text) => _cropSize.Text = text;
-
-    public void SetActiveRatio(string ratio)
-    {
-        foreach (var button in _ratioButtons)
-        {
-            button.Classes.Set("active", string.Equals(button.CommandParameter as string, ratio, StringComparison.Ordinal));
-        }
-    }
 
     private TextBlock SectionLabel(out Button action, out Grid header, bool showAction = true)
     {
@@ -437,18 +328,6 @@ internal sealed class EditPanelView : UserControl
     private static Geometry FindGeometry(string key) =>
         Application.Current?.FindResource(key) as Geometry
         ?? StreamGeometry.Parse("M 0 0");
-
-    private Button RatioButton(string ratio, out Button button)
-    {
-        button = new Button
-        {
-            Content = ratio,
-            CommandParameter = ratio,
-            Classes = { "edit-chip" }
-        };
-        button.Click += (_, _) => CropAspectRequested?.Invoke(this, ratio);
-        return button;
-    }
 
     private static TextBlock CenteredLabel(string text, double size, FontWeight weight) => new()
     {

@@ -638,9 +638,7 @@ public partial class MainWindow : Window
         EditPanel.CancelRequested += OnEditCloseRequested;
         EditPanel.ExportRequested += OnEditExportRequested;
         EditPanel.ResetRequested += OnEditResetRequested;
-        EditPanel.ResetCropRequested += OnEditResetCropRequested;
         EditPanel.TransformRequested += OnEditTransformRequested;
-        EditPanel.CropAspectRequested += OnEditCropAspectRequested;
         EditPanel.CropRequested += OnEditCropRequested;
         root.Children.Add(EditPanel);
 
@@ -938,9 +936,7 @@ public partial class MainWindow : Window
             ? new Thickness(0, 82, 22, 150)
             : new Thickness(0, 82, 22, 92);
         EditPanel.IsVisible = _viewModel.IsEditing && !_cropMode;
-        EditPanel.Margin = _viewModel.FilmstripShown
-            ? new Thickness(0, 82, 22, 150)
-            : new Thickness(0, 82, 22, 92);
+        EditPanel.Margin = new Thickness(0, 82, 22, 0);
         CropBar.IsVisible = _viewModel.IsEditing && _cropMode;
         CropModeTag.IsVisible = _viewModel.IsEditing && _cropMode;
         CropSafeTag.IsVisible = _viewModel.IsEditing && _cropMode;
@@ -2025,7 +2021,6 @@ public partial class MainWindow : Window
         CropControl.Reset();
         CropControl.AspectRatio = null;
         CropControl.IsActive = false;
-        EditPanel.SetActiveRatio("free");
         CropBar.SetActiveRatio("free");
         _viewModel.SetCrop(CropRegion.Full);
         UpdateCropUi();
@@ -2042,17 +2037,9 @@ public partial class MainWindow : Window
         CropControl.Reset();
         CropControl.AspectRatio = null;
         _cropAspect = "free";
-        EditPanel.SetActiveRatio("free");
         _viewModel.SetCrop(CropRegion.Full);
         UpdateCropUi();
         ApplyViewModelState();
-    }
-
-    private void OnEditResetCropRequested(object? sender, EventArgs e)
-    {
-        CropControl.Reset();
-        _viewModel.SetCrop(CropRegion.Full);
-        UpdateCropUi();
     }
 
     private async void OnEditTransformRequested(
@@ -2078,7 +2065,6 @@ public partial class MainWindow : Window
         CropControl.Reset();
         CropControl.AspectRatio = null;
         _cropAspect = "free";
-        EditPanel.SetActiveRatio("free");
         _viewModel.SetCrop(CropRegion.Full);
         UpdateCropUi();
         ApplyViewModelState();
@@ -2131,6 +2117,7 @@ public partial class MainWindow : Window
         CropControl.IsActive = false;
         ApplyViewModelState();
         ShowChrome();
+        OnEditExportRequested(this, EventArgs.Empty);
     }
 
     private void OnEditCropAspectRequested(object? sender, string ratio)
@@ -2153,7 +2140,6 @@ public partial class MainWindow : Window
         _cropAspect = ratio;
         CropControl.AspectRatio = aspect;
         CropControl.IsActive = true;
-        EditPanel.SetActiveRatio(ratio);
         CropBar.SetActiveRatio(ratio);
         _viewModel.SetCrop(CropControl.Crop);
         UpdateCropUi();

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AirGlance — compact edit panel and Done-to-export</title>
+<style>
+  :root{--paper:#fbfaf7;--surface:#fffdfa;--ink:#1d232c;--muted:#69645c;--faint:#9a9286;--line:#e0d9cd;--coral:#e3563b;--teal:#2e6f63}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#181410;font-family:Inter,ui-sans-serif,"Segoe UI","Microsoft YaHei",sans-serif;color:var(--ink)}
+  button{font:inherit}
+  .stage{position:relative;width:100vw;height:100vh;min-width:1100px;overflow:hidden}
+  .app{position:absolute;inset:0;transition:filter .2s}
+  .app.blurred{filter:blur(6px) brightness(.43)}
+  .base{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;user-select:none}
+
+  /* compact edit panel: no EXPORT section, no stretched blank area */
+  .panel{position:absolute;right:22px;top:82px;width:350px;height:auto;border-radius:20px;background:var(--paper);border:1px solid #e3dad0;box-shadow:0 24px 70px rgba(34,24,16,.20);overflow:hidden}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;padding:20px 16px 13px 20px}
+  .eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--coral)}
+  h1{margin:4px 0 0;font-size:23px;line-height:1.1;letter-spacing:-.035em;font-weight:650}
+  .sub{margin:5px 0 0;font-size:11.5px;line-height:1.35;color:var(--muted);max-width:270px}
+  .x{width:30px;height:30px;border:0;background:transparent;border-radius:8px;color:#69645c;display:grid;place-items:center;cursor:pointer}
+  .x:hover{background:#f2ede5}.x svg{width:15px;height:15px}
+  .body{padding:0 20px}
+  .section{padding:13px 0 14px;border-top:1px solid var(--line)}
+  .section:first-child{border-top:0;padding-top:2px}
+  .section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+  .section-label{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--faint)}
+  .reset{border:0;background:none;color:var(--coral);font-size:10.5px;padding:0;cursor:pointer}
+  .tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .tool{height:52px;border:1px solid #e0d7cc;border-radius:10px;background:#fffdfa;color:#4b4640;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:10px;cursor:pointer}
+  .tool:hover{border-color:#d96751;color:var(--coral)}
+  .tool svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+  .crop-entry{width:100%;height:34px;margin-bottom:8px;border:1px solid #e0d7cc;border-radius:9px;background:#f6f2eb;color:var(--coral);font-size:12px;font-weight:650;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .ratios{display:flex;gap:5px;flex-wrap:wrap}
+  .chip{height:27px;padding:0 10px;border-radius:14px;border:1px solid #ded5ca;background:transparent;color:#635c54;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .chip.active{border-color:var(--coral);background:#fff3ef;color:var(--coral);font-weight:650}
+  .crop-meta{margin-top:6px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .foot{background:#f6f2eb;border-top:1px solid var(--line);padding:12px 20px 16px}
+  .safe{display:flex;align-items:center;gap:6px;margin-bottom:9px;font-size:10.5px;color:#82786d}
+  .safe svg{width:14px;height:14px;color:var(--teal);stroke:currentColor;fill:none;stroke-width:1.7}
+  .actions{display:grid;grid-template-columns:128px 174px;gap:8px}
+  .btn{height:38px;border:1px solid #ded5ca;border-radius:9px;background:var(--surface);color:#4a443d;font-size:12px;font-weight:550;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .btn.primary{border-color:var(--coral);background:var(--coral);color:#fff;font-weight:650}
+  .btn.primary:hover{background:#cf4e37}
+
+  /* export state */
+  .scrim{position:absolute;inset:0;background:rgba(13,10,8,.44)}
+  .modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:790px;height:500px;border-radius:20px;background:var(--paper);border:1px solid rgba(90,70,50,.18);box-shadow:0 32px 100px rgba(0,0,0,.38);padding:24px 26px 20px;display:flex;flex-direction:column}
+  .modal-head{display:flex;justify-content:space-between;align-items:flex-start}
+  .modal h2{margin:4px 0 0;font-size:23px;letter-spacing:-.03em;font-weight:650}
+  .modal-sub{margin:4px 0 0;font-size:11.5px;color:var(--muted)}
+  .modal-body{display:grid;grid-template-columns:270px 1fr;gap:25px;margin-top:23px}
+  .preview-card{height:289px;padding:9px;border-radius:12px;background:#f6f2eb;align-self:start}
+  .preview-frame{height:250px;border-radius:7px;background:#fffdfa;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .preview-frame img{display:block;width:100%;height:100%;object-fit:contain}
+  .preview-caption{margin-top:8px;text-align:center;font-size:10px;color:var(--faint)}
+  .fields{display:flex;flex-direction:column;gap:13px}
+  .field-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:5px}
+  .format-tabs{height:30px;padding:3px;border-radius:9px;background:#eee7dd;display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+  .format-tab{height:24px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:11px;font-weight:650;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .format-tab.active{background:#fffdfa;color:var(--ink);box-shadow:0 1px 3px rgba(36,32,27,.08)}
+  .quality-head{display:flex;justify-content:space-between;align-items:baseline}
+  .quality-val{font-size:11px;color:var(--muted)}
+  .slider{position:relative;height:20px;margin-top:2px}
+  .slider-track{position:absolute;left:0;right:0;top:8px;height:4px;border-radius:2px;background:#ded5ca}
+  .slider-fill{position:absolute;left:0;top:8px;height:4px;width:76%;border-radius:2px;background:var(--coral)}
+  .slider-thumb{position:absolute;left:calc(76% - 7px);top:3px;width:14px;height:14px;border-radius:50%;background:var(--coral)}
+  .control{height:34px;border:1px solid #ded5ca;border-radius:8px;background:#fffdfa;padding:0 10px;color:#423c36;font-size:12px;display:flex;align-items:center}
+  .row{display:flex;gap:8px}.row .control:first-child{flex:1}.disabled{opacity:.45}
+  .check{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#5f574e}
+  .box{width:14px;height:14px;border-radius:3px;background:var(--coral);display:grid;place-items:center;color:#fff;font-size:10px}
+  .modal-foot{margin-top:auto;padding-top:14px;display:flex;justify-content:space-between;align-items:center}
+  .hint{font-size:10.5px;color:var(--faint)}
+  .modal-actions{display:flex;gap:8px}.modal-actions .btn{height:38px;min-width:118px}.modal-actions .primary{min-width:134px}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="app" id="app">
+    <img class="base" src="crop-done-export-v3-base.png" alt="">
+    <section class="panel" aria-label="编辑">
+      <div class="head">
+        <div>
+          <div class="eyebrow">NON-DESTRUCTIVE</div>
+          <h1>编辑</h1>
+          <p class="sub">修改只保留在本次会话，原文件不会被写入。</p>
+        </div>
+        <button class="x" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="body">
+        <div class="section">
+          <div class="section-head"><span class="section-label">变换</span><button class="reset">重置</button></div>
+          <div class="tools">
+            <button class="tool"><svg viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 2.3 6.7M4 4v6h6"/></svg>左旋</button>
+            <button class="tool"><svg viewBox="0 0 24 24"><path d="M20 10a8 8 0 1 0-2.3 6.7M20 4v6h-6"/></svg>右旋</button>
+            <button class="tool"><svg viewBox="0 0 24 24"><path d="M12 3v18M9 6 4 12l5 6V6ZM15 6l5 6-5 6V6Z"/></svg>水平翻转</button>
+            <button class="tool"><svg viewBox="0 0 24 24"><path d="M3 12h18M6 9l6-5 6 5H6ZM6 15l6 5 6-5H6Z"/></svg>垂直翻转</button>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-head"><span class="section-label">裁剪</span><button class="reset">重置裁剪</button></div>
+          <button class="crop-entry">裁剪</button>
+          <div class="ratios">
+            <button class="chip active">自由</button>
+            <button class="chip">原比例</button>
+            <button class="chip">1:1</button>
+            <button class="chip">4:3</button>
+            <button class="chip">16:9</button>
+          </div>
+          <div class="crop-meta">1440 × 810 · 自由</div>
+        </div>
+      </div>
+      <div class="foot">
+        <div class="safe"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>原图保持不变</div>
+        <div class="actions"><button class="btn">取消</button><button class="btn primary">导出副本…</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="export-state" hidden>
+    <div class="scrim"></div>
+    <div class="modal">
+      <div class="modal-head">
+        <div><div class="eyebrow">导出副本</div><h2>准备导出</h2><p class="modal-sub">会写入一个新文件，原图不会被修改。</p></div>
+        <button class="x" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-card"><div class="preview-frame"><img src="crop-demo-preview.jpg" alt="裁剪预览"></div><div class="preview-caption">1440 × 810 · cropped preview</div></div>
+        <div class="fields">
+          <div><div class="field-label">格式</div><div class="format-tabs"><button class="format-tab active">JPEG</button><button class="format-tab">PNG</button><button class="format-tab">WebP</button></div></div>
+          <div><div class="quality-head"><div class="field-label" style="margin:0">质量</div><div class="quality-val">90</div></div><div class="slider"><div class="slider-track"></div><div class="slider-fill"></div><div class="slider-thumb"></div></div></div>
+          <div><div class="field-label">调整尺寸</div><div class="row"><div class="control">原始像素 <span style="margin-left:auto;color:#9a9286">⌄</span></div><div class="control disabled" style="width:92px;justify-content:center">4096</div></div></div>
+          <div><div class="field-label">文件名</div><div class="control">Cosmic-Core-edited.jpg</div></div>
+          <div class="check"><span class="box">✓</span> 尽量保留 EXIF 和 ICC 元数据</div>
+        </div>
+      </div>
+      <div class="modal-foot"><div class="hint">JPEG · quality 90 · 原始像素</div><div class="modal-actions"><button class="btn">取消</button><button class="btn primary">导出副本…</button></div></div>
+    </div>
+  </div>
+</div>
+<script>
+  const state=new URLSearchParams(location.search).get('state')||'edit';
+  if(state==='export'){
+    document.getElementById('app').classList.add('blurred');
+    document.getElementById('export-state').hidden=false;
+  }
+</script>
+</body>
+</html>
