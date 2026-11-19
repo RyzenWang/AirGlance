@@ -143,6 +143,7 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 | `D` | 进入 / 退出双画布 |
 | `Tab` / `Shift+Tab` | 切换当前 A/B 画布 |
 | `X` | 交换双画布 |
+| `Shift+F10` / 右键 | 打开当前画布菜单（双画布） |
 | `Ctrl+C` | 复制图片（双画布下复制当前预览） |
 | `Ctrl+Shift+C` | 复制当前图片路径（单图模式） |
 | `Ctrl+Shift+S` | 另存副本（单图；双画布暂缓） |

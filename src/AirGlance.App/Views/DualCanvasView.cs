@@ -317,15 +317,15 @@ public sealed class DualCanvasView : UserControl, IDisposable
                 return true;
             case Key.D0:
             case Key.NumPad0:
-                Active.Viewer.SetZoomMode(ViewerZoomMode.FitWindow);
+                Active.Viewer.AnimateZoomMode(ViewerZoomMode.FitWindow);
                 return true;
             case Key.D1:
             case Key.NumPad1:
-                Active.Viewer.SetZoomMode(ViewerZoomMode.Actual);
+                Active.Viewer.AnimateZoomMode(ViewerZoomMode.Actual);
                 return true;
             case Key.D2:
             case Key.NumPad2:
-                Active.Viewer.SetZoomMode(ViewerZoomMode.FitWidth);
+                Active.Viewer.AnimateZoomMode(ViewerZoomMode.FitWidth);
                 return true;
             default:
                 return false;

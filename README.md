@@ -143,6 +143,7 @@ Mouse and trackpad:
 | `D` | Enter or leave dual view |
 | `Tab` / `Shift+Tab` | Switch the active A/B canvas |
 | `X` | Swap the two dual-view canvases |
+| `Shift+F10` / right-click | Open the active pane menu in dual view |
 | `Ctrl+C` | Copy the image (active preview in dual view) |
 | `Ctrl+Shift+C` | Copy the active image path (single view) |
 | `Ctrl+Shift+S` | Save a copy (single view; deferred in dual view) |
