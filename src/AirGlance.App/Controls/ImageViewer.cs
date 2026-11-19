@@ -39,6 +39,7 @@ public sealed class ImageViewer : Control
 {
     private const double MinimumZoom = 0.01;
     private const double MaximumZoom = 32.0;
+    private const double RegionTileZoomThreshold = 0.30;
     private const double PanMargin = 48;
 
     public static readonly StyledProperty<WriteableBitmap?> SourceProperty =
@@ -503,7 +504,9 @@ public sealed class ImageViewer : Control
 
         using (context.PushOpacity(opacity))
         {
-            if (_tiles is not null)
+            var useRegionTiles = _tiles is not null &&
+                                 layout.Zoom >= RegionTileZoomThreshold;
+            if (useRegionTiles)
             {
                 if (source is not null)
                 {

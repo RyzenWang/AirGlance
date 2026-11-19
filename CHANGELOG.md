@@ -10,8 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Large TIFF 100% viewing no longer stops on a blurry proxy or leaves the
-  region-loading prompt visible. A proxy upgrade that finishes after region mode
-  starts no longer replaces and clears the live tile source.
+  region-loading prompt visible. A proxy upgrade or viewport preview that finishes
+  after region mode starts no longer replaces and clears the live tile source.
+- Zooming back from 100% to fit no longer requests thousands of offscreen region
+  tiles or leaves the centered loading prompt on screen. Region tiles are only
+  drawn at region scale; the proxy is used below that threshold.
 
 ## [0.4.1] - 2026-11-19
 

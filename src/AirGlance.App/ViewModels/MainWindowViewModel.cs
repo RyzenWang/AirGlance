@@ -68,6 +68,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 {
     private const long TiledPixelThreshold = 40_000_000;
     private const int ProxyMaximumEdge = 8192;
+    private const double RegionActivationPercent = 30;
 
     private readonly AppServices _services;
     private readonly ImageLoadService _loader = new();
@@ -444,10 +445,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             if (_regionActive)
             {
+                if (percent < RegionActivationPercent)
+                {
+                    // We are back at a proxy-scale view. Tile work for the old
+                    // viewport may still be finishing; do not leave the centered
+                    // loading prompt on screen after leaving region scale.
+                    _regionLoading = false;
+                    ShowRegionLoading = false;
+                }
+
                 return;
             }
 
-            if (percent >= 30 && !_isRegionOpening)
+            if (percent >= RegionActivationPercent && !_isRegionOpening)
             {
                 _ = OpenRegionAsync();
                 return;
@@ -574,6 +584,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _isRegionOpening = true;
         _proxyCts?.Cancel();
+        _loadCts?.Cancel();
         var version = _loadVersion;
         try
         {
@@ -1042,6 +1053,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                     : await Task.Run(() => ImageTransform.Apply(full, currentEdit), cancellationToken);
             }
 
+            if (_regionActive)
+            {
+                return;
+            }
+
             _rawDecoded = full;
             _fullLoaded = true;
             Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
@@ -1078,6 +1094,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     {
         if (!_regionActive || _metadata is not { } metadata)
         {
+            return;
+        }
+
+        if (ZoomPercent < RegionActivationPercent)
+        {
+            _regionLoading = false;
+            ShowRegionLoading = false;
+            UpdateStatus(metadata);
             return;
         }
 
@@ -1741,6 +1765,13 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         {
             var decoded = await _loader.DecodePreviewAsync(path, width, height, cancellationToken);
             if (version != _loadVersion || !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            // A resize/reload can finish after region tiles were published.
+            // Replacing the viewer here would clear the tile source.
+            if (_regionActive)
             {
                 return;
             }
