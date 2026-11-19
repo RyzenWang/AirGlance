@@ -5,14 +5,6 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-
-- The shortcut panel now matches the current mouse and keyboard behavior:
-  wheel zoom, Shift+wheel panning, drag panning, animated zoom presets, and the
-  dual-view D/Tab/X/Shift+F10/right-click actions.
-
 ## [0.4.1] - 2026-11-19
 
 ### Added
@@ -26,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Project and documentation metadata now report 0.4.1.
+
+### Fixed
+
+- The shortcut panel now matches the current mouse and keyboard behavior:
+  wheel zoom, Shift+wheel panning, drag panning, animated zoom presets, and the
+  dual-view D/Tab/X/Shift+F10/right-click actions.
 
 ## [0.4.0] - 2026-11-18
 
