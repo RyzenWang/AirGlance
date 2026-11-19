@@ -16,7 +16,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - The right pane header reserves the window-control area and a fixed page-counter slot. Folder names are capped at 12 characters; file names are capped at 8 characters at the default width (14 wide), keep the extension, and show the full name on hover. The file chip is capped at 340 px, and nothing draws under the Maximize button.
 - Each canvas has its own previous/next capsule above the image. It targets only that canvas; the inactive pair is at 60% opacity but still clickable, and the pair is hidden when that canvas is empty or has one image.
 - The dual filmstrip is split 50/50: A's folder list on the left, B's folder list on the right, each scrolling and selecting independently. An empty half shows only its A/B badge, with no text or button; if both sides are empty the filmstrip is disabled. The information drawer has A/B tabs.
-- Fit window, fit width and 100% views; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit.
+- Fit window, fit width and 100% views with animated zoom transitions; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit.
 - Applies the EXIF orientation before the first pixel is shown, and converts embedded ICC profiles (Display P3, Adobe RGB) to sRGB for display.
 - Rotates and flips for display only. Save a copy as JPEG, PNG or WebP, or copy the image; the original file is never written.
 - Fullscreen, a 3 / 5 / 10 second slideshow, and an information panel with file, image, ICC and EXIF fields.

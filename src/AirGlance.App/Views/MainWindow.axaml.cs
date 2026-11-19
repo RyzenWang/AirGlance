@@ -498,7 +498,7 @@ public partial class MainWindow : Window
         dockRow.Children.Add(ZoomInButton);
 
         dockRow.Children.Add(CreateDockDivider());
-        FitButton = CreateToolButton("IconFit", "L.FitWindow", (_, _) => Viewer.SetZoomMode(ViewerZoomMode.FitWindow));
+        FitButton = CreateToolButton("IconFit", "L.FitWindow", (_, _) => Viewer.AnimateZoomMode(ViewerZoomMode.FitWindow));
         dockRow.Children.Add(FitButton);
 
         ActualButton = new Button
@@ -513,7 +513,7 @@ public partial class MainWindow : Window
         ((TextBlock)ActualButton.Content).Classes.Add("tool-text");
         ActualButton.Classes.Add("tool");
         ActualButton.Classes.Add("wide");
-        ActualButton.Click += (_, _) => Viewer.SetZoomMode(ViewerZoomMode.Actual);
+        ActualButton.Click += (_, _) => Viewer.AnimateZoomMode(ViewerZoomMode.Actual);
         dockRow.Children.Add(ActualButton);
 
         dockRow.Children.Add(CreateDockDivider());
@@ -1455,15 +1455,15 @@ public partial class MainWindow : Window
                     break;
                 case Key.D0:
                 case Key.NumPad0:
-                    Viewer.SetZoomMode(ViewerZoomMode.FitWindow);
+                    Viewer.AnimateZoomMode(ViewerZoomMode.FitWindow);
                     break;
                 case Key.D1:
                 case Key.NumPad1:
-                    Viewer.SetZoomMode(ViewerZoomMode.Actual);
+                    Viewer.AnimateZoomMode(ViewerZoomMode.Actual);
                     break;
                 case Key.D2:
                 case Key.NumPad2:
-                    Viewer.SetZoomMode(ViewerZoomMode.FitWidth);
+                    Viewer.AnimateZoomMode(ViewerZoomMode.FitWidth);
                     break;
                 case Key.R:
                     if (shift)

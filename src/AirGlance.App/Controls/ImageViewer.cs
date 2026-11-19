@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AirGlance.App.Imaging;
 using Avalonia;
 using Avalonia.Controls;
@@ -69,6 +70,8 @@ public sealed class ImageViewer : Control
 
     private readonly DispatcherTimer _fadeTimer;
     private readonly DispatcherTimer _animationTimer;
+    private readonly DispatcherTimer _zoomFallbackTimer;
+    private readonly Stopwatch _zoomClock = new();
     private DrawingBrush? _checkerBrush;
     private IBrush? _checkerBrushLight;
     private IBrush? _checkerBrushDark;
@@ -87,6 +90,15 @@ public sealed class ImageViewer : Control
     private TiledImageSource? _tiles;
     private AnimatedImage? _animation;
     private int _animationIndex;
+    private bool _zoomAnimating;
+    private double _zoomAnimFrom;
+    private double _zoomAnimTo;
+    private double _zoomAnimAnchorX;
+    private double _zoomAnimAnchorY;
+    private double _zoomAnimAnchorU;
+    private double _zoomAnimAnchorV;
+    private double _zoomAnimDurationMs;
+    private ViewerZoomMode _zoomAnimFinalMode;
 
     public ImageViewer()
     {
@@ -98,6 +110,11 @@ public sealed class ImageViewer : Control
         _fadeTimer.Tick += OnFadeTick;
         _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
         _animationTimer.Tick += OnAnimationTick;
+        _zoomFallbackTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(8)
+        };
+        _zoomFallbackTimer.Tick += OnZoomFallbackTick;
 
         AddHandler(Gestures.PinchEvent, OnPinch);
         AddHandler(Gestures.PinchEndedEvent, OnPinchEnded);
@@ -262,6 +279,7 @@ public sealed class ImageViewer : Control
     {
         ArgumentNullException.ThrowIfNull(animation);
         StopAnimation();
+        StopZoomAnimation();
 
         if (_tiles is not null)
         {
@@ -349,6 +367,7 @@ public sealed class ImageViewer : Control
 
     public void SetZoomMode(ViewerZoomMode mode, double? factor = null)
     {
+        StopZoomAnimation();
         if (_suppressZoomReset)
         {
             return;
@@ -375,15 +394,29 @@ public sealed class ImageViewer : Control
         ZoomAt(center, factor);
     }
 
+    public void AnimateZoomMode(ViewerZoomMode mode, Point? anchor = null, double durationMs = 260)
+    {
+        if (!HasImage || mode == ViewerZoomMode.Manual)
+        {
+            return;
+        }
+
+        var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
+        var targetAnchor = mode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitWidth
+            ? center
+            : anchor ?? center;
+        StartZoomAnimation(ZoomForMode(mode, null), targetAnchor, durationMs, mode);
+    }
+
     public void CycleZoomPreset()
     {
         if (ZoomMode is ViewerZoomMode.Actual or (ViewerZoomMode.Manual))
         {
-            SetZoomMode(ViewerZoomMode.FitWindow);
+            AnimateZoomMode(ViewerZoomMode.FitWindow);
         }
         else
         {
-            SetZoomMode(ViewerZoomMode.Actual);
+            AnimateZoomMode(ViewerZoomMode.Actual);
         }
     }
 
@@ -600,6 +633,7 @@ public sealed class ImageViewer : Control
             return;
         }
 
+        StopZoomAnimation();
         _isDragging = true;
         _dragStart = position;
         _dragPanX = _panX;
@@ -661,7 +695,8 @@ public sealed class ImageViewer : Control
             return;
         }
 
-        ZoomAt(pinch.ScaleOrigin, Math.Max(0.1, pinch.Scale));
+        StopZoomAnimation();
+        ZoomAt(pinch.ScaleOrigin, Math.Max(0.1, pinch.Scale), animate: false);
         pinch.Handled = true;
     }
 
@@ -674,29 +709,14 @@ public sealed class ImageViewer : Control
     {
         if (ZoomMode is ViewerZoomMode.Actual or ViewerZoomMode.Manual)
         {
-            SetZoomMode(ViewerZoomMode.FitWindow);
+            AnimateZoomMode(ViewerZoomMode.FitWindow, durationMs: 280);
             return;
         }
 
-        var old = CalculateLayout();
-        if (!old.IsValid)
-        {
-            return;
-        }
-
-        var u = Math.Clamp((position.X - old.Left) / old.ImageWidth, 0, 1);
-        var v = Math.Clamp((position.Y - old.Top) / old.ImageHeight, 0, 1);
-
-        ZoomMode = ViewerZoomMode.Actual;
-        var imageWidth = SourcePixelWidth * 1.0 / GetScaling();
-        var imageHeight = SourcePixelHeight * 1.0 / GetScaling();
-        _panX = position.X - u * imageWidth - (Bounds.Width / 2 - imageWidth / 2);
-        _panY = position.Y - v * imageHeight - (Bounds.Height / 2 - imageHeight / 2);
-        ClampPanIntoView();
-        AfterZoomChange();
+        AnimateZoomMode(ViewerZoomMode.Actual, position, 280);
     }
 
-    private void ZoomAt(Point anchor, double factor)
+    private void ZoomAt(Point anchor, double factor, bool animate = true)
     {
         if (!HasImage || factor <= 0)
         {
@@ -706,6 +726,14 @@ public sealed class ImageViewer : Control
         var old = CalculateLayout();
         if (!old.IsValid)
         {
+            return;
+        }
+
+        if (animate)
+        {
+            var baseZoom = _zoomAnimating ? _zoomAnimTo : old.Zoom;
+            var target = Math.Clamp(baseZoom * factor, MinimumZoom, MaximumZoom);
+            StartZoomAnimation(target, anchor, 130, ViewerZoomMode.Manual);
             return;
         }
 
@@ -731,6 +759,151 @@ public sealed class ImageViewer : Control
         _panY = anchor.Y - v * imageHeight - (Bounds.Height / 2 - imageHeight / 2);
         ClampPanIntoView();
         AfterZoomChange();
+    }
+
+    private double ZoomForMode(ViewerZoomMode mode, double? factor)
+    {
+        if (SourcePixelWidth <= 0 || SourcePixelHeight <= 0 || Bounds.Width <= 0 || Bounds.Height <= 0)
+        {
+            return ZoomFactor;
+        }
+
+        var scaling = GetScaling();
+        var zoom = mode switch
+        {
+            ViewerZoomMode.FitWindow => Math.Min(
+                1.0,
+                Math.Min(Bounds.Width * scaling / SourcePixelWidth, Bounds.Height * scaling / SourcePixelHeight)),
+            ViewerZoomMode.FitWidth => Math.Min(1.0, Bounds.Width * scaling / SourcePixelWidth),
+            ViewerZoomMode.Actual => 1.0,
+            _ => factor ?? ZoomFactor
+        };
+        return Math.Clamp(zoom, MinimumZoom, MaximumZoom);
+    }
+
+    private void StartZoomAnimation(
+        double targetZoom,
+        Point anchor,
+        double durationMs,
+        ViewerZoomMode finalMode)
+    {
+        if (!HasImage || Bounds.Width <= 0 || Bounds.Height <= 0)
+        {
+            return;
+        }
+
+        var current = CalculateLayout();
+        if (!current.IsValid || current.ImageWidth <= 0 || current.ImageHeight <= 0)
+        {
+            return;
+        }
+
+        targetZoom = Math.Clamp(targetZoom, MinimumZoom, MaximumZoom);
+        if (Math.Abs(targetZoom - current.Zoom) < 0.000001)
+        {
+            if (finalMode != ViewerZoomMode.Manual)
+            {
+                SetZoomMode(finalMode);
+            }
+
+            return;
+        }
+
+        var u = Math.Clamp((anchor.X - current.Left) / current.ImageWidth, 0, 1);
+        var v = Math.Clamp((anchor.Y - current.Top) / current.ImageHeight, 0, 1);
+
+        _zoomAnimFrom = current.Zoom;
+        _zoomAnimTo = targetZoom;
+        _zoomAnimAnchorX = anchor.X;
+        _zoomAnimAnchorY = anchor.Y;
+        _zoomAnimAnchorU = u;
+        _zoomAnimAnchorV = v;
+        _zoomAnimDurationMs = Math.Max(1, durationMs);
+        _zoomAnimFinalMode = finalMode;
+
+        _suppressZoomReset = true;
+        ZoomMode = ViewerZoomMode.Manual;
+        ZoomFactor = current.Zoom;
+        _suppressZoomReset = false;
+
+        var scaling = GetScaling();
+        var imageWidth = SourcePixelWidth * current.Zoom / scaling;
+        var imageHeight = SourcePixelHeight * current.Zoom / scaling;
+        _panX = anchor.X - u * imageWidth - (Bounds.Width / 2 - imageWidth / 2);
+        _panY = anchor.Y - v * imageHeight - (Bounds.Height / 2 - imageHeight / 2);
+        ClampPanIntoView();
+
+        _zoomClock.Restart();
+        _zoomAnimating = true;
+        _zoomFallbackTimer.Start();
+    }
+
+    private void OnZoomFallbackTick(object? sender, EventArgs e)
+    {
+        if (_zoomAnimating)
+        {
+            OnZoomAnimationFrame();
+        }
+    }
+
+    private void OnZoomAnimationFrame()
+    {
+        if (!_zoomAnimating || !HasImage)
+        {
+            StopZoomAnimation();
+            return;
+        }
+
+        var progress = Math.Clamp(_zoomClock.Elapsed.TotalMilliseconds / _zoomAnimDurationMs, 0, 1);
+        if (progress >= 1)
+        {
+            FinishZoomAnimation();
+            return;
+        }
+
+        var eased = 1 - Math.Pow(1 - progress, 3);
+        var zoom = _zoomAnimFrom * Math.Pow(_zoomAnimTo / _zoomAnimFrom, eased);
+        ZoomFactor = zoom;
+
+        var scaling = GetScaling();
+        var imageWidth = SourcePixelWidth * zoom / scaling;
+        var imageHeight = SourcePixelHeight * zoom / scaling;
+        _panX = _zoomAnimAnchorX - _zoomAnimAnchorU * imageWidth - (Bounds.Width / 2 - imageWidth / 2);
+        _panY = _zoomAnimAnchorY - _zoomAnimAnchorV * imageHeight - (Bounds.Height / 2 - imageHeight / 2);
+        ClampPanIntoView();
+        UpdateInterpolation();
+        InvalidateVisual();
+        RaiseZoomChanged();
+    }
+
+    private void FinishZoomAnimation()
+    {
+        _zoomAnimating = false;
+        _zoomFallbackTimer.Stop();
+
+        if (_zoomAnimFinalMode != ViewerZoomMode.Manual)
+        {
+            ZoomMode = _zoomAnimFinalMode;
+            if (_zoomAnimFinalMode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitWidth)
+            {
+                _panX = 0;
+                _panY = 0;
+            }
+        }
+        else
+        {
+            ZoomFactor = _zoomAnimTo;
+        }
+
+        UpdateInterpolation();
+        InvalidateVisual();
+        RaiseZoomChanged();
+    }
+
+    private void StopZoomAnimation()
+    {
+        _zoomAnimating = false;
+        _zoomFallbackTimer.Stop();
     }
 
     private void AfterZoomChange()
