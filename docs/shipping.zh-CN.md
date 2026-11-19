@@ -252,9 +252,8 @@ gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || tr
 MSIX 包仅用于 Microsoft Store 提交：
 
 - `AirGlance_0.4.1.0_x64.msix`
-- `AirGlance_0.4.1.0_arm64.msix`
 
-它们不是公开发布的资产。`store.yml` 按需构建它们，并将其作为工作流产物上传。
+首个 Store 提交仅提供 x64。arm64 等到 NetVips 提供 Windows ARM64 原生包后再加入。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
 
 ### 包标识和发布者
 
@@ -262,59 +261,39 @@ MSIX 包仅用于 Microsoft Store 提交：
 
 ```xml
 <Identity
-  Name="AirWorks.AirGlance"
-  Publisher="CN=AirWorks"
+  Name="RyzenWang.AirGlance"
+  Publisher="CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B"
   Version="0.4.1.0"
   ProcessorArchitecture="x64" />
 ```
 
-`Publisher` 值 `CN=AirWorks` 是占位符，必须替换。请使用 Partner Center 在 **账户设置 → 发布者配置文件**（Account settings → Publisher profile）中显示的准确发布者主体名称。包发布者、签名证书主体和 Partner Center 账户必须一致。若不一致，安装、WACK 或 Store 摄取都会失败。
+`Publisher` 值为 `CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B`，与 Partner Center 中准备的发布者身份一致。包发布者和 Store 账户必须一致。
 
-`Name` 同样是占位标识。请在 Partner Center 中预留 AirGlance 名称，并使用 Partner Center 分配的值。`DisplayName` 保持为 `AirGlance`，`PublisherDisplayName` 为 `AirWorks`。
+`Name` 为 `RyzenWang.AirGlance`；`DisplayName` 为 `AirGlance`，`PublisherDisplayName` 为 `RyzenWang`。
 
 清单还声明了：
 
 - `TargetDeviceFamily` 为 `Windows.Desktop`，`MinVersion="10.0.19041.0"`，`MaxVersionTested="10.0.26100.0"`；
 - `Application`，其 `Executable="AirGlance.exe"`，`EntryPoint="Windows.FullTrustApplication"`；
 - `runFullTrust` 受限功能；
-- 对 `.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif` 和 `.ico` 的文件关联；
+- 对 `.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.tif`、`.tiff`、`.avif` 和 `.svg` 的文件关联；
 - 来自 `packaging/msix/Assets` 的包、磁贴和 Store 徽标。
 
 清单不请求网络功能。它也没有遥测组件。
 
-清单中将最低 Windows 版本设为 Windows 10 版本 2004（内部版本 19041）。该值是清单声明，而非经过测量的兼容性矩阵；预期目标是 Windows 10/11 的 x64 和 arm64。
+清单中将最低 Windows 版本设为 Windows 10 版本 2004（内部版本 19041）。首个提交的目标是 Windows 10/11 x64。
 
 ### 签名
 
-Store MSIX 需要其主体与清单发布者匹配的代码签名证书。自签名证书在安装到受信任存储后可在测试机上使用，但它不是用于 Store 的发布者证书。提交前请替换占位符并使用真实证书。
+上传到 Microsoft Store 的包不需要开发者签名。Store 认证通过后会用 Microsoft 的证书重新签名。本地开发证书只用于在测试机上安装和验证。
 
-使用 Windows SDK 打包：
-
-```powershell
-makeappx.exe pack `
-  /d artifacts/msix/x64 `
-  /p AirGlance_0.4.1.0_x64.msix `
-  /o
-```
-
-签名并验证：
-
-```powershell
-signtool.exe sign /fd SHA256 /a `
-  /f publisher-certificate.pfx `
-  /p "<password>" `
-  AirGlance_0.4.1.0_x64.msix
-
-signtool.exe verify /pa /v AirGlance_0.4.1.0_x64.msix
-```
-
-生产签名中请使用时间戳服务器。不要提交 `.pfx` 或其密码。arm64 包请针对其架构单独构建和签名。
+Microsoft 的 [Store readiness checklist](https://learn.microsoft.com/en-us/windows/apps/publish/store-readiness-checklist) 明确说明 Store 分发不需要自己的代码签名证书。本地 WACK/安装测试可使用 subject 精确为 `CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B` 的自签名证书，或在 Windows 11 使用 `Add-AppxPackage -AllowUnsigned`。自签名包不要对外分发。
 
 ### WACK
 
 `packaging/msix/README.md` 和 `.github/workflows/store.yml` 使用 WACK 的命令行形式。请在干净的 Windows 10/11 虚拟机上以管理员身份运行：
 
-1. 在信任其证书后，在测试虚拟机上安装已签名的 MSIX，或使用你常用的签名包流程。
+1. 在测试虚拟机上用与 manifest Publisher 完全一致的自签名证书安装 MSIX，或使用 Windows 11 的 `Add-AppxPackage -AllowUnsigned`。
 2. 启动 AirGlance 一次，然后关闭它。
 3. 重置并运行 WACK：
 
@@ -331,7 +310,7 @@ $appcert = Get-ChildItem `
 ```
 
 4. 查看 `wack-x64.xml` 和 WACK 日志。修复所有会阻止 Store 认证的失败或警告。
-5. 在 arm64 Windows 上对 arm64 包重复上述步骤。
+
 
 `store.yml` 会对未签名包运行 WACK 作为信息性预检，并上传报告。对于未签名包，与签名相关的失败是预期之中的。有意义的 WACK 通过需要受信任的已签名包，而 0.4.1 没有记录到任何已签名包或通过的 WACK 报告。
 
@@ -342,7 +321,7 @@ $appcert = Get-ChildItem `
 | 上架字段 | 值 |
 | --- | --- |
 | 产品名称 | AirGlance |
-| 发布者 | AirWorks |
+| 发布者 | RyzenWang |
 | 类别 | 照片与视频 (Photos & video) |
 | 价格 | 免费 |
 | 试用 / 应用内购买 / 广告 | 无 |

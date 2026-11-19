@@ -24,6 +24,55 @@ HarfBuzzSharp is a transitive dependency of SkiaSharp. Its native HarfBuzz libra
 
 SkiaSharp and HarfBuzzSharp ship native binaries for each supported platform. Those binaries include Skia (BSD-3-Clause, [google/skia](https://github.com/google/skia)) and HarfBuzz (MIT, [harfbuzz/harfbuzz](https://github.com/harfbuzz/harfbuzz)). The .NET runtime and Avalonia native assets carry their own notices from their projects.
 
+## NetVips and the libvips native payload
+
+| Component | Version | License | Project and license |
+| --- | --- | --- | --- |
+| NetVips | 3.2.0 | MIT | [kleisauke/net-vips](https://github.com/kleisauke/net-vips), [LICENSE](https://github.com/kleisauke/net-vips/blob/master/LICENSE) |
+| NetVips.Native.win-x64 (libvips) | 8.18.7 | LGPL-3.0-or-later | [libvips](https://github.com/libvips/libvips), [COPYING](https://github.com/libvips/libvips/blob/master/COPYING) |
+
+The Windows native package bundles libvips and its codec dependencies. The
+upstream package lists these components:
+
+| Library | License |
+| --- | --- |
+| aom | BSD 2-Clause + Alliance for Open Media Patent License 1.0 |
+| cairo | Mozilla Public License 1.1 |
+| cgif | MIT |
+| expat | MIT |
+| fontconfig | fontconfig License (BSD-like) |
+| freetype | freetype License (BSD-like) |
+| fribidi | LGPLv3 |
+| glib | LGPLv3 |
+| harfbuzz | MIT |
+| highway | BSD 3-Clause |
+| lcms | MIT |
+| libarchive | BSD 2-Clause |
+| libexif | LGPLv3 |
+| libffi | MIT |
+| libheif | LGPLv3 |
+| libimagequant | BSD 2-Clause |
+| libnsgif | MIT |
+| libpng | libpng License |
+| librsvg | LGPLv3 |
+| libtiff | libtiff License (BSD-like) |
+| libultrahdr | MIT |
+| libvips | LGPLv3 |
+| libwebp | New BSD License |
+| libxml2 | MIT |
+| mozjpeg | zlib License, IJG License, BSD 3-Clause |
+| pango | LGPLv3 |
+| pixman | MIT |
+| proxy-libintl | LGPLv3 |
+| zlib-ng | zlib License |
+
+Source and license information:
+[NetVips.Native notices](https://github.com/kleisauke/net-vips-native/blob/main/THIRD-PARTY-NOTICES.md)
+and [libvips packaging](https://github.com/kleisauke/libvips-packaging).
+The LGPL components are dynamically linked from `libvips-42.dll`; the
+corresponding source is available from the upstream projects and the packaged
+libvips build. No third-party source is modified by this repository.
+
 ## Test-only dependencies
 
 These packages are used by the test projects and are not part of the application binaries.

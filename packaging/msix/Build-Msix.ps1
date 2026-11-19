@@ -4,9 +4,10 @@
     Stages a published AirGlance build and packs an unsigned MSIX with MakeAppx.exe.
 
 .DESCRIPTION
-    The package is deliberately not signed. A real certificate whose subject matches
-    the manifest Publisher is required before the package can be installed or sent to
-    Partner Center. This script never creates or invents a certificate or signature.
+    The package is deliberately not signed. Microsoft Store accepts an unsigned
+    upload and re-signs the approved package. A certificate whose subject matches
+    the manifest Publisher is only needed for local install/WACK testing. This
+    script never creates or invents a certificate or signature.
 
 .PARAMETER Version
     Application version. It is normalized to the four-part MSIX version, for example
@@ -30,7 +31,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "0.1.0",
+    [string]$Version = "0.4.1",
 
     [ValidateSet("x64", "arm64")]
     [string]$Architecture = "x64",
@@ -211,6 +212,15 @@ try {
         Copy-Item -LiteralPath $asset.FullName -Destination $stagingAssets -Recurse -Force
     }
 
+    # Keep the licence and the up-to-date libvips/NetVips notices in the package
+    # even when the publish directory was produced before the notices changed.
+    foreach ($noticeName in @("LICENSE", "THIRD-PARTY-NOTICES.md")) {
+        $noticeSource = Join-Path $repoRoot $noticeName
+        if (Test-Path -LiteralPath $noticeSource -PathType Leaf) {
+            Copy-Item -LiteralPath $noticeSource -Destination (Join-Path $staging $noticeName) -Force
+        }
+    }
+
     Copy-Item -LiteralPath $manifestSource -Destination $stagedManifest -Force
 
     [xml]$manifest = Get-Content -LiteralPath $stagedManifest -Raw
@@ -262,4 +272,4 @@ Write-Host ""
 Write-Host "MSIX created (unsigned): $packagePath"
 Write-Host "Size: $sizeMb MB"
 Write-Host "SHA256: $hash"
-Write-Host "Sign it with a trusted certificate whose subject matches the manifest Publisher before installing or submitting it."
+Write-Host "Upload this unsigned package to Partner Center; Store certification signs it. Use a self-signed test certificate only for local install/WACK."

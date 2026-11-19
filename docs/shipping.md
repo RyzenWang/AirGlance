@@ -40,7 +40,7 @@ Two further gaps are recorded rather than claimed as passing:
 
 - Clipboard image copy was checked on Windows x64 with an unmodified PNG and JPEG. The Windows clipboard contained `image/png` or `image/jpeg` alongside `CF_DIB`, `CF_DIBV5`, `CF_BITMAP` and a bitmap payload. The copy-path action and pasting the original bytes into a second application were not separately exercised.
 - Windows display scaling at 125%, 150% and 200% was not tested. The reference machine runs at 100% (96 DPI); text clipping at higher scaling is unverified.
-- No WACK pass or Store installation has been recorded for 0.4.1. The MSIX packages are unsigned.
+- No WACK pass or Store installation has been recorded for 0.4.1. The MSIX package is unsigned and prepared for Store upload.
 
 The macOS and arm64 archives remain published because they are useful for testing, but treat them as unverified until someone runs them on that platform.
 
@@ -252,9 +252,9 @@ For a system-wide install, use `/usr/local/bin/AirGlance`, `/usr/share/applicati
 The MSIX packages are only for the Microsoft Store submission:
 
 - `AirGlance_0.4.1.0_x64.msix`
-- `AirGlance_0.4.1.0_arm64.msix`
 
-They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
+The Store package is x64-only for the first submission. ARM64 is deferred until
+the NetVips native payload supports Windows ARM64. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
 
 ### Package identity and publisher
 
@@ -262,53 +262,42 @@ They are not public release assets. `store.yml` builds them on demand and upload
 
 ```xml
 <Identity
-  Name="AirWorks.AirGlance"
-  Publisher="CN=AirWorks"
+  Name="RyzenWang.AirGlance"
+  Publisher="CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B"
   Version="0.4.1.0"
   ProcessorArchitecture="x64" />
 ```
 
-The `Publisher` value `CN=AirWorks` is a placeholder and must be replaced. Use the exact publisher subject shown in Partner Center at **Account settings → Publisher profile**. The package publisher, the signing certificate subject and the Partner Center account must agree. If they do not, installation, WACK or Store ingestion fails.
+The `Publisher` value `CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B` is the exact publisher identity prepared in Partner Center. The package publisher and the Store account must agree.
 
-`Name` is a placeholder identity too. Reserve the AirGlance name in Partner Center and use the value Partner Center assigns. `DisplayName` remains `AirGlance` and `PublisherDisplayName` is `AirWorks`.
+`Name` is `RyzenWang.AirGlance`; `DisplayName` is `AirGlance` and `PublisherDisplayName` is `RyzenWang`.
 
 The manifest also declares:
 
 - `TargetDeviceFamily` `Windows.Desktop` with `MinVersion="10.0.19041.0"` and `MaxVersionTested="10.0.26100.0"`;
 - `Application` with `Executable="AirGlance.exe"` and `EntryPoint="Windows.FullTrustApplication"`;
 - the `runFullTrust` restricted capability;
-- file associations for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif` and `.ico`;
+- file associations for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif`, `.ico`, `.tif`, `.tiff`, `.avif` and `.svg`;
 - the package, tile and Store logos from `packaging/msix/Assets`.
 
 The manifest does not request network capabilities. It also has no telemetry component.
 
-The minimum Windows version is set in the manifest to Windows 10 version 2004 (build 19041). That value is a manifest declaration, not a measured compatibility matrix; Windows 10/11 x64 and arm64 are the intended targets.
+The minimum Windows version is set in the manifest to Windows 10 version 2004 (build 19041). That value is a manifest declaration, not a measured compatibility matrix; Windows 10/11 x64 is the intended Store target.
 
 ### Signing
 
-A Store MSIX needs a code-signing certificate whose subject matches the manifest publisher. A self-signed certificate can be used on a test machine after installing it in the trusted store, but it is not a publisher certificate for the Store. Replace the placeholder and use a real certificate before submission.
+A package uploaded to Microsoft Store does not need a developer signature. Store
+certification signs the approved package with Microsoft's certificate. The local
+development certificate is only for installing and testing the package on a test
+machine.
 
-Pack with the Windows SDK:
+Microsoft's [Store readiness checklist](https://learn.microsoft.com/en-us/windows/apps/publish/store-readiness-checklist)
+states that no code-signing certificate is needed for Store distribution. See
+also the [unsigned MSIX guidance](https://learn.microsoft.com/en-us/answers/questions/3935727/i-have-an-unsigned-app-msix-file-it-has-been-submi).
 
-```powershell
-makeappx.exe pack `
-  /d artifacts/msix/x64 `
-  /p AirGlance_0.4.1.0_x64.msix `
-  /o
-```
-
-Sign and verify:
-
-```powershell
-signtool.exe sign /fd SHA256 /a `
-  /f publisher-certificate.pfx `
-  /p "<password>" `
-  AirGlance_0.4.1.0_x64.msix
-
-signtool.exe verify /pa /v AirGlance_0.4.1.0_x64.msix
-```
-
-Use a timestamp server in a production signature. Do not commit the `.pfx` or its password. Build and sign the arm64 package separately for its architecture.
+For local install/WACK testing, use a self-signed certificate whose subject is
+exactly `CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B`, or Windows 11's
+`Add-AppxPackage -AllowUnsigned` path. Do not distribute the self-signed package.
 
 ### WACK
 
@@ -331,9 +320,9 @@ $appcert = Get-ChildItem `
 ```
 
 4. Review `wack-x64.xml` and the WACK logs. Fix every failure or warning that blocks Store certification.
-5. Repeat for the arm64 package on arm64 Windows.
-
-`store.yml` runs WACK against the unsigned packages as an informational preflight and uploads the reports. Signature-related failures are expected for unsigned packages. A meaningful WACK pass requires a trusted signed package, and no signed package or passing WACK report is recorded for 0.4.1.
+`store.yml` runs WACK against the unsigned x64 package as an informational
+preflight and uploads the report. Signature-related failures are expected for
+unsigned packages; Store certification performs the authoritative checks.
 
 ## Store listing
 
@@ -342,7 +331,7 @@ Submit through Partner Center as an MSIX desktop package.
 | Listing field | Value |
 | --- | --- |
 | Product name | AirGlance |
-| Publisher | AirWorks |
+| Publisher | RyzenWang |
 | Category | 照片与视频 (Photos & video) |
 | Price | Free |
 | Trial / in-app purchases / ads | None |
@@ -355,13 +344,13 @@ The listing needs:
 - a public privacy policy URL. Even though the app collects nothing, the Store requires a policy. State that settings and thumbnails stay on the device and that no personal data is collected or transmitted;
 - at least one desktop screenshot, 1366 × 768 or larger, showing the viewer, filmstrip, info panel and settings;
 - the package, tile and Store logos already under `packaging/msix/Assets`;
-- system requirements: Windows 10/11, x64 or arm64. Memory depends on the image; 100 MP at 100 percent needs a large full-resolution decode;
+- system requirements: Windows 10/11 x64. Memory depends on the image; 100 MP at 100 percent needs a large full-resolution decode;
 - an age rating questionnaire. AirGlance has no user-generated content, accounts, ads or network features;
 - certification notes: local image viewer, full-trust desktop package, no network calls, no telemetry, supported formats and known limitations.
 
 The category is selected in Partner Center. Use **照片与视频** for the Chinese listing; the English Store UI shows the corresponding Photos & video category.
 
-The listing, screenshots, privacy policy and submission are not complete for 0.4.1.
+The listing, screenshots, privacy policy and submission still need to be completed in Partner Center.
 
 ## No network and no telemetry
 

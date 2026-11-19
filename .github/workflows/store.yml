@@ -10,7 +10,7 @@ env:
   DOTNET_NOLOGO: "true"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
   # Bump this for each Store submission. Build-Msix.ps1 normalizes it to four parts.
-  VERSION: "0.1.0"
+  VERSION: "0.4.1"
 
 jobs:
   msix:
@@ -39,9 +39,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
+          # Store submission is x64-only until NetVips ships a Windows ARM64
+          # native payload. The x64 package uses the complete AVIF/large-TIFF
+          # feature set; do not upload an arm64 package with missing codecs.
           $targets = @(
-            [pscustomobject]@{ Architecture = "x64"; Runtime = "win-x64" },
-            [pscustomobject]@{ Architecture = "arm64"; Runtime = "win-arm64" }
+            [pscustomobject]@{ Architecture = "x64"; Runtime = "win-x64" }
           )
 
           foreach ($target in $targets) {

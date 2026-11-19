@@ -1,7 +1,7 @@
 # AirGlance MSIX packaging
 
 This directory contains the Desktop Bridge (full-trust) MSIX manifest and the
-`Build-Msix.ps1` helper for AirGlance 0.1. The package uses the Windows desktop
+`Build-Msix.ps1` helper for AirGlance 0.4.1. The package uses the Windows desktop
 application model: it executes the normal `AirGlance.exe` with the
 `Windows.FullTrustApplication` entry point and declares the `runFullTrust`
 restricted capability.
@@ -35,7 +35,7 @@ Then pack:
 
 ```powershell
 pwsh -File ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.3.0 `
+  -Version 0.4.1 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
@@ -56,25 +56,24 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_0.3.0.0_x64.msix`. Use `-Architecture arm64`
-with an arm64 publish directory for the arm64 package.
+example `artifacts/msix/AirGlance_0.4.1.0_x64.msix`. The Store submission is x64-only until an ARM64 NetVips payload exists.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.
 
 ## Manifest notes
 
-- `Publisher="CN=AirWorks"` is a **placeholder**. For a real package the
-  publisher must exactly match the subject of the code-signing certificate and
-  the identity reserved in Partner Center. Update the manifest (and re-sign)
-  before distributing or submitting it.
-- `Name="AirWorks.AirGlance"` is also a placeholder identity. Partner Center may
-  assign a different package/identity name when the product name is reserved.
+- `Publisher="CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B"` is the exact Partner
+  Center publisher identity. The package is uploaded unsigned; Store
+  certification re-signs it with Microsoft's certificate.
+- `Name="RyzenWang.AirGlance"` and `PublisherDisplayName="RyzenWang"` are the
+  reserved Store identity values.
 - The package logo (`StoreLogo.png`) is declared as `Properties/Logo`. The Appx
   schema has no `StoreLogo` attribute on `uap:VisualElements`; that element uses
   `Square150x150Logo` and `Square44x44Logo`, which are also declared.
 - The manifest registers `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`,
-  `.gif`, and `.ico` through `windows.fileTypeAssociation`. Registration makes
+  `.gif`, `.ico`, `.tif`, `.tiff`, `.avif`, and `.svg` through
+  `windows.fileTypeAssociation`. Registration makes
   AirGlance available in "Open with"; Windows does not make it the default
   silently. The user remains in control of default apps.
 - The minimum tested target is Windows 10 version 2004 (build 19041).
@@ -91,11 +90,11 @@ cannot pass until a trusted signing certificate is installed.
 
 A meaningful self-test therefore needs a signed package:
 
-1. Sign `AirGlance_0.3.0.0_x64.msix` with the organization's code-signing
+1. Sign a copy of `AirGlance_0.4.1.0_x64.msix` with a local test certificate
    certificate. The certificate subject must match the manifest `Publisher`.
    Do not use an untrusted certificate for a Store submission.
 2. On a clean Windows 10/11 test VM, trust that certificate and install the
-   package, or install it through your normal signed-package process.
+   whose subject exactly matches the manifest Publisher, then install the copy.
 3. Run WACK as administrator:
 
    ```powershell
@@ -111,7 +110,7 @@ A meaningful self-test therefore needs a signed package:
    ```
 
 4. Review `wack-x64.xml` (and the WACK logs if a test fails) before submitting.
-   Repeat for arm64 on arm64 hardware.
+
 
 WACK can inspect a package path, but a full test depends on a trusted signature
 and a working installed app. The Store workflow in `.github/workflows/store.yml`
@@ -124,14 +123,13 @@ review; it deliberately does not make an unsigned package's WACK result a gate.
   package identity values into `AppxManifest.xml`. In particular, the publisher
   in the manifest, the publisher in the signing certificate, and the publisher
   in the Partner Center account must match.
-- Build and sign both `x64` and `arm64` packages, bump the four-part package
-  version for every submission, and upload the signed `.msix` files (or a signed
-  bundle made from them).
+- Build the x64 package, bump the four-part package version for every submission,
+  and upload the unsigned `.msix`. Microsoft Store re-signs approved packages.
+  ARM64 is deferred until the NetVips native payload supports it.
 - A full-trust package uses the restricted `runFullTrust` capability. Be ready
   to explain the functionality that requires full trust if the Store asks.
 - The release workflow publishes portable archives only. It intentionally never
-  publishes an MSIX and never submits anything to Partner Center. Store upload
-  remains a manual action after a signed, WACK-reviewed build.
+  publishes an MSIX and never submits anything to Partner Center. Store upload remains a manual action after a Store-ready build.
 
 ## Why the portable Windows build is unsigned in 0.1
 
@@ -143,6 +141,6 @@ build unsigned and documents the consequence: Windows SmartScreen may warn on
 first launch. The published SHA256SUMS file can confirm that a download matches
 the released bytes, but a hash is not a publisher signature.
 
-MSIX builds are unsigned for the same reason. A correct signature must be
-created by the release owner after the placeholder publisher is replaced; the
-packaging scripts never fabricate one.
+MSIX builds are uploaded unsigned for Store distribution. A self-signed
+development certificate is needed only for local install/WACK testing; the
+packaging scripts never fabricate a publisher certificate.
