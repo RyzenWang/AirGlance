@@ -981,7 +981,7 @@ public partial class MainWindow : Window
         DragOverlay.IsVisible = _viewModel.IsDragOver;
 
         CanvasBorder.Padding = _cropMode
-            ? new Thickness(32, 32, 32, 150)
+            ? new Thickness(32, 80, 32, 150)
             : _viewModel.IsFullscreen
                 ? new Thickness(0)
                 : new Thickness(56, 42, 56, 58);
