@@ -146,6 +146,10 @@
         <StackPanel Spacing="8">
           <TextBlock Classes="sectionLabel" Text="{DynamicResource L.ShortcutGroupEdit}" />
           <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl+E" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutEdit}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
             <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="R / Shift+R" /></Border>
             <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutRotate}" VerticalAlignment="Center" TextWrapping="Wrap" />
           </Grid>

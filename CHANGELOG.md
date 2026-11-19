@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Non-destructive Edit drawer for rotate, flip and crop. The original file is
+  never modified; Cancel restores the previous view and Reset clears the session.
+- Export copy dialog with JPEG/PNG/WebP, quality, original/long-edge/fit-within
+  resizing, filename and folder selection, and EXIF/ICC preservation through
+  libvips where available. A managed Skia fallback keeps export working for the
+  remaining formats.
+- Interactive crop overlay with eight handles, free and fixed aspect ratios,
+  rule-of-thirds guides, and normalized source coordinates so the export matches
+  the on-screen frame.
+- Edit entry in the dock immediately left of Fullscreen, plus Ctrl+E. Editing is
+  disabled for proxy-only images, tiled images and dual view.
+
 ### Fixed
 
 - Large TIFF 100% viewing no longer stops on a blurry proxy or leaves the

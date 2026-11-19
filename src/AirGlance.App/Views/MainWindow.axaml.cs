@@ -3,8 +3,8 @@ using System.Diagnostics;
 using AirGlance.App.Controls;
 using AirGlance.App.Services;
 using AirGlance.App.ViewModels;
-using AirGlance.Core.Files;
 using AirGlance.Core.Imaging;
+using AirGlance.Core.Files;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -40,6 +40,9 @@ public partial class MainWindow : Window
     private bool _cursorHidden;
     private bool _chromeVisible = true;
     private bool _dualMode;
+    private bool _cropActive = true;
+    private bool _cropDragging;
+    private string _cropAspect = "free";
     private DualCanvasView? _dualView;
     private Grid _root = null!;
 
@@ -54,6 +57,8 @@ public partial class MainWindow : Window
     private Grid NextHost = null!;
     private Border InfoHost = null!;
     private Border FilmstripHost = null!;
+    private EditPanelView EditPanel = null!;
+    private CropOverlay CropControl = null!;
     private ContentControl InfoContentHost = null!;
     private Border EmptyCard = null!;
     private Border LoadingChip = null!;
@@ -85,6 +90,7 @@ public partial class MainWindow : Window
     private Button FitButton = null!;
     private Button ActualButton = null!;
     private Button RotateButton = null!;
+    private Button EditButton = null!;
     private Button InfoToggle = null!;
     private Button FilmstripToggle = null!;
     private Button DualViewButton = null!;
@@ -210,6 +216,11 @@ public partial class MainWindow : Window
         Viewer.ViewportChanged += OnViewerViewportChanged;
         canvasGrid.Children.Add(Viewer);
 
+        CropControl = new CropOverlay(Viewer);
+        CropControl.SetValue(Panel.ZIndexProperty, 20);
+        CropControl.CropChanged += OnCropChanged;
+        canvasGrid.Children.Add(CropControl);
+
         TileLoadingChip = new Border
         {
             IsVisible = false,
@@ -238,6 +249,18 @@ public partial class MainWindow : Window
         canvasGrid.Children.Add(LoadingChip);
 
         CanvasBorder.Child = canvasGrid;
+        CanvasBorder.AddHandler(
+            PointerPressedEvent,
+            OnCropCanvasPointerPressed,
+            RoutingStrategies.Tunnel);
+        CanvasBorder.AddHandler(
+            PointerMovedEvent,
+            OnCropCanvasPointerMoved,
+            RoutingStrategies.Tunnel);
+        CanvasBorder.AddHandler(
+            PointerReleasedEvent,
+            OnCropCanvasPointerReleased,
+            RoutingStrategies.Tunnel);
         root.Children.Add(CanvasBorder);
 
         // Empty / error card.
@@ -539,6 +562,8 @@ public partial class MainWindow : Window
         dockRow.Children.Add(SlideshowButton);
 
         dockRow.Children.Add(CreateDockDivider());
+        EditButton = CreateToolButton("IconEdit", "L.EditHint", OnEditClick);
+        dockRow.Children.Add(EditButton);
         FullscreenButton = CreateToolButton("IconFullscreen", "L.Fullscreen", OnFullscreenClick);
         dockRow.Children.Add(FullscreenButton);
 
@@ -597,6 +622,20 @@ public partial class MainWindow : Window
         infoGrid.Children.Add(InfoContentHost);
         InfoHost.Child = infoGrid;
         root.Children.Add(InfoHost);
+
+        EditPanel = new EditPanelView(_services.Localization)
+        {
+            IsVisible = false
+        };
+        EditPanel.CloseRequested += OnEditCloseRequested;
+        EditPanel.CancelRequested += OnEditCloseRequested;
+        EditPanel.ExportRequested += OnEditExportRequested;
+        EditPanel.ResetRequested += OnEditResetRequested;
+        EditPanel.ResetCropRequested += OnEditResetCropRequested;
+        EditPanel.TransformRequested += OnEditTransformRequested;
+        EditPanel.CropAspectRequested += OnEditCropAspectRequested;
+        EditPanel.CropOverlayChanged += OnEditCropOverlayChanged;
+        root.Children.Add(EditPanel);
 
         // Transient toast.
         ToastBorder = new Border { IsVisible = false };
@@ -755,6 +794,7 @@ public partial class MainWindow : Window
         ApplyTool(FitButton, "L.FitWindow");
         ApplyTool(ActualButton, "L.ActualSize");
         ApplyTool(RotateButton, "L.RotateClockwise");
+        ApplyTool(EditButton, "L.EditHint");
         ApplyTool(InfoToggle, "L.InfoPanel");
         ApplyTool(FilmstripToggle, "L.Filmstrip");
         ApplyTool(DualViewButton, "L.DualView");
@@ -763,6 +803,7 @@ public partial class MainWindow : Window
         ApplyTool(SettingsButton, "L.Settings");
         ApplyTool(PrevButton, "L.PreviousImage");
         ApplyTool(NextButton, "L.NextImage");
+        EditPanel.ApplyLanguage();
 
         InfoTitleText.Text = _services.Localization.T("L.InfoPanelShort");
         FullscreenText.Text = _services.Localization.T("L.FullscreenHint");
@@ -835,6 +876,27 @@ public partial class MainWindow : Window
         InfoHost.Margin = _viewModel.FilmstripShown
             ? new Thickness(0, 82, 22, 150)
             : new Thickness(0, 82, 22, 92);
+        EditPanel.IsVisible = _viewModel.IsEditing;
+        EditPanel.Margin = _viewModel.FilmstripShown
+            ? new Thickness(0, 82, 22, 150)
+            : new Thickness(0, 82, 22, 92);
+        CropControl.IsActive = _viewModel.IsEditing && _cropActive;
+        if (_viewModel.IsEditing && !_cropDragging && CropControl.Crop != _viewModel.Crop)
+        {
+            CropControl.SetCrop(_viewModel.Crop);
+            UpdateCropUi();
+        }
+
+        EditButton.IsEnabled = _viewModel.HasImage && !_dualMode && _viewModel.CanEdit;
+        EditButton.Classes.Set("active", _viewModel.IsEditing);
+        var editTip = _dualMode
+            ? _services.Localization.T("L.EditDualUnavailable")
+            : _viewModel.IsProxyOnly
+                ? _services.Localization.T("L.EditNeedsFullResolution")
+                : _viewModel.IsTiled
+                    ? _services.Localization.T("L.EditUnavailable")
+                    : _services.Localization.T("L.EditHint");
+        ToolTip.SetTip(EditButton, editTip);
         FilmstripHost.IsVisible = _viewModel.FilmstripShown;
         Dock.IsVisible = !_viewModel.OverlayVisible;
         Dock.Margin = _viewModel.FilmstripShown
@@ -1080,11 +1142,13 @@ public partial class MainWindow : Window
     private void OnViewerZoomChanged(object? sender, ZoomChangedEventArgs e)
     {
         _viewModel.OnZoomChanged(e.Percent);
+        CropControl.InvalidateVisual();
     }
 
     private void OnViewerViewportChanged(object? sender, ViewportChangedEventArgs e)
     {
         _viewModel.SetViewport(e.PixelWidth, e.PixelHeight);
+        CropControl.InvalidateVisual();
     }
 
     private void OnFirstFramePresented(object? sender, EventArgs e)
@@ -1155,6 +1219,11 @@ public partial class MainWindow : Window
         if (_dualMode)
         {
             return;
+        }
+
+        if (_viewModel.IsEditing)
+        {
+            await CloseEditAsync();
         }
 
         if (_dualView is null)
@@ -1416,6 +1485,9 @@ public partial class MainWindow : Window
                     case Key.S when shift:
                         await SaveCopyAsync();
                         break;
+                    case Key.E:
+                        OnEditClick(this, new RoutedEventArgs());
+                        break;
                     case Key.L when shift:
                         ToggleLanguage();
                         break;
@@ -1487,6 +1559,12 @@ public partial class MainWindow : Window
                     ToggleFullscreen();
                     break;
                 case Key.Escape:
+                    if (_viewModel.IsEditing)
+                    {
+                        await CloseEditAsync();
+                        break;
+                    }
+
                     if (_isFullscreen)
                     {
                         ExitFullscreen();
@@ -1833,6 +1911,201 @@ public partial class MainWindow : Window
         ShowChrome();
     }
 
+    private async void OnEditClick(object? sender, RoutedEventArgs e)
+    {
+        if (_dualMode)
+        {
+            _viewModel.ShowMessage(_services.Localization.T("L.EditDualUnavailable"));
+            return;
+        }
+
+        if (_viewModel.IsEditing)
+        {
+            await CloseEditAsync();
+            return;
+        }
+
+        if (!_viewModel.HasImage)
+        {
+            _viewModel.ShowMessage(_services.Localization.T("L.EditNoImage"));
+            return;
+        }
+
+        if (!_viewModel.BeginEdit())
+        {
+            return;
+        }
+
+
+        EnsurePanels();
+        if (_viewModel.InfoVisible)
+        {
+            _viewModel.ToggleInfo();
+        }
+
+        _cropActive = false;
+        _cropAspect = "free";
+        CropControl.Reset();
+        CropControl.AspectRatio = null;
+        CropControl.IsActive = false;
+        EditPanel.SetCropOverlay(false);
+        EditPanel.SetActiveRatio("free");
+        _viewModel.SetCrop(CropRegion.Full);
+        UpdateCropUi();
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private async void OnEditCloseRequested(object? sender, EventArgs e) =>
+        await CloseEditAsync();
+
+    private async void OnEditResetRequested(object? sender, EventArgs e)
+    {
+        await _viewModel.ResetEditAsync();
+        CropControl.Reset();
+        CropControl.AspectRatio = null;
+        _cropAspect = "free";
+        EditPanel.SetActiveRatio("free");
+        _viewModel.SetCrop(CropRegion.Full);
+        UpdateCropUi();
+        ApplyViewModelState();
+    }
+
+    private void OnEditResetCropRequested(object? sender, EventArgs e)
+    {
+        CropControl.Reset();
+        _viewModel.SetCrop(CropRegion.Full);
+        UpdateCropUi();
+    }
+
+    private async void OnEditTransformRequested(
+        object? sender,
+        EditPanelView.EditAction action)
+    {
+        switch (action)
+        {
+            case EditPanelView.EditAction.Left:
+                await _viewModel.RotateCounterClockwiseAsync();
+                break;
+            case EditPanelView.EditAction.Right:
+                await _viewModel.RotateClockwiseAsync();
+                break;
+            case EditPanelView.EditAction.FlipH:
+                await _viewModel.FlipHorizontalAsync();
+                break;
+            case EditPanelView.EditAction.FlipV:
+                await _viewModel.FlipVerticalAsync();
+                break;
+        }
+
+        CropControl.Reset();
+        CropControl.AspectRatio = null;
+        _cropAspect = "free";
+        EditPanel.SetActiveRatio("free");
+        _viewModel.SetCrop(CropRegion.Full);
+        UpdateCropUi();
+        ApplyViewModelState();
+    }
+
+    private void OnEditCropAspectRequested(object? sender, string ratio)
+    {
+        double? aspect = ratio switch
+        {
+            "original" when Viewer.SourcePixelWidth > 0 && Viewer.SourcePixelHeight > 0 =>
+                (double)Viewer.SourcePixelWidth / Viewer.SourcePixelHeight,
+            "1:1" => 1,
+            "4:3" => 4.0 / 3,
+            "16:9" => 16.0 / 9,
+            _ => null
+        };
+
+        _cropAspect = ratio;
+        _cropActive = true;
+        CropControl.AspectRatio = aspect;
+        CropControl.IsActive = true;
+        EditPanel.SetCropOverlay(true);
+        EditPanel.SetActiveRatio(ratio);
+        _viewModel.SetCrop(CropControl.Crop);
+        UpdateCropUi();
+    }
+
+    private void OnEditCropOverlayChanged(object? sender, bool active)
+    {
+        _cropActive = active;
+        CropControl.IsActive = _viewModel.IsEditing && active;
+    }
+
+    private void OnCropChanged(object? sender, EventArgs e)
+    {
+        _viewModel.SetCrop(CropControl.Crop);
+        UpdateCropUi();
+    }
+
+    private void UpdateCropUi()
+    {
+        if (!_viewModel.IsEditing)
+        {
+            return;
+        }
+
+        var crop = CropControl.Crop;
+        var width = Math.Max(1, (int)Math.Round(Viewer.SourcePixelWidth * crop.Width));
+        var height = Math.Max(1, (int)Math.Round(Viewer.SourcePixelHeight * crop.Height));
+        var label = _cropAspect switch
+        {
+            "original" => _services.Localization.T("L.EditOriginalRatio"),
+            "1:1" => "1:1",
+            "4:3" => "4:3",
+            "16:9" => "16:9",
+            _ => _services.Localization.T("L.EditFree")
+        };
+        EditPanel.SetCropSize(_services.Localization.Format(
+            "L.EditCropSizeFormat",
+            width,
+            height,
+            label));
+    }
+
+    private async void OnEditExportRequested(object? sender, EventArgs e)
+    {
+        if (!_viewModel.IsEditing || _viewModel.CurrentFilePath is not { } path)
+        {
+            return;
+        }
+
+        var defaults = new EditExportOptions(
+            ExportFormat.Jpeg,
+            90,
+            EditResizeMode.Original,
+            4096,
+            KeepMetadata: true);
+        var dialog = new EditExportDialog(
+            _services,
+            path,
+            _viewModel.CurrentBitmap,
+            defaults,
+            (options, target) => _viewModel.ExportEditedAsync(target, options, CancellationToken.None));
+
+        var result = await dialog.ShowDialog<string?>(this);
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            return;
+        }
+
+        await _viewModel.FinishEditAsync();
+        CropControl.IsActive = false;
+        _cropActive = false;
+        ApplyViewModelState();
+    }
+
+    private async Task CloseEditAsync()
+    {
+        await _viewModel.CancelEditAsync();
+        CropControl.IsActive = false;
+        _cropActive = false;
+        ApplyViewModelState();
+    }
+
     private void OnFullscreenClick(object? sender, RoutedEventArgs e) =>
         ToggleFullscreen();
 
@@ -1966,6 +2239,50 @@ public partial class MainWindow : Window
         _contextMenu = null;
         CanvasBorder.ContextMenu = null;
         ApplyLanguage();
+    }
+
+    private void OnCropCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!_viewModel.IsEditing || !_cropActive)
+        {
+            return;
+        }
+
+        if (!e.GetCurrentPoint(CanvasBorder).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        if (CropControl.BeginDrag(e.GetPosition(CropControl)))
+        {
+            _cropDragging = true;
+            e.Pointer.Capture(CanvasBorder);
+            e.Handled = true;
+        }
+    }
+
+    private void OnCropCanvasPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_cropDragging)
+        {
+            return;
+        }
+
+        CropControl.DragTo(e.GetPosition(CropControl));
+        e.Handled = true;
+    }
+
+    private void OnCropCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_cropDragging)
+        {
+            return;
+        }
+
+        _cropDragging = false;
+        CropControl.EndDrag();
+        e.Pointer.Capture(null);
+        e.Handled = true;
     }
 
     private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)

@@ -31,6 +31,7 @@
   <StreamGeometry x:Key="IconMinus">M 5 12 H 19</StreamGeometry>
   <StreamGeometry x:Key="IconPlus">M 12 5 V 19 M 5 12 H 19</StreamGeometry>
   <StreamGeometry x:Key="IconFit">M 5 6 H 19 A 1 1 0 0 1 20 7 V 17 A 1 1 0 0 1 19 18 H 5 A 1 1 0 0 1 4 17 V 7 A 1 1 0 0 1 5 6 Z M 8 9 H 16 V 15 H 8 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconEdit">M 4 20 H 8 L 20 8 L 16 4 L 4 16 Z M 13.5 5.5 L 18.5 10.5</StreamGeometry>
   <StreamGeometry x:Key="IconRotate">M 20 12 A 8 8 0 1 1 17.7 6.4 M 20 4 V 9 H 15</StreamGeometry>
   <StreamGeometry x:Key="IconPlay">M 8 5.5 L 18 12 L 8 18.5 Z</StreamGeometry>
   <StreamGeometry x:Key="IconFullscreen">M 4 9 V 4 H 9 M 20 9 V 4 H 15 M 4 15 V 20 H 9 M 20 15 V 20 H 15</StreamGeometry>

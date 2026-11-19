@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirGlance — Edit and Export prototype</title>
+<style>
+  :root {
+    --paper: #eee5da;
+    --panel: #fbf8f3;
+    --ink: #23211f;
+    --muted: #77716a;
+    --line: #ded5ca;
+    --accent: #d65a43;
+    --teal: #237f76;
+    --shadow: 0 24px 70px rgba(40, 31, 24, .22);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: #171513; }
+  body {
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+  }
+  .stage { position: relative; width: 100vw; height: 100vh; min-width: 1120px; overflow: hidden; background: var(--paper); }
+  .base { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; user-select: none; }
+  .soft-edge { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 60%, rgba(28,22,18,.12)); }
+
+  .dock-mock {
+    position: absolute; z-index: 15; left: 50%; top: 872px; transform: translateX(-50%);
+    height: 42px; padding: 2px; display: flex; align-items: center; gap: 1px;
+    border: 1px solid rgba(255,255,255,.10); border-radius: 11px;
+    background: #0e0d0c; box-shadow: 0 12px 30px rgba(0,0,0,.3);
+  }
+  .dock-btn {
+    width: 35px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px;
+    background: transparent; color: #d8d2ca; cursor: pointer;
+  }
+  .dock-btn:hover { background: rgba(255,255,255,.09); }
+  .dock-btn.active { background: var(--accent); color: #fff; }
+  .dock-btn:disabled { opacity: .28; cursor: not-allowed; }
+  .dock-btn svg { width: 15px; height: 15px; }
+  .dock-sep { width: 1px; height: 22px; margin: 0 4px; background: rgba(255,255,255,.14); }
+  .dock-zoom { width: 43px; text-align: center; color: #f2eee9; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+  .proxy-banner {
+    position: absolute; z-index: 24; left: 50%; top: 96px; transform: translateX(-50%);
+    max-width: 520px; padding: 11px 15px; border: 1px solid rgba(255,255,255,.12);
+    border-radius: 11px; background: rgba(20,17,14,.9); color: #f5efe8;
+    font-size: 11.5px; box-shadow: 0 10px 30px rgba(0,0,0,.3);
+  }
+  .proxy-banner strong { color: #f3b7a8; }
+  .panel {
+    position: absolute; z-index: 30; top: 82px; right: 22px; bottom: 82px; width: 350px;
+    display: flex; flex-direction: column; border: 1px solid rgba(93,75,60,.18);
+    border-radius: 20px; background: rgba(251,248,243,.985); box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .panel[hidden] { display: none; }
+  .panel-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 21px 20px 15px; }
+  .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--accent); text-transform: uppercase; }
+  h1 { margin: 4px 0 0; font-size: 23px; letter-spacing: -.035em; font-weight: 650; }
+  .sub { margin: 5px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+  .icon-btn {
+    width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 9px;
+    color: #5e5851; background: transparent; cursor: pointer;
+  }
+  .icon-btn:hover { background: #eee8df; }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .panel-body { flex: 1; overflow: auto; padding: 0 20px 12px; scrollbar-width: thin; }
+  .section { border-top: 1px solid var(--line); padding: 16px 0 17px; }
+  .section:first-child { border-top: 0; padding-top: 2px; }
+  .section-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 10.5px; font-weight: 750; letter-spacing: .12em; color: #8a8177; }
+  .section-label button { border: 0; background: none; color: var(--accent); font: 600 11px Inter, sans-serif; cursor: pointer; padding: 2px 0; }
+
+  .transform-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  .tool {
+    height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid #e0d7cc; border-radius: 11px; background: #fffdfa; color: #4b4640;
+    font: 500 10.5px Inter, sans-serif; cursor: pointer;
+  }
+  .tool:hover, .tool.active { border-color: rgba(214,90,67,.55); color: var(--accent); background: #fff7f3; }
+  .tool svg { width: 17px; height: 17px; stroke-width: 1.7; }
+
+  .ratio-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid #ddd4c8; border-radius: 999px; padding: 6px 10px;
+    background: transparent; color: #635c54; font: 500 11px Inter, sans-serif; cursor: pointer;
+  }
+  .chip:hover { border-color: #c8b9a9; }
+  .chip.active { border-color: var(--accent); color: var(--accent); background: #fff6f2; font-weight: 650; }
+  .crop-toggle { display: flex; align-items: center; justify-content: space-between; margin-top: 11px; padding: 10px 11px; border-radius: 10px; background: #f4eee6; }
+  .crop-toggle span { font-size: 12px; }
+  .switch { position: relative; width: 34px; height: 20px; border: 0; border-radius: 999px; background: #c9c0b5; cursor: pointer; transition: .18s; }
+  .switch::after { content: ""; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; border-radius: 50%; background: #fff; transition: .18s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { left: 17px; }
+
+  .export-card { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px; border: 1px solid #e0d7cc; border-radius: 12px; background: #fffdfa; cursor: pointer; text-align: left; }
+  .export-card:hover { border-color: rgba(214,90,67,.45); }
+  .export-glyph { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; background: #fbe9e2; color: var(--accent); }
+  .export-glyph svg { width: 17px; height: 17px; }
+  .export-copy { flex: 1; }
+  .export-copy strong { display: block; font-size: 12.5px; font-weight: 650; }
+  .export-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; }
+  .export-arrow { color: #948a7e; font-size: 17px; }
+
+  .panel-foot { padding: 12px 20px 16px; border-top: 1px solid var(--line); background: #f8f4ee; }
+  .safe-note { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: #82786d; font-size: 10.5px; }
+  .safe-note svg { width: 13px; height: 13px; color: var(--teal); }
+  .actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+  .btn { height: 38px; border-radius: 10px; border: 1px solid #d9cfc3; background: #fffdfa; color: #4a443d; font: 600 12px Inter, sans-serif; cursor: pointer; }
+  .btn:hover { background: #f9f4ed; }
+  .btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #c94f39; }
+
+  .crop-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; clip-path: inset(50px 97px 67px 86px); }
+  .crop-layer[hidden] { display: none; }
+  .crop-shade { display: none; }
+  .shade-top { left: 86px; right: 372px; top: 50px; height: 148px; }
+  .shade-bottom { left: 86px; right: 372px; bottom: 137px; height: 156px; }
+  .shade-left { left: 86px; top: 198px; width: 214px; bottom: 137px; }
+  .shade-right { left: 1270px; right: 372px; top: 198px; bottom: 137px; }
+  .crop-box { position: absolute; left: 300px; top: 198px; width: 970px; height: 600px; border: 1.5px solid rgba(255,255,255,.94); box-shadow: 0 0 0 1px rgba(0,0,0,.2), 0 0 0 9999px rgba(18,15,12,.52); pointer-events: auto; }
+  .crop-box::before, .crop-box::after { content: ""; position: absolute; pointer-events: none; background: rgba(255,255,255,.54); }
+  .crop-box::before { left: 33.333%; top: 0; bottom: 0; width: 1px; box-shadow: 323px 0 0 rgba(255,255,255,.54); }
+  .crop-box::after { top: 33.333%; left: 0; right: 0; height: 1px; box-shadow: 0 200px 0 rgba(255,255,255,.54); }
+  .handle { position: absolute; width: 10px; height: 10px; border: 1.5px solid #fff; background: var(--accent); border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .h-nw { left: -5px; top: -5px; } .h-n { left: calc(50% - 5px); top: -5px; } .h-ne { right: -5px; top: -5px; }
+  .h-w { left: -5px; top: calc(50% - 5px); } .h-e { right: -5px; top: calc(50% - 5px); }
+  .h-sw { left: -5px; bottom: -5px; } .h-s { left: calc(50% - 5px); bottom: -5px; } .h-se { right: -5px; bottom: -5px; }
+  .crop-size { position: absolute; left: 0; bottom: -29px; padding: 4px 7px; border-radius: 5px; background: rgba(20,17,14,.76); color: #fff; font: 500 10px/1.2 Inter, sans-serif; }
+
+  .modal-backdrop { position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(23,18,14,.47); backdrop-filter: blur(3px); }
+  .modal-backdrop[hidden] { display: none; }
+  .modal { width: 790px; border-radius: 20px; background: #fbf8f3; box-shadow: 0 32px 100px rgba(0,0,0,.38); overflow: hidden; }
+  .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 24px 26px 15px; }
+  .modal-head h2 { margin: 4px 0 0; font-size: 22px; letter-spacing: -.03em; }
+  .modal-body { display: grid; grid-template-columns: 285px 1fr; gap: 25px; padding: 0 26px 22px; }
+  .preview-wrap { padding: 10px; border-radius: 12px; background: #e9e0d5; }
+  .preview-wrap img { display: block; width: 100%; height: 250px; object-fit: cover; border-radius: 7px; }
+  .preview-caption { margin-top: 9px; text-align: center; color: #7f7469; font-size: 10.5px; }
+  .field { margin: 0 0 15px; }
+  .field-label { display: flex; justify-content: space-between; margin-bottom: 6px; color: #736a60; font-size: 10.5px; font-weight: 650; letter-spacing: .04em; }
+  .field-label output { color: #4e4740; font-variant-numeric: tabular-nums; }
+  .segmented { display: flex; padding: 3px; border-radius: 9px; background: #eee7dd; }
+  .segmented button { flex: 1; border: 0; border-radius: 7px; padding: 7px 0; color: #71675d; background: transparent; font: 600 11px Inter, sans-serif; cursor: pointer; }
+  .segmented button.active { color: #302b27; background: #fffdfa; box-shadow: 0 1px 3px rgba(83,62,44,.14); }
+  .text-input { width: 100%; height: 35px; border: 1px solid #ddd3c7; border-radius: 8px; background: #fffdfa; padding: 0 10px; color: #423c36; font: 12px Inter, sans-serif; outline: 0; }
+  .text-input:focus { border-color: var(--accent); }
+  .inline { display: flex; gap: 8px; align-items: center; }
+  .inline select, .inline input[type=number] { height: 35px; border: 1px solid #ddd3c7; border-radius: 8px; background: #fffdfa; padding: 0 9px; color: #423c36; font: 12px Inter, sans-serif; }
+  .inline select { flex: 1; }
+  .inline input[type=number] { width: 92px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .check-row { display: flex; align-items: center; gap: 8px; color: #5f574e; font-size: 11.5px; }
+  .check-row input { accent-color: var(--accent); width: 14px; height: 14px; }
+  .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 26px 18px; border-top: 1px solid var(--line); background: #f7f2eb; }
+  .modal-foot .hint { color: #857a6e; font-size: 10.5px; }
+  .modal-foot .buttons { display: flex; gap: 8px; }
+  .modal-foot .btn { width: 132px; }
+
+  @media (max-width: 1250px) {
+    .panel { width: 320px; right: 14px; }
+    .crop-shade { right: 334px; }
+    .modal { width: min(760px, calc(100vw - 40px)); }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <img class="base" src="../../artifacts/msix/store-screenshots/01-browse-folder-en.png" alt="">
+  <div class="soft-edge"></div>
+
+  <nav class="dock-mock" aria-label="Viewer toolbar">
+    <button class="dock-btn" type="button" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 12h12"/></svg></button>
+    <span class="dock-zoom">73%</span>
+    <button class="dock-btn" type="button" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 6v12M6 12h12"/></svg></button>
+    <span class="dock-sep"></span>
+    <button class="dock-btn" type="button" title="Fit window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9V4h5M20 15v5h-5M9 4v5H4M15 20v-5h5"/></svg></button>
+    <button class="dock-btn" type="button" title="Actual size" style="font-size:9px;font-weight:700">1:1</button>
+    <span class="dock-sep"></span>
+    <button class="dock-btn" type="button" title="Rotate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 10a8 8 0 1 0-2.3 6.7"/><path d="M20 4v6h-6"/></svg></button>
+    <button class="dock-btn" type="button" title="Info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg></button>
+    <button class="dock-btn" type="button" title="Filmstrip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M9 5v14M15 5v14"/></svg></button>
+    <button class="dock-btn" type="button" title="Dual view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="8" height="16" rx="1"/><rect x="13" y="4" width="8" height="16" rx="1"/></svg></button>
+    <button class="dock-btn" type="button" title="Slideshow"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m9 7 8 5-8 5V7Z"/></svg></button>
+    <span class="dock-sep"></span>
+    <button class="dock-btn" id="dock-edit" type="button" title="Edit image (Ctrl+E)" aria-label="Edit image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20h4L20 8l-4-4L4 16v4Z"/><path d="m13.5 5.5 5 5"/></svg></button>
+    <button class="dock-btn" type="button" title="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="dock-btn" type="button" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+  </nav>
+
+  <div class="proxy-banner" id="proxy-note" hidden>
+    <strong>Editing unavailable.</strong> This large TIFF has a preview only. Full-resolution decode is required before rotate, crop or export.
+  </div>
+
+  <aside class="panel" id="panel" aria-label="Edit image">
+    <div class="panel-head">
+      <div>
+        <div class="eyebrow">Non-destructive</div>
+        <h1>Edit</h1>
+        <p class="sub">Changes stay in this session. The original file is never modified.</p>
+      </div>
+      <button class="icon-btn" id="close-panel" type="button" aria-label="Close editor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="panel-body">
+      <section class="section">
+        <div class="section-label"><span>TRANSFORM</span><button type="button" id="reset-transform">Reset</button></div>
+        <div class="transform-grid">
+          <button class="tool" type="button" title="Rotate left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 10a8 8 0 1 1 2.3 6.7"/><path d="M4 4v6h6"/></svg>
+            Left
+          </button>
+          <button class="tool" type="button" title="Rotate right">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 10a8 8 0 1 0-2.3 6.7"/><path d="M20 4v6h-6"/></svg>
+            Right
+          </button>
+          <button class="tool" type="button" title="Flip horizontal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v18"/><path d="M9 6 4 12l5 6V6ZM15 6l5 6-5 6V6Z"/></svg>
+            Flip H
+          </button>
+          <button class="tool" type="button" title="Flip vertical">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18"/><path d="M6 9l6-5 6 5H6ZM6 15l6 5 6-5H6Z"/></svg>
+            Flip V
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-label"><span>CROP</span><button type="button" id="reset-crop">Reset crop</button></div>
+        <div class="ratio-row" id="ratios">
+          <button class="chip active" data-ratio="free" type="button">Free</button>
+          <button class="chip" data-ratio="original" type="button">Original</button>
+          <button class="chip" data-ratio="1:1" type="button">1:1</button>
+          <button class="chip" data-ratio="4:3" type="button">4:3</button>
+          <button class="chip" data-ratio="16:9" type="button">16:9</button>
+        </div>
+        <div class="crop-toggle">
+          <span>Crop overlay</span>
+          <button class="switch on" id="crop-switch" type="button" aria-label="Toggle crop overlay"></button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-label"><span>EXPORT</span></div>
+        <button class="export-card" id="export-open" type="button">
+          <span class="export-glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+          </span>
+          <span class="export-copy"><strong>Export copy…</strong><small>JPEG, PNG or WebP · resize · keep metadata</small></span>
+          <span class="export-arrow">›</span>
+        </button>
+      </section>
+    </div>
+
+    <div class="panel-foot">
+      <div class="safe-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>
+        Original stays unchanged
+      </div>
+      <div class="actions">
+        <button class="btn" id="cancel" type="button">Cancel</button>
+        <button class="btn primary" id="export-from-panel" type="button">Export copy…</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="crop-layer" id="crop-layer" hidden>
+    <div class="crop-shade shade-top"></div>
+    <div class="crop-shade shade-bottom"></div>
+    <div class="crop-shade shade-left"></div>
+    <div class="crop-shade shade-right"></div>
+    <div class="crop-box" id="crop-box">
+      <span class="handle h-nw"></span><span class="handle h-n"></span><span class="handle h-ne"></span>
+      <span class="handle h-w"></span><span class="handle h-e"></span>
+      <span class="handle h-sw"></span><span class="handle h-s"></span><span class="handle h-se"></span>
+      <span class="crop-size">1980 × 1224 · Free</span>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="export-modal" hidden>
+    <section class="modal" aria-label="Export copy">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow">Export copy</div>
+          <h2>Ready to save</h2>
+          <p class="sub">A new file is written. The original photo is untouched.</p>
+        </div>
+        <button class="icon-btn" id="close-export" type="button" aria-label="Close export">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-wrap">
+          <img src="edit-demo-image.jpg" alt="Export preview">
+          <div class="preview-caption">1980 × 1224 · cropped preview</div>
+        </div>
+        <div class="settings">
+          <div class="field">
+            <div class="field-label"><span>FORMAT</span></div>
+            <div class="segmented" id="formats">
+              <button class="active" data-format="JPEG" type="button">JPEG</button>
+              <button data-format="PNG" type="button">PNG</button>
+              <button data-format="WebP" type="button">WebP</button>
+            </div>
+          </div>
+          <div class="field" id="quality-field">
+            <div class="field-label"><span>QUALITY</span><output id="quality-value">90</output></div>
+            <input id="quality" type="range" min="40" max="100" value="90">
+          </div>
+          <div class="field">
+            <div class="field-label"><span>RESIZE</span></div>
+            <div class="inline">
+              <select id="resize-mode" aria-label="Resize mode">
+                <option>Original pixels</option>
+                <option>Long edge</option>
+                <option>Fit within</option>
+              </select>
+              <input id="resize-value" type="number" value="4096" min="64" step="64" aria-label="Resize pixels">
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label"><span>FILE NAME</span></div>
+            <input class="text-input" id="filename" value="Cosmic-Core-edited.jpg">
+          </div>
+          <div class="field">
+            <label class="check-row"><input id="metadata" type="checkbox" checked> Keep EXIF and ICC metadata where supported</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <span class="hint" id="export-hint">JPEG · quality 90 · original pixels</span>
+        <div class="buttons">
+          <button class="btn" id="modal-cancel" type="button">Cancel</button>
+          <button class="btn primary" id="do-export" type="button">Export copy</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const state = params.get('state') || 'edit';
+  const panel = document.getElementById('panel');
+  const cropLayer = document.getElementById('crop-layer');
+  const exportModal = document.getElementById('export-modal');
+  const cropSwitch = document.getElementById('crop-switch');
+  const dockEdit = document.getElementById('dock-edit');
+  const proxyNote = document.getElementById('proxy-note');
+
+  function sync() {
+    const editing = state !== 'closed' && state !== 'proxy';
+    panel.hidden = !editing;
+    cropLayer.hidden = !(editing && state === 'crop');
+    exportModal.hidden = state !== 'export';
+    proxyNote.hidden = state !== 'proxy';
+    dockEdit.disabled = state === 'proxy';
+    dockEdit.classList.toggle('active', editing);
+    cropSwitch.classList.toggle('on', state === 'crop' || state === 'export');
+  }
+
+  document.getElementById('close-panel').onclick = () => { location.search = '?state=closed'; };
+  document.getElementById('cancel').onclick = () => { location.search = '?state=closed'; };
+  dockEdit.onclick = () => {
+    if (state === 'proxy') return;
+    location.search = state === 'closed' ? '?state=edit' : '?state=closed';
+  };
+  document.getElementById('crop-switch').onclick = () => { location.search = state === 'crop' ? '?state=edit' : '?state=crop'; };
+  document.getElementById('export-open').onclick = () => { location.search = '?state=export'; };
+  document.getElementById('export-from-panel').onclick = () => { location.search = '?state=export'; };
+  document.getElementById('close-export').onclick = () => { location.search = '?state=edit'; };
+  document.getElementById('modal-cancel').onclick = () => { location.search = '?state=edit'; };
+  document.getElementById('do-export').onclick = () => { location.search = '?state=edit'; };
+
+  document.querySelectorAll('#ratios .chip').forEach(button => {
+    button.onclick = () => {
+      document.querySelectorAll('#ratios .chip').forEach(b => b.classList.remove('active'));
+      button.classList.add('active');
+      document.querySelector('.crop-size').textContent = button.dataset.ratio === '1:1'
+        ? '1350 × 1350 · 1:1'
+        : button.dataset.ratio === '16:9'
+          ? '2400 × 1350 · 16:9'
+          : '1980 × 1224 · ' + button.textContent;
+    };
+  });
+
+  document.querySelectorAll('#formats button').forEach(button => {
+    button.onclick = () => {
+      document.querySelectorAll('#formats button').forEach(b => b.classList.remove('active'));
+      button.classList.add('active');
+      const format = button.dataset.format;
+      document.getElementById('quality-field').style.opacity = format === 'PNG' ? '.35' : '1';
+      document.getElementById('filename').value = 'Cosmic-Core-edited.' + (format === 'JPEG' ? 'jpg' : format.toLowerCase());
+      updateHint();
+    };
+  });
+
+  document.getElementById('quality').oninput = (e) => {
+    document.getElementById('quality-value').textContent = e.target.value;
+    updateHint();
+  };
+  document.getElementById('resize-mode').onchange = () => {
+    const original = document.getElementById('resize-mode').value === 'Original pixels';
+    document.getElementById('resize-value').disabled = original;
+    document.getElementById('resize-value').style.opacity = original ? '.45' : '1';
+    updateHint();
+  };
+  document.getElementById('resize-value').oninput = updateHint;
+  document.getElementById('resize-mode').dispatchEvent(new Event('change'));
+
+  function updateHint() {
+    const format = document.querySelector('#formats .active').dataset.format;
+    const quality = document.getElementById('quality').value;
+    const mode = document.getElementById('resize-mode').value;
+    const value = document.getElementById('resize-value').value;
+    document.getElementById('export-hint').textContent =
+      format + (format === 'PNG' ? '' : ' · quality ' + quality) +
+      (mode === 'Original pixels' ? ' · original pixels' : ' · ' + mode.toLowerCase() + ' ' + value + ' px');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (state === 'export') location.search = '?state=edit';
+      else if (state === 'crop') location.search = '?state=edit';
+      else location.search = '?state=closed';
+    }
+    if (state === 'edit' && (e.key === 'c' || e.key === 'C')) location.search = '?state=crop';
+  });
+
+  sync();
+  updateHint();
+</script>
+</body>
+</html>

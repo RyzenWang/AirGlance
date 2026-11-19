@@ -75,6 +75,30 @@ public sealed class ImageExporterTests : IDisposable
     }
 
     [Fact]
+    public void Edited_encoder_crops_and_resizes_in_the_fallback_path()
+    {
+        var image = ImageDecoder.DecodeFull(Asset("orientation-1.jpg"));
+        var options = new EditExportOptions(
+            ExportFormat.Png,
+            90,
+            EditResizeMode.LongEdge,
+            32,
+            KeepMetadata: false);
+
+        var bytes = ImageExporter.EncodeEdited(
+            image,
+            new CropRegion(0.25, 0.25, 0.5, 0.5),
+            options);
+        using var decoded = DecodeBytes(bytes);
+
+        Assert.Equal(32, Math.Max(decoded.Width, decoded.Height));
+        Assert.Equal(
+            Math.Round(image.Width / 2.0 / (image.Height / 2.0) * decoded.Height),
+            decoded.Width,
+            0);
+    }
+
+    [Fact]
     public void Save_copy_uses_a_new_file_and_never_overwrites()
     {
         var target = Path.Combine(_folder, "photo-copy.png");

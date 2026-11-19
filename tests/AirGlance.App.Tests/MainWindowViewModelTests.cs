@@ -146,6 +146,26 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Edit_session_starts_and_cancels_non_destructively()
+    {
+        await _viewModel.OpenPathAsync(Path.Combine(_images, "a.jpg"));
+
+        Assert.True(_viewModel.CanEdit);
+        Assert.True(_viewModel.BeginEdit());
+        Assert.True(_viewModel.IsEditing);
+
+        _viewModel.SetCrop(new CropRegion(0.2, 0.2, 0.6, 0.6));
+        await _viewModel.RotateClockwiseAsync();
+        Assert.NotEqual(EditTransform.None, _viewModel.CurrentEdit);
+
+        await _viewModel.CancelEditAsync();
+
+        Assert.False(_viewModel.IsEditing);
+        Assert.Equal(EditTransform.None, _viewModel.CurrentEdit);
+        Assert.True(_viewModel.Crop.IsFull);
+    }
+
+    [AvaloniaFact]
     public async Task A_corrupt_file_reports_corrupt()
     {
         var path = Path.Combine(_images, "broken.jpg");

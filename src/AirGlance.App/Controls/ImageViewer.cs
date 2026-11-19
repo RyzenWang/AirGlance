@@ -207,6 +207,18 @@ public sealed class ImageViewer : Control
 
     public double ZoomPercent => CalculateLayout().Zoom * 100;
 
+    /// <summary>
+    /// The photo's rectangle in viewer coordinates. Used by the crop overlay so its
+    /// handles stay on the image while zooming and panning.
+    /// </summary>
+    public Rect GetImageBoundsOnCanvas()
+    {
+        var layout = CalculateLayout();
+        return layout.IsValid
+            ? new Rect(layout.Left, layout.Top, layout.ImageWidth, layout.ImageHeight)
+            : default;
+    }
+
     public void SetTiles(TiledImageSource? tiles)
     {
         StopAnimation();

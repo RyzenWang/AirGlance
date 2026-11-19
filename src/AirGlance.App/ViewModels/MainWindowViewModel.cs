@@ -90,6 +90,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _regionLoading;
 
     [ObservableProperty]
+    private bool _isEditing;
+
+    [ObservableProperty]
     private bool _showRegionLoading;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
@@ -104,6 +107,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private TiledImageSource? _tiledSource;
     private ImageMetadata? _metadata;
     private EditTransform _edit = EditTransform.None;
+    private EditTransform _editAtSessionStart = EditTransform.None;
+    private CropRegion _crop = CropRegion.Full;
     private string? _currentPath;
     private int _viewportWidth = 1600;
     private int _viewportHeight = 1000;
@@ -155,6 +160,22 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public WriteableBitmap? CurrentBitmap => _currentAnimation?.Frames[0] ?? _currentBitmap;
 
     public bool IsTiled => _tiledSource is not null;
+
+    /// <summary>
+    /// Edit v1 requires a fully decodable, non-tiled still image. Proxy-only large
+    /// TIFFs are intentionally read-only so an export can never silently write the
+    /// low-resolution preview.
+    /// </summary>
+    public bool CanEdit =>
+        HasImage &&
+        _currentPath is not null &&
+        _rawDecoded is { IsProxy: false } &&
+        _tiledSource is null &&
+        _currentAnimation is null;
+
+    public bool IsProxyOnly => _rawDecoded?.IsProxy == true;
+
+    public CropRegion Crop => _crop;
 
     public async Task<WriteableBitmap?> GetClipboardBitmapAsync(CancellationToken cancellationToken)
     {
@@ -641,6 +662,104 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         await ApplyEditAsync(_edit.FlipVertical());
     }
 
+    public bool BeginEdit()
+    {
+        if (IsEditing)
+        {
+            return true;
+        }
+
+        if (!CanEdit)
+        {
+            ShowMessage(_services.Localization.T(
+                IsProxyOnly ? "L.EditNeedsFullResolution" : "L.EditUnavailable"));
+            return false;
+        }
+
+        _editAtSessionStart = _edit;
+        _crop = CropRegion.Full;
+        IsEditing = true;
+        return true;
+    }
+
+    public void SetCrop(CropRegion crop)
+    {
+        _crop = crop.Clamp();
+        OnPropertyChanged(nameof(Crop));
+    }
+
+    public async Task ResetEditAsync()
+    {
+        _crop = CropRegion.Full;
+        OnPropertyChanged(nameof(Crop));
+        await ApplyEditAsync(EditTransform.None);
+    }
+
+    public async Task CancelEditAsync()
+    {
+        var original = _editAtSessionStart;
+        _crop = CropRegion.Full;
+        OnPropertyChanged(nameof(Crop));
+        await ApplyEditAsync(original);
+        IsEditing = false;
+    }
+
+    public async Task FinishEditAsync()
+    {
+        var original = _editAtSessionStart;
+        _crop = CropRegion.Full;
+        OnPropertyChanged(nameof(Crop));
+        await ApplyEditAsync(original);
+        IsEditing = false;
+    }
+
+    public async Task<string> ExportEditedAsync(
+        string destinationPath,
+        EditExportOptions options,
+        CancellationToken cancellationToken)
+    {
+        var path = _currentPath ?? throw new InvalidOperationException("No image is open.");
+        var target = ImageExporter.NextAvailablePath(destinationPath);
+        var transform = _edit;
+        var crop = _crop.Clamp();
+
+        try
+        {
+            await Task.Run(
+                () => EditedImageExporter.ExportNative(path, transform, crop, options, target, cancellationToken),
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            // SVG and a few less common containers are not available to libvips on
+            // every platform. Fall back to the managed decoder without metadata.
+            await Task.Run(
+                () => ExportManagedFallback(path, transform, crop, options, target, cancellationToken),
+                cancellationToken);
+        }
+
+        ShowMessage(_services.Localization.Format("L.EditExportSucceeded", target));
+        return target;
+    }
+
+    private static void ExportManagedFallback(
+        string sourcePath,
+        EditTransform transform,
+        CropRegion crop,
+        EditExportOptions options,
+        string destinationPath,
+        CancellationToken cancellationToken)
+    {
+        var full = ImageDecoder.DecodeFull(sourcePath, cancellationToken);
+        var edited = transform.IsIdentity ? full : ImageTransform.Apply(full, transform);
+        var bytes = ImageExporter.EncodeEdited(edited, crop, options);
+        ImageExporter.WriteNewFile(destinationPath, bytes);
+    }
+
     public void ToggleInfo()
     {
         if (!InfoVisible)
@@ -844,6 +963,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _loadCts = new CancellationTokenSource();
         var cancellationToken = _loadCts.Token;
 
+        IsEditing = false;
+        _crop = CropRegion.Full;
         IsLoading = true;
         HasError = false;
         _fullLoaded = false;
@@ -1145,6 +1266,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
+            if (IsEditing)
+            {
+                _crop = CropRegion.Full;
+                OnPropertyChanged(nameof(Crop));
+            }
         }
         catch
         {
@@ -1218,6 +1344,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _regionActive = false;
         _regionLoading = false;
         ShowRegionLoading = false;
+        IsEditing = false;
+        _crop = CropRegion.Full;
         var oldBitmap = _currentBitmap;
         var oldAnimation = _currentAnimation;
 
