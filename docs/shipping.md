@@ -16,10 +16,10 @@ The 0.1 release is a portable, unsigned desktop release. It has no installer, up
 | macOS x64 | `AirGlance-0.4.1-osx-x64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15-intel` | GitHub release |
 | Linux x64 | `AirGlance-0.4.1-linux-x64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-22.04` | GitHub release |
 | Linux arm64 | `AirGlance-0.4.1-linux-arm64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-24.04-arm` | GitHub release |
-| Windows x64 MSIX | `AirGlance_0.4.1.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
-| Windows arm64 MSIX | `AirGlance_0.4.1.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
+| Windows x64 MSIX | `AirGlance_1.0.0.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
+| Windows arm64 MSIX | `AirGlance_1.0.0.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
 
-Archive names use the three-part product version `0.4.1`. MSIX names use the four-part package version `0.4.1.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
+Archive names use the three-part product version `0.4.1`. MSIX names use the four-part package version `1.0.0.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
 
 The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for review and Partner Center.
 
@@ -157,7 +157,7 @@ The archive has no wrapper directory. The desktop entry uses `Exec=AirGlance %f`
   -OutputDir artifacts/msix
 ```
 
-The output is `AirGlance_0.4.1.0_x64.msix`, or `AirGlance_0.4.1.0_arm64.msix` for `-Architecture arm64`. `store.yml` runs this for both architectures. The packages are unsigned.
+The output is `AirGlance_1.0.0.0_x64.msix`, or `AirGlance_1.0.0.0_arm64.msix` for `-Architecture arm64`. `store.yml` runs this for both architectures. The packages are unsigned.
 
 ## Smoke test
 
@@ -251,9 +251,9 @@ For a system-wide install, use `/usr/local/bin/AirGlance`, `/usr/share/applicati
 
 The MSIX packages are only for the Microsoft Store submission:
 
-- `AirGlance_0.4.1.0_x64.msix`
+- `AirGlance_1.0.0.0_x64.msix`
 
-The Store package is x64-only for the first submission. ARM64 is deferred until
+The Microsoft Store package version is independent from the GitHub tag: the Store starts at `1.0.0.0` while the source tag is `v0.4.1`. The Store package is x64-only for the first submission. ARM64 is deferred until
 the NetVips native payload supports Windows ARM64. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
 
 ### Package identity and publisher
@@ -264,7 +264,7 @@ the NetVips native payload supports Windows ARM64. They are not public release a
 <Identity
   Name="RyzenWang.AirGlance"
   Publisher="CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B"
-  Version="0.4.1.0"
+  Version="1.0.0.0"
   ProcessorArchitecture="x64" />
 ```
 
@@ -315,7 +315,7 @@ $appcert = Get-ChildItem `
 & $appcert.FullName reset
 
 & $appcert.FullName test `
-  -appxpackagepath (Resolve-Path '.\AirGlance_0.4.1.0_x64.msix').Path `
+  -appxpackagepath (Resolve-Path '.\AirGlance_1.0.0.0_x64.msix').Path `
   -reportoutputpath (Join-Path (Get-Location) 'wack-x64.xml')
 ```
 

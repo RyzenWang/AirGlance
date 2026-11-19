@@ -35,7 +35,7 @@ Then pack:
 
 ```powershell
 pwsh -File ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.4.1 `
+  -Version 1.0.0 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
@@ -56,7 +56,7 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_0.4.1.0_x64.msix`. The Store submission is x64-only until an ARM64 NetVips payload exists.
+example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only until an ARM64 NetVips payload exists.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.
@@ -90,7 +90,7 @@ cannot pass until a trusted signing certificate is installed.
 
 A meaningful self-test therefore needs a signed package:
 
-1. Sign a copy of `AirGlance_0.4.1.0_x64.msix` with a local test certificate
+1. Sign a copy of `AirGlance_1.0.0.0_x64.msix` with a local test certificate
    certificate. The certificate subject must match the manifest `Publisher`.
    Do not use an untrusted certificate for a Store submission.
 2. On a clean Windows 10/11 test VM, trust that certificate and install the
