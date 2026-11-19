@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private bool _cropDragging;
     private string _cropAspect = "free";
     private DualCanvasView? _dualView;
+    private Border? _exportScrim;
     private Grid _root = null!;
 
     private Border TopBar = null!;
@@ -2079,14 +2080,40 @@ public partial class MainWindow : Window
             EditResizeMode.Original,
             4096,
             KeepMetadata: true);
+        var crop = _viewModel.Crop;
+        var cropWidth = Math.Max(1, (int)Math.Round(Viewer.SourcePixelWidth * crop.Width));
+        var cropHeight = Math.Max(1, (int)Math.Round(Viewer.SourcePixelHeight * crop.Height));
         var dialog = new EditExportDialog(
             _services,
             path,
             _viewModel.CurrentBitmap,
+            crop,
+            cropWidth,
+            cropHeight,
             defaults,
             (options, target) => _viewModel.ExportEditedAsync(target, options, CancellationToken.None));
 
-        var result = await dialog.ShowDialog<string?>(this);
+        _exportScrim = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(148, 10, 8, 6)),
+            IsHitTestVisible = true
+        };
+        _exportScrim.SetValue(Panel.ZIndexProperty, 65);
+        _root.Children.Add(_exportScrim);
+        var previousEffect = _root.Effect;
+        _root.Effect = new BlurEffect { Radius = 7 };
+        string? result;
+        try
+        {
+            result = await dialog.ShowDialog<string?>(this);
+        }
+        finally
+        {
+            _root.Effect = previousEffect;
+            _root.Children.Remove(_exportScrim);
+            _exportScrim = null;
+        }
+
         if (string.IsNullOrWhiteSpace(result))
         {
             return;

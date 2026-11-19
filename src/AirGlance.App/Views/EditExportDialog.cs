@@ -1,3 +1,4 @@
+using AirGlance.App.Controls;
 using AirGlance.App.Services;
 using AirGlance.Core.Imaging;
 using Avalonia;
@@ -12,31 +13,37 @@ using Avalonia.Threading;
 namespace AirGlance.App.Views;
 
 /// <summary>
-/// Export dialog for the edit session. It collects format, quality, resize and
-/// metadata choices, then lets the window run the actual encode.
+/// Full-window export modal. It intentionally uses the same paper panel and
+/// segmented controls as the edit drawer instead of the platform title bar.
 /// </summary>
 internal sealed class EditExportDialog : Window
 {
     private readonly AppServices _services;
     private readonly string _sourcePath;
     private readonly Func<EditExportOptions, string, Task<string>> _export;
-    private readonly ComboBox _format;
-    private readonly Slider _quality;
-    private readonly TextBlock _qualityValue;
     private readonly ComboBox _resize;
     private readonly TextBox _resizeValue;
     private readonly TextBox _fileName;
     private readonly CheckBox _metadata;
-    private readonly TextBlock _folderText;
+    private readonly Slider _quality;
+    private readonly TextBlock _qualityValue;
+    private readonly TextBlock _hint;
     private readonly TextBlock _status;
     private readonly Button _exportButton;
+    private readonly Button[] _formatButtons;
     private string _folder;
+    private int _formatIndex;
     private bool _busy;
+
+    private static readonly ExportFormat[] Formats = [ExportFormat.Jpeg, ExportFormat.Png, ExportFormat.WebP];
 
     public EditExportDialog(
         AppServices services,
         string sourcePath,
-        IImage? preview,
+        IImageBrushSource? preview,
+        CropRegion crop,
+        int cropWidth,
+        int cropHeight,
         EditExportOptions defaults,
         Func<EditExportOptions, string, Task<string>> export)
     {
@@ -45,95 +52,60 @@ internal sealed class EditExportDialog : Window
         _export = export;
         _folder = Path.GetDirectoryName(Path.GetFullPath(sourcePath)) ?? Environment.CurrentDirectory;
 
-        Title = services.Localization.T("L.EditExportTitle");
-        Width = 760;
-        Height = 590;
+        SystemDecorations = SystemDecorations.None;
         CanResize = false;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
-        Background = new SolidColorBrush(Color.Parse("#FBFAF7"));
+        WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
+        Background = Brushes.Transparent;
+        Width = 790;
+        Height = 500;
+        Focusable = true;
+        Resources["SystemAccentColor"] = Color.Parse("#E3563B");
+        Resources["SystemAccentColorLight1"] = Color.Parse("#EE7B61");
+        Resources["SystemAccentColorDark1"] = Color.Parse("#C94F39");
+        Resources["SliderTrackValueFill"] = Res("Coral");
+        Resources["SliderTrackValueFillPointerOver"] = Res("Coral");
+        Resources["SliderThumbBackground"] = Res("Coral");
+        Resources["SliderThumbBackgroundPointerOver"] = Res("Coral");
+        Resources["CheckBoxCheckBackgroundFillChecked"] = Res("Coral");
+        Resources["CheckBoxCheckBackgroundStrokeChecked"] = Res("Coral");
+        Resources["CheckBoxCheckGlyphForegroundChecked"] = Brushes.White;
 
-        var root = new Border
-        {
-            Padding = new Thickness(26),
-            Child = BuildContent(services.Localization, preview, defaults, out _format, out _quality,
-                out _qualityValue, out _resize, out _resizeValue, out _fileName, out _metadata,
-                out _folderText, out _status, out _exportButton)
-        };
-
-        Content = root;
-        _exportButton.Click += OnExportClick;
-        _format.SelectionChanged += (_, _) => SyncFormat();
-        _quality.PropertyChanged += (_, args) =>
-        {
-            if (args.Property.Name == "Value")
-            {
-                _qualityValue.Text = ((int)_quality.Value).ToString();
-                SyncHint();
-            }
-        };
-        _resize.SelectionChanged += (_, _) =>
-        {
-            var original = _resize.SelectedIndex == 0;
-            _resizeValue.IsEnabled = !original;
-            _resizeValue.Opacity = original ? 0.45 : 1;
-            SyncHint();
-        };
-        _resizeValue.TextChanged += (_, _) => SyncHint();
-        _fileName.TextChanged += (_, _) => SyncHint();
-        KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter)
-            {
-                OnExportClick(this, new Avalonia.Interactivity.RoutedEventArgs());
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Escape)
-            {
-                Close();
-                e.Handled = true;
-            }
-        };
-
-        SyncFormat();
-    }
-
-    public string? ExportedPath { get; private set; }
-
-    private Control BuildContent(
-        LocalizationService loc,
-        IImage? preview,
-        EditExportOptions defaults,
-        out ComboBox format,
-        out Slider quality,
-        out TextBlock qualityValue,
-        out ComboBox resize,
-        out TextBox resizeValue,
-        out TextBox fileName,
-        out CheckBox metadata,
-        out TextBlock folderText,
-        out TextBlock status,
-        out Button exportButton)
-    {
-        var grid = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto")
-        };
-
+        var loc = services.Localization;
         var title = new TextBlock
         {
             Text = loc.T("L.EditExportReady"),
-            FontSize = 22,
-            FontWeight = FontWeight.SemiBold
+            FontSize = 23,
+            FontWeight = FontWeight.SemiBold,
+            LetterSpacing = -0.4
         };
         var subtitle = new TextBlock
         {
             Text = loc.T("L.EditExportSub"),
-            Foreground = Res("InkSecondary"),
             FontSize = 11.5,
+            Foreground = Res("InkSecondary"),
             Margin = new Thickness(0, 4, 0, 0)
         };
-        var header = new StackPanel
+        var close = new Button
+        {
+            Content = new IconPath
+            {
+                Data = FindGeometry("IconClose"),
+                Width = 15,
+                Height = 15,
+                Stroke = Res("InkSecondary"),
+                StrokeThickness = 1.7
+            },
+            Classes = { "icon" },
+            Width = 30,
+            Height = 30,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+        close.Click += (_, _) => Close();
+
+        var headerText = new StackPanel
         {
             Children =
             {
@@ -149,80 +121,70 @@ internal sealed class EditExportDialog : Window
                 subtitle
             }
         };
-        grid.Children.Add(header);
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        header.Children.Add(headerText);
+        Grid.SetColumn(close, 1);
+        header.Children.Add(close);
 
         var body = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("240,*"),
-            ColumnSpacing = 24,
-            Margin = new Thickness(0, 24, 0, 0)
+            ColumnDefinitions = new ColumnDefinitions("270,*"),
+            ColumnSpacing = 25,
+            Margin = new Thickness(0, 23, 0, 0),
+            VerticalAlignment = VerticalAlignment.Top
         };
-        var previewBorder = new Border
-        {
-            Background = Res("SurfaceAlt"),
-            BorderBrush = Res("Border"),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(9),
-            Child = new StackPanel
-            {
-                Children =
-                {
-                    new Border
-                    {
-                        Height = 215,
-                        CornerRadius = new CornerRadius(7),
-                        ClipToBounds = true,
-                        Background = Res("Surface"),
-                        Child = preview is null
-                            ? null
-                            : new Image
-                            {
-                                Source = preview,
-                                Stretch = Stretch.Uniform
-                            }
-                    },
-                    new TextBlock
-                    {
-                        Text = loc.T("L.EditOriginalUnchanged"),
-                        FontSize = 10,
-                        Foreground = Res("InkTertiary"),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 8, 0, 0)
-                    }
-                }
-            }
-        };
-        body.Children.Add(previewBorder);
+        body.Children.Add(BuildPreview(preview, crop, cropWidth, cropHeight, loc));
 
-        var settings = new StackPanel { Spacing = 13 };
-        format = new ComboBox
+        var settings = new StackPanel
         {
-            ItemsSource = new[] { "JPEG", "PNG", "WebP" },
-            SelectedIndex = 0,
-            HorizontalAlignment = HorizontalAlignment.Stretch
+            Spacing = 13,
+            VerticalAlignment = VerticalAlignment.Top
         };
-        quality = new Slider
+        _formatButtons = new Button[3];
+        var segmented = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+            ColumnSpacing = 3,
+            Background = Res("SurfaceAlt"),
+            Margin = new Thickness(0)
+        };
+        for (var index = 0; index < Formats.Length; index++)
+        {
+            var formatIndex = index;
+            var button = new Button
+            {
+                    Content = Centered(Formats[index].DisplayName(), 11, FontWeight.SemiBold),
+                Classes = { "export-segment" },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
+            };
+            button.Click += (_, _) => SelectFormat(formatIndex);
+            Grid.SetColumn(button, index);
+            _formatButtons[index] = button;
+            segmented.Children.Add(button);
+        }
+
+        _quality = new Slider
         {
             Minimum = 40,
             Maximum = 100,
             Value = defaults.NormalizedQuality,
             TickFrequency = 1,
-            IsSnapToTickEnabled = true
+            IsSnapToTickEnabled = true,
+            Margin = new Thickness(0, 1, 0, 0)
         };
-        qualityValue = new TextBlock
+        _qualityValue = new TextBlock
         {
             Text = defaults.NormalizedQuality.ToString(),
-            Foreground = Res("InkSecondary"),
-            FontSize = 11
+            FontSize = 11,
+            Foreground = Res("InkSecondary")
         };
         var qualityHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         qualityHeader.Children.Add(Label(loc.T("L.EditQuality")));
-        Grid.SetColumn(qualityValue, 1);
-        qualityHeader.Children.Add(qualityValue);
-        var qualityPanel = new StackPanel { Children = { qualityHeader, quality } };
+        Grid.SetColumn(_qualityValue, 1);
+        qualityHeader.Children.Add(_qualityValue);
 
-        resize = new ComboBox
+        _resize = new ComboBox
         {
             ItemsSource = new[]
             {
@@ -233,10 +195,10 @@ internal sealed class EditExportDialog : Window
             SelectedIndex = 0,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        resizeValue = new TextBox
+        _resizeValue = new TextBox
         {
             Text = Math.Max(64, defaults.ResizeValue).ToString(),
-            Width = 96,
+            Width = 92,
             IsEnabled = false,
             Opacity = 0.45,
             HorizontalAlignment = HorizontalAlignment.Right
@@ -246,133 +208,228 @@ internal sealed class EditExportDialog : Window
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             ColumnSpacing = 8
         };
-        resizeRow.Children.Add(resize);
-        Grid.SetColumn(resizeValue, 1);
-        resizeRow.Children.Add(resizeValue);
-        var resizePanel = new StackPanel
-        {
-            Children = { Label(loc.T("L.EditResize")), resizeRow }
-        };
+        resizeRow.Children.Add(_resize);
+        Grid.SetColumn(_resizeValue, 1);
+        resizeRow.Children.Add(_resizeValue);
 
-        fileName = new TextBox
+        _fileName = new TextBox
         {
-            Text = Path.GetFileNameWithoutExtension(_sourcePath) + "-edited.jpg"
+            Text = Path.GetFileNameWithoutExtension(sourcePath) + "-edited.jpg"
         };
-        var filePanel = new StackPanel
-        {
-            Children = { Label(loc.T("L.EditFileName")), fileName }
-        };
-
-        metadata = new CheckBox
+        _metadata = new CheckBox
         {
             Content = loc.T("L.EditKeepMetadata"),
             IsChecked = defaults.KeepMetadata
         };
-        folderText = new TextBlock
+        _hint = new TextBlock
         {
-            Text = _folder,
-            Foreground = Res("InkSecondary"),
             FontSize = 10.5,
-            TextTrimming = TextTrimming.CharacterEllipsis
-        };
-        var folderButton = new Button
-        {
-            Content = loc.T("L.EditChooseFolder"),
-            Classes = { "edit-action" },
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Height = 30,
-            Margin = new Thickness(0, 0, 0, 4)
-        };
-        var folderLabel = folderText;
-        folderButton.Click += async (_, _) =>
-        {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = loc.T("L.EditChooseFolder"),
-                AllowMultiple = false
-            });
-            var path = folders.FirstOrDefault()?.TryGetLocalPath();
-            if (!string.IsNullOrWhiteSpace(path))
-            {
-                _folder = path;
-                folderLabel.Text = path;
-            }
-        };
-
-        settings.Children.Add(new StackPanel { Children = { Label(loc.T("L.EditFormat")), format } });
-        settings.Children.Add(qualityPanel);
-        settings.Children.Add(resizePanel);
-        settings.Children.Add(filePanel);
-        settings.Children.Add(metadata);
-        settings.Children.Add(new StackPanel { Children = { folderButton, folderText } });
-        body.Children.Add(settings);
-        Grid.SetColumn(settings, 1);
-        Grid.SetRow(body, 1);
-        grid.Children.Add(body);
-
-        status = new TextBlock
-        {
-            Text = string.Empty,
-            Foreground = Res("InkSecondary"),
-            FontSize = 10.5,
+            Foreground = Res("InkTertiary"),
             VerticalAlignment = VerticalAlignment.Center
         };
+        _status = new TextBlock
+        {
+            FontSize = 10.5,
+            Foreground = Res("InkSecondary"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        settings.Children.Add(new StackPanel { Children = { Label(loc.T("L.EditFormat")), segmented } });
+        settings.Children.Add(new StackPanel { Children = { qualityHeader, _quality } });
+        settings.Children.Add(new StackPanel
+        {
+            Children = { Label(loc.T("L.EditResize")), resizeRow }
+        });
+        settings.Children.Add(new StackPanel
+        {
+            Children = { Label(loc.T("L.EditFileName")), _fileName }
+        });
+        settings.Children.Add(_metadata);
+        body.Children.Add(settings);
+        Grid.SetColumn(settings, 1);
+
+        var cancelLabel = Centered(loc.T("L.EditCancel"), 12, FontWeight.Normal);
+        cancelLabel.Width = 118;
         var cancel = new Button
         {
-            Content = loc.T("L.EditCancel"),
+            Content = cancelLabel,
             Classes = { "edit-action" },
-            Width = 118
+            Width = 118,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
         cancel.Click += (_, _) => Close();
-        exportButton = new Button
+        var exportLabel = Centered(loc.T("L.EditExportCopy"), 12, FontWeight.SemiBold);
+        exportLabel.Width = 134;
+        _exportButton = new Button
         {
-            Content = loc.T("L.EditExportCopy"),
+            Content = exportLabel,
             Classes = { "edit-primary" },
-            Width = 132,
+            Width = 134,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
             IsDefault = true
         };
-        var buttons = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Children = { cancel, exportButton }
-        };
+        _exportButton.Click += OnExportClick;
+
         var footer = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Margin = new Thickness(0, 18, 0, 0)
         };
-        footer.Children.Add(status);
+        var hintPanel = new StackPanel
+        {
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { _status, _hint }
+        };
+        footer.Children.Add(hintPanel);
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { cancel, _exportButton }
+        };
         Grid.SetColumn(buttons, 1);
         footer.Children.Add(buttons);
-        Grid.SetRow(footer, 2);
-        grid.Children.Add(footer);
 
-        return grid;
+        var content = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto")
+        };
+        content.Children.Add(header);
+        Grid.SetRow(body, 1);
+        content.Children.Add(body);
+        Grid.SetRow(footer, 2);
+        content.Children.Add(footer);
+
+        var modal = new Border
+        {
+            Width = 790,
+            Height = 500,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(26, 24, 26, 20),
+            Background = Res("Surface"),
+            BorderBrush = Res("Border"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(20),
+            BoxShadow = new BoxShadows(new BoxShadow
+            {
+                Blur = 70,
+                OffsetY = 24,
+                Color = Color.FromArgb(90, 30, 22, 16)
+            }),
+            Child = content
+        };
+
+        Content = new Grid { Children = { modal } };
+
+        _quality.PropertyChanged += (_, args) =>
+        {
+            if (args.Property.Name == "Value")
+            {
+                _qualityValue.Text = ((int)Math.Round(_quality.Value)).ToString();
+                SyncHint();
+            }
+        };
+        _resize.SelectionChanged += (_, _) =>
+        {
+            var original = _resize.SelectedIndex == 0;
+            _resizeValue.IsEnabled = !original;
+            _resizeValue.Opacity = original ? 0.45 : 1;
+            SyncHint();
+        };
+        _resizeValue.TextChanged += (_, _) => SyncHint();
+        _fileName.TextChanged += (_, _) => SyncHint();
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape)
+            {
+                Close();
+                e.Handled = true;
+            }
+        };
+
+        SelectFormat(0);
     }
 
-    private void SyncFormat()
+    public string? ExportedPath { get; private set; }
+
+    private Control BuildPreview(
+        IImageBrushSource? preview,
+        CropRegion crop,
+        int cropWidth,
+        int cropHeight,
+        LocalizationService loc)
     {
-        var format = (ExportFormat)Math.Clamp(_format.SelectedIndex, 0, 2);
-        var ext = format.Extension();
-        _fileName.Text = Path.GetFileNameWithoutExtension(_fileName.Text) + ext;
-        _quality.IsEnabled = format != ExportFormat.Png;
-        _quality.Opacity = format == ExportFormat.Png ? 0.4 : 1;
+        var image = new Border
+        {
+            Height = 250,
+            CornerRadius = new CornerRadius(7),
+            ClipToBounds = true,
+            Background = Res("Surface")
+        };
+        if (preview is not null)
+        {
+            image.Background = new ImageBrush(preview)
+            {
+                Stretch = Stretch.UniformToFill,
+                SourceRect = new RelativeRect(
+                    crop.X,
+                    crop.Y,
+                    crop.Width,
+                    crop.Height,
+                    RelativeUnit.Relative)
+            };
+        }
+
+        var caption = new TextBlock
+        {
+            Text = $"{cropWidth} × {cropHeight} · cropped preview",
+            FontSize = 10,
+            Foreground = Res("InkTertiary"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        var frame = new Border
+        {
+            Background = Res("SurfaceAlt"),
+            CornerRadius = new CornerRadius(12),
+            VerticalAlignment = VerticalAlignment.Top,
+            Padding = new Thickness(9),
+            Child = new StackPanel { Children = { image, caption } }
+        };
+        return frame;
+    }
+
+    private void SelectFormat(int index)
+    {
+        _formatIndex = Math.Clamp(index, 0, 2);
+        for (var i = 0; i < _formatButtons.Length; i++)
+        {
+            _formatButtons[i].Classes.Set("active", i == _formatIndex);
+        }
+
+        var extension = Formats[_formatIndex].Extension();
+        _fileName.Text = Path.GetFileNameWithoutExtension(_fileName.Text) + extension;
+        var isPng = Formats[_formatIndex] == ExportFormat.Png;
+        _quality.IsEnabled = !isPng;
+        _quality.Opacity = isPng ? 0.4 : 1;
         SyncHint();
     }
 
     private void SyncHint()
     {
-        var format = (ExportFormat)Math.Clamp(_format.SelectedIndex, 0, 2);
-        var quality = (int)Math.Round(_quality.Value);
-        var mode = _resize.SelectedIndex == 1
-            ? _services.Localization.T("L.EditLongEdge")
-            : _resize.SelectedIndex == 2
-                ? _services.Localization.T("L.EditFitWithin")
-                : _services.Localization.T("L.EditOriginalPixels");
-        _status.Text = $"{format.DisplayName()} · {mode}" +
-                       (format == ExportFormat.Png ? string.Empty : $" · {quality}");
+        var format = Formats[_formatIndex];
+        var mode = _resize.SelectedIndex switch
+        {
+            1 => _services.Localization.T("L.EditLongEdge"),
+            2 => _services.Localization.T("L.EditFitWithin"),
+            _ => _services.Localization.T("L.EditOriginalPixels")
+        };
+        _hint.Text = format == ExportFormat.Png
+            ? $"{format.DisplayName()} · {mode}"
+            : $"{format.DisplayName()} · quality {(int)Math.Round(_quality.Value)} · {mode}";
+        _status.Text = string.Empty;
     }
 
     private async void OnExportClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -382,8 +439,7 @@ internal sealed class EditExportDialog : Window
             return;
         }
 
-        var format = (ExportFormat)Math.Clamp(_format.SelectedIndex, 0, 2);
-        var extension = format.Extension();
+        var format = Formats[_formatIndex];
         var name = Path.GetFileNameWithoutExtension((_fileName.Text ?? string.Empty).Trim());
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -397,7 +453,7 @@ internal sealed class EditExportDialog : Window
             return;
         }
 
-        var target = ImageExporter.NextAvailablePath(Path.Combine(directory, name + extension));
+        var target = ImageExporter.NextAvailablePath(Path.Combine(directory, name + format.Extension()));
         var resizeValue = int.TryParse(_resizeValue.Text, out var parsed)
             ? Math.Clamp(parsed, 64, 200_000)
             : 4096;
@@ -445,6 +501,16 @@ internal sealed class EditExportDialog : Window
         Margin = new Thickness(0, 0, 0, 5)
     };
 
+    private static TextBlock Centered(string text, double size, FontWeight weight) => new()
+    {
+        Text = text,
+        FontSize = size,
+        FontWeight = weight,
+        TextAlignment = TextAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Center
+    };
+
     private static IBrush Res(string key) => key switch
     {
         "Surface" => new SolidColorBrush(Color.Parse("#FBFAF7")),
@@ -457,4 +523,8 @@ internal sealed class EditExportDialog : Window
         "OnCoral" => Brushes.White,
         _ => Brushes.Transparent
     };
+
+    private static Geometry FindGeometry(string key) =>
+        Application.Current?.FindResource(key) as Geometry
+        ?? StreamGeometry.Parse("M 0 0");
 }

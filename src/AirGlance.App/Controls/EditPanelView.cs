@@ -38,6 +38,8 @@ internal sealed class EditPanelView : UserControl
     private readonly Button _exportCard;
     private readonly Button _cancel;
     private readonly Button _export;
+    private readonly TextBlock _cancelLabel;
+    private readonly TextBlock _exportLabelControl;
     private bool _syncing;
 
     public EditPanelView(LocalizationService localization)
@@ -284,21 +286,28 @@ internal sealed class EditPanelView : UserControl
                 _safeNote
             }
         };
+        _cancelLabel = CenteredLabel(_localization.T("L.EditCancel"), 12, FontWeight.Normal);
         _cancel = new Button
         {
-            Content = _localization.T("L.EditCancel"),
-            Classes = { "edit-action" }
+            Content = _cancelLabel,
+            Classes = { "edit-action" },
+            Width = 128,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
         _cancel.Click += (_, _) => CancelRequested?.Invoke(this, EventArgs.Empty);
+        _exportLabelControl = CenteredLabel(_localization.T("L.EditExportCopy"), 12, FontWeight.SemiBold);
+        _exportLabelControl.Width = 174;
         _export = new Button
         {
-            Content = _localization.T("L.EditExportCopy"),
-            Classes = { "edit-primary" }
+            Content = _exportLabelControl,
+            Classes = { "edit-primary" },
+            Width = 174,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
         _export.Click += (_, _) => ExportRequested?.Invoke(this, EventArgs.Empty);
         var actions = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,1.35*"),
+            ColumnDefinitions = new ColumnDefinitions("128,174"),
             ColumnSpacing = 8
         };
         actions.Children.Add(_cancel);
@@ -357,8 +366,8 @@ internal sealed class EditPanelView : UserControl
         _flipVLabel.Text = _localization.T("L.EditFlipV");
         _cropOverlayLabel.Text = _localization.T("L.EditCropOverlay");
         _safeNote.Text = _localization.T("L.EditOriginalUnchanged");
-        _cancel.Content = _localization.T("L.EditCancel");
-        _export.Content = _localization.T("L.EditExportCopy");
+        _cancelLabel.Text = _localization.T("L.EditCancel");
+        _exportLabelControl.Text = _localization.T("L.EditExportCopy");
         _exportCardTitle.Text = _localization.T("L.EditExportCopy");
         _exportCardSub.Text = _localization.T("L.EditExportCard");
         _ratioButtons[0].Content = _localization.T("L.EditFree");
@@ -466,6 +475,17 @@ internal sealed class EditPanelView : UserControl
         button.Click += (_, _) => CropAspectRequested?.Invoke(this, ratio);
         return button;
     }
+
+    private static TextBlock CenteredLabel(string text, double size, FontWeight weight) => new()
+    {
+        Text = text,
+        FontSize = size,
+        FontWeight = weight,
+        TextAlignment = TextAlignment.Center,
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Center,
+        Width = 128
+    };
 
     private static Border Separator() => new()
     {
