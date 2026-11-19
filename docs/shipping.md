@@ -157,7 +157,7 @@ The archive has no wrapper directory. The desktop entry uses `Exec=AirGlance %f`
   -OutputDir artifacts/msix
 ```
 
-The output is `AirGlance_1.0.0.0_x64.msix`, or `AirGlance_1.0.0.0_arm64.msix` for `-Architecture arm64`. `store.yml` runs this for both architectures. The packages are unsigned.
+The Store output is `AirGlance_1.0.0.0_x64.msix`; an arm64 package can be built locally but is not submitted until ARM64 native codecs exist. `store.yml` runs this for both architectures. The packages are unsigned.
 
 ## Smoke test
 
@@ -341,7 +341,7 @@ Submit through Partner Center as an MSIX desktop package.
 
 The listing needs:
 
-- a public privacy policy URL. Even though the app collects nothing, the Store requires a policy. State that settings and thumbnails stay on the device and that no personal data is collected or transmitted;
+- the public privacy policy URL: https://ryzenwang.github.io/AirGlance/privacy/. The policy states that settings and thumbnails stay on the device and that no personal data is collected or transmitted;
 - at least one desktop screenshot, 1366 × 768 or larger, showing the viewer, filmstrip, info panel and settings;
 - the package, tile and Store logos already under `packaging/msix/Assets`;
 - system requirements: Windows 10/11 x64. Memory depends on the image; 100 MP at 100 percent needs a large full-resolution decode;
