@@ -5,18 +5,13 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.1] - 2026-11-19
 
 ### Added
 
 - Frame-synced zoom animations for the wheel, toolbar, keyboard and double-click
   zoom transitions. Zoom interpolates in log space with ease-out timing, preserves
   the pointer anchor, and retargets cleanly during a wheel burst.
-
-## [0.4.1] - 2026-11-18
-
-### Added
-
 - AVIF still-image decoding through the bundled libvips native codec. The first
   frame is shown; HEIC remains unsupported because its HEVC codec is not bundled.
 
@@ -278,7 +273,6 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
-[Unreleased]: https://github.com/RyzenWang/AirGlance/compare/v0.4.1...HEAD
 [0.4.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.1
 [0.4.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0
