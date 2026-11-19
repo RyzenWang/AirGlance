@@ -1330,7 +1330,7 @@
   </Style>
 
   <Style Selector="Button.export-segment">
-    <Setter Property="Height" Value="30" />
+    <Setter Property="Height" Value="24" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />

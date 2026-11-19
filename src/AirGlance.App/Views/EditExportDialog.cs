@@ -25,7 +25,7 @@ internal sealed class EditExportDialog : Window
     private readonly TextBox _resizeValue;
     private readonly TextBox _fileName;
     private readonly CheckBox _metadata;
-    private readonly Slider _quality;
+    private readonly CoralSlider _quality;
     private readonly TextBlock _qualityValue;
     private readonly TextBlock _hint;
     private readonly TextBlock _status;
@@ -141,12 +141,19 @@ internal sealed class EditExportDialog : Window
             VerticalAlignment = VerticalAlignment.Top
         };
         _formatButtons = new Button[3];
-        var segmented = new Grid
+        var segmentGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*"),
-            ColumnSpacing = 3,
-            Background = Res("SurfaceAlt"),
-            Margin = new Thickness(0)
+            ColumnSpacing = 3
+        };
+        var segmented = new Border
+        {
+            Height = 30,
+            Padding = new Thickness(3),
+            CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(Color.Parse("#EEE7DD")),
+            ClipToBounds = true,
+            Child = segmentGrid
         };
         for (var index = 0; index < Formats.Length; index++)
         {
@@ -161,17 +168,13 @@ internal sealed class EditExportDialog : Window
             button.Click += (_, _) => SelectFormat(formatIndex);
             Grid.SetColumn(button, index);
             _formatButtons[index] = button;
-            segmented.Children.Add(button);
+            segmentGrid.Children.Add(button);
         }
 
-        _quality = new Slider
+        _quality = new CoralSlider
         {
-            Minimum = 40,
-            Maximum = 100,
             Value = defaults.NormalizedQuality,
-            TickFrequency = 1,
-            IsSnapToTickEnabled = true,
-            Margin = new Thickness(0, 1, 0, 0)
+            Margin = new Thickness(0, 2, 0, 0)
         };
         _qualityValue = new TextBlock
         {
@@ -323,13 +326,10 @@ internal sealed class EditExportDialog : Window
 
         Content = new Grid { Children = { modal } };
 
-        _quality.PropertyChanged += (_, args) =>
+        _quality.ValueChanged += (_, _) =>
         {
-            if (args.Property.Name == "Value")
-            {
-                _qualityValue.Text = ((int)Math.Round(_quality.Value)).ToString();
-                SyncHint();
-            }
+            _qualityValue.Text = ((int)Math.Round(_quality.Value)).ToString();
+            SyncHint();
         };
         _resize.SelectionChanged += (_, _) =>
         {
@@ -372,7 +372,7 @@ internal sealed class EditExportDialog : Window
         {
             image.Background = new ImageBrush(preview)
             {
-                Stretch = Stretch.UniformToFill,
+                Stretch = Stretch.Uniform,
                 SourceRect = new RelativeRect(
                     crop.X,
                     crop.Y,
