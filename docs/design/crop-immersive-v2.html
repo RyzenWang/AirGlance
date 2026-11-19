@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AirGlance — immersive crop and live export preview</title>
+<style>
+  :root{
+    --paper:#fbf8f3; --surface:#fffdfa; --ink:#23211f; --muted:#69645c;
+    --faint:#9a9286; --line:#e0d9cd; --coral:#e3563b; --teal:#2e6f63;
+    --shadow:0 28px 80px rgba(0,0,0,.32);
+  }
+  [hidden]{display:none!important}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#0d0b09;font-family:Inter,ui-sans-serif,"Segoe UI",sans-serif;color:var(--ink)}
+  button{font:inherit}
+  .stage{position:relative;width:100vw;height:100vh;min-width:1100px;overflow:hidden}
+  .photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;user-select:none}
+  .blurred{filter:blur(6px) brightness(.38);transform:scale(1.015)}
+
+  /* Immersive crop */
+  .crop-tag{position:absolute;z-index:10;left:24px;top:22px;display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:10px;background:rgba(15,12,10,.68);border:1px solid rgba(255,255,255,.14);color:#f5efe8;font-size:11px;letter-spacing:.02em;backdrop-filter:blur(10px)}
+  .crop-tag b{font-size:10px;letter-spacing:.16em;color:#ffb6a5}
+  .safe-tag{position:absolute;z-index:10;right:24px;top:22px;display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;background:rgba(15,12,10,.68);border:1px solid rgba(255,255,255,.14);color:#d8d2ca;font-size:10.5px;backdrop-filter:blur(10px)}
+  .safe-tag svg{width:13px;height:13px;color:#7bc7b8}
+  .dim{display:none}
+  .shade{position:absolute;z-index:2;background:rgba(12,10,8,.56)}
+  .shade-top{left:0;right:0;top:0;height:12%}
+  .shade-bottom{left:0;right:0;bottom:0;height:16%}
+  .shade-left{left:0;top:12%;bottom:16%;width:14%}
+  .shade-right{right:0;top:12%;bottom:16%;width:14%}
+  .crop-box{position:absolute;left:14%;top:12%;width:72%;height:72%;border:1.5px solid rgba(255,255,255,.96);box-shadow:0 0 0 1px rgba(0,0,0,.22);z-index:3}
+  .crop-box::before{content:"";position:absolute;inset:0;background:
+    linear-gradient(to right,transparent 33.2%,rgba(255,255,255,.45) 33.3%,rgba(255,255,255,.45) 33.42%,transparent 33.52%),
+    linear-gradient(to right,transparent 66.2%,rgba(255,255,255,.45) 66.3%,rgba(255,255,255,.45) 66.42%,transparent 66.52%),
+    linear-gradient(to bottom,transparent 33.2%,rgba(255,255,255,.45) 33.3%,rgba(255,255,255,.45) 33.42%,transparent 33.52%),
+    linear-gradient(to bottom,transparent 66.2%,rgba(255,255,255,.45) 66.3%,rgba(255,255,255,.45) 66.42%,transparent 66.52%);
+  pointer-events:none}
+  .handle{position:absolute;width:11px;height:11px;border-radius:2px;background:var(--coral);border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)}
+  .hnw{left:-6px;top:-6px}.hn{left:calc(50% - 6px);top:-6px}.hne{right:-6px;top:-6px}
+  .hw{left:-6px;top:calc(50% - 6px)}.he{right:-6px;top:calc(50% - 6px)}
+  .hsw{left:-6px;bottom:-6px}.hs{left:calc(50% - 6px);bottom:-6px}.hse{right:-6px;bottom:-6px}
+  .crop-size{position:absolute;left:0;bottom:-31px;padding:5px 8px;border-radius:5px;background:rgba(18,15,12,.78);color:#fff;font-size:10px;font-variant-numeric:tabular-nums}
+
+  .crop-bar{position:absolute;z-index:8;left:50%;bottom:24px;transform:translateX(-50%);width:860px;height:72px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:15px;background:rgba(251,248,243,.98);border:1px solid rgba(89,70,50,.18);box-shadow:var(--shadow)}
+  .crop-read{min-width:112px;padding-left:8px}
+  .crop-read small{display:block;font-size:9px;letter-spacing:.13em;color:var(--faint);font-weight:700}
+  .crop-read strong{display:block;margin-top:2px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .vline{width:1px;height:34px;background:var(--line);margin:0 2px}
+  .ratios{display:flex;gap:5px;align-items:center;flex:1}
+  .chip{height:27px;padding:0 10px;border-radius:14px;border:1px solid #ded5ca;background:transparent;color:#635c54;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+  .chip.active{border-color:var(--coral);background:#fff3ef;color:var(--coral);font-weight:650}
+  .ghost{height:34px;padding:0 12px;border:0;background:transparent;color:#6d645b;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+  .ghost:hover{background:#f3eee6;border-radius:8px}
+  .btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid #d9cfc3;background:#fffdfa;color:#4a443d;font-size:11.5px;font-weight:550;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+  .btn.primary{border-color:var(--coral);background:var(--coral);color:#fff;font-weight:650}
+  .btn.primary:hover{background:#cf4e37}
+  .kbd{margin-left:2px;padding:2px 5px;border:1px solid #d9cfc3;border-bottom-width:2px;border-radius:4px;font-size:9px;color:#8b8277}
+
+  /* Export modal */
+  .scrim{position:absolute;inset:0;z-index:20;background:rgba(13,10,8,.52)}
+  .modal{position:absolute;z-index:21;left:50%;top:50%;transform:translate(-50%,-50%);width:790px;height:500px;border-radius:20px;background:var(--paper);border:1px solid rgba(90,70,50,.18);box-shadow:0 32px 100px rgba(0,0,0,.42);overflow:hidden;padding:24px 26px 20px;display:flex;flex-direction:column}
+  .modal-head{display:flex;align-items:flex-start;justify-content:space-between}
+  .eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--coral)}
+  h1{margin:4px 0 0;font-size:23px;letter-spacing:-.03em;font-weight:650}
+  .modal-sub{margin:4px 0 0;font-size:11.5px;color:var(--muted)}
+  .x{width:30px;height:30px;border:0;background:transparent;border-radius:8px;color:#69645c;display:grid;place-items:center;cursor:pointer}
+  .x:hover{background:#f2ede5}.x svg{width:15px;height:15px}
+  .modal-body{display:grid;grid-template-columns:270px 1fr;gap:25px;margin-top:23px}
+  .preview-card{height:289px;padding:9px;border-radius:12px;background:#f6f2eb;align-self:start}
+  .preview-frame{height:250px;border-radius:7px;background:#fffdfa;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .preview-frame img{display:block;width:100%;height:100%;object-fit:contain}
+  .preview-caption{margin-top:8px;text-align:center;font-size:10px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .fields{display:flex;flex-direction:column;gap:13px}
+  .field-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:#69645c;margin-bottom:5px}
+  .format-tabs{height:30px;padding:3px;border-radius:9px;background:#eee7dd;display:grid;grid-template-columns:repeat(3,1fr);gap:3px}
+  .format-tab{height:24px;border:0;border-radius:7px;background:transparent;color:#69645c;font-size:11px;font-weight:650;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .format-tab.active{background:#fffdfa;color:var(--ink);box-shadow:0 1px 3px rgba(36,32,27,.08)}
+  .quality-head{display:flex;justify-content:space-between;align-items:baseline}
+  .quality-val{font-size:11px;color:#69645c;font-variant-numeric:tabular-nums}
+  .slider{position:relative;height:20px;margin-top:2px}
+  .slider-track{position:absolute;left:0;right:0;top:8px;height:4px;border-radius:2px;background:#ded5ca}
+  .slider-fill{position:absolute;left:0;top:8px;height:4px;width:76%;border-radius:2px;background:var(--coral)}
+  .slider-thumb{position:absolute;left:calc(76% - 7px);top:3px;width:14px;height:14px;border-radius:50%;background:var(--coral)}
+  .control{height:34px;border:1px solid #ded5ca;border-radius:8px;background:#fffdfa;padding:0 10px;color:#423c36;font-size:12px;display:flex;align-items:center}
+  .row{display:flex;gap:8px}.row .control:first-child{flex:1}
+  .disabled{opacity:.45}
+  .check{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#5f574e}
+  .box{width:14px;height:14px;border-radius:3px;background:var(--coral);display:grid;place-items:center;color:#fff;font-size:10px}
+  .modal-foot{margin-top:auto;padding-top:14px;display:flex;justify-content:space-between;align-items:center}
+  .hint{font-size:10.5px;color:var(--faint)}
+  .actions{display:flex;gap:8px}
+  .actions .btn{height:38px;min-width:118px}
+  .actions .primary{min-width:134px}
+  @media(max-width:1250px){.crop-bar{width:calc(100vw - 32px)}.modal{transform:translate(-50%,-50%) scale(.9)}}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <img class="photo" id="photo" src="crop-demo-bg.jpg" alt="">
+
+  <section id="crop-state">
+    <div class="shade shade-top"></div>
+    <div class="shade shade-bottom"></div>
+    <div class="shade shade-left"></div>
+    <div class="shade shade-right"></div>
+    <div class="crop-tag"><b>CROP</b><span>Drag a corner</span><span class="kbd">Esc</span></div>
+    <div class="safe-tag">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v5c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>
+      <span>Original stays unchanged</span>
+    </div>
+
+    <div class="crop-box">
+      <span class="handle hnw"></span><span class="handle hn"></span><span class="handle hne"></span>
+      <span class="handle hw"></span><span class="handle he"></span>
+      <span class="handle hsw"></span><span class="handle hs"></span><span class="handle hse"></span>
+      <span class="crop-size">1383 × 778</span>
+    </div>
+
+    <div class="crop-bar">
+      <div class="crop-read"><small>CROP SIZE</small><strong>1383 × 778</strong></div>
+      <div class="vline"></div>
+      <div class="ratios">
+        <button class="chip active" type="button">Free</button>
+        <button class="chip" type="button">Original</button>
+        <button class="chip" type="button">1:1</button>
+        <button class="chip" type="button">4:3</button>
+        <button class="chip" type="button">16:9</button>
+      </div>
+      <button class="ghost" type="button">Reset</button>
+      <div class="vline"></div>
+      <button class="btn" type="button">Cancel</button>
+      <button class="btn primary" type="button">Done</button>
+    </div>
+  </section>
+
+  <section id="export-state" hidden>
+    <img class="photo blurred" src="crop-demo-bg.jpg" alt="">
+    <div class="scrim"></div>
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow">EXPORT COPY</div>
+          <h1>Ready to save</h1>
+          <p class="modal-sub">A new file is written. The original photo is untouched.</p>
+        </div>
+        <button class="x" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="preview-card">
+          <div class="preview-frame"><img src="crop-demo-preview.jpg" alt="Cropped preview"></div>
+          <div class="preview-caption">1383 × 778 · cropped preview</div>
+        </div>
+
+        <div class="fields">
+          <div>
+            <div class="field-label">FORMAT</div>
+            <div class="format-tabs">
+              <button class="format-tab active" type="button">JPEG</button>
+              <button class="format-tab" type="button">PNG</button>
+              <button class="format-tab" type="button">WebP</button>
+            </div>
+          </div>
+          <div>
+            <div class="quality-head"><div class="field-label" style="margin:0">QUALITY</div><div class="quality-val">90</div></div>
+            <div class="slider"><div class="slider-track"></div><div class="slider-fill"></div><div class="slider-thumb"></div></div>
+          </div>
+          <div>
+            <div class="field-label">RESIZE</div>
+            <div class="row"><div class="control">Original pixels <span style="margin-left:auto;color:#9a9286">⌄</span></div><div class="control disabled" style="width:92px;justify-content:center">4096</div></div>
+          </div>
+          <div>
+            <div class="field-label">FILE NAME</div>
+            <div class="control">Cosmic-Core-edited.jpg</div>
+          </div>
+          <div class="check"><span class="box">✓</span> Keep EXIF and ICC metadata where supported</div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <div class="hint">JPEG · quality 90 · original pixels</div>
+        <div class="actions"><button class="btn" type="button">Cancel</button><button class="btn primary" type="button">Export copy…</button></div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const state = params.get('state') || 'crop';
+  document.getElementById('crop-state').hidden = state !== 'crop';
+  document.getElementById('export-state').hidden = state !== 'export';
+  document.getElementById('photo').hidden = state === 'export';
+
+  if (params.get('lang') === 'zh') {
+    document.querySelector('.crop-tag b').textContent = '裁剪';
+    document.querySelector('.crop-tag > span:not(.kbd)').textContent = '拖动角点';
+    document.querySelector('.safe-tag span').textContent = '原图保持不变';
+    document.querySelector('.crop-read small').textContent = '裁剪尺寸';
+    const chips = document.querySelectorAll('.ratios .chip');
+    const zh = ['自由', '原比例', '1:1', '4:3', '16:9'];
+    chips.forEach((chip, index) => chip.textContent = zh[index]);
+    document.querySelector('.ghost').textContent = '重置';
+    const barButtons = document.querySelectorAll('.crop-bar .btn');
+    barButtons[0].textContent = '取消';
+    barButtons[1].textContent = '完成';
+  }
+</script>
+</body>
+</html>

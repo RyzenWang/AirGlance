@@ -33,14 +33,13 @@ internal sealed class EditPanelView : UserControl
     private readonly TextBlock _flipHLabel;
     private readonly TextBlock _flipVLabel;
     private readonly Button[] _ratioButtons;
-    private readonly TextBlock _cropOverlayLabel;
-    private readonly ToggleSwitch _cropOverlay;
+    private readonly Button _cropButton;
+    private readonly TextBlock _cropButtonLabel;
     private readonly Button _exportCard;
     private readonly Button _cancel;
     private readonly Button _export;
     private readonly TextBlock _cancelLabel;
     private readonly TextBlock _exportLabelControl;
-    private bool _syncing;
 
     public EditPanelView(LocalizationService localization)
     {
@@ -127,6 +126,19 @@ internal sealed class EditPanelView : UserControl
         _resetCropButton.Click += (_, _) => ResetCropRequested?.Invoke(this, EventArgs.Empty);
         body.Children.Add(cropHeader);
 
+        _cropButtonLabel = CenteredLabel(_localization.T("L.EditCropEnter"), 12, FontWeight.SemiBold);
+        _cropButton = new Button
+        {
+            Content = _cropButtonLabel,
+            Classes = { "edit-crop-entry" },
+            Height = 34,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(0, 0, 0, 9)
+        };
+        _cropButton.Click += (_, _) => CropRequested?.Invoke(this, EventArgs.Empty);
+        body.Children.Add(_cropButton);
+
         var ratios = new WrapPanel();
         _ratioButtons =
         [
@@ -150,37 +162,6 @@ internal sealed class EditPanelView : UserControl
             Margin = new Thickness(0, 5, 0, 0)
         };
         body.Children.Add(_cropSize);
-
-        _cropOverlayLabel = new TextBlock
-        {
-            Text = _localization.T("L.EditCropOverlay"),
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        _cropOverlay = new ToggleSwitch
-        {
-            IsChecked = true,
-            OnContent = string.Empty,
-            OffContent = string.Empty,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center
-        };
-        _cropOverlay.Click += (_, _) =>
-        {
-            if (!_syncing)
-            {
-                CropOverlayChanged?.Invoke(this, _cropOverlay.IsChecked == true);
-            }
-        };
-        var cropToggleRow = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Margin = new Thickness(0, 9, 0, 0)
-        };
-        cropToggleRow.Children.Add(_cropOverlayLabel);
-        Grid.SetColumn(_cropOverlay, 1);
-        cropToggleRow.Children.Add(_cropOverlay);
-        body.Children.Add(cropToggleRow);
         body.Children.Add(Separator());
 
         _exportLabel = SectionLabel(out _, out var exportHeader, showAction: false);
@@ -339,9 +320,9 @@ internal sealed class EditPanelView : UserControl
     public event EventHandler? ExportRequested;
     public event EventHandler? ResetRequested;
     public event EventHandler? ResetCropRequested;
+    public event EventHandler? CropRequested;
     public event EventHandler<EditAction>? TransformRequested;
     public event EventHandler<string>? CropAspectRequested;
-    public event EventHandler<bool>? CropOverlayChanged;
 
     public enum EditAction
     {
@@ -364,7 +345,7 @@ internal sealed class EditPanelView : UserControl
         _rotateRightLabel.Text = _localization.T("L.EditRotateRight");
         _flipHLabel.Text = _localization.T("L.EditFlipH");
         _flipVLabel.Text = _localization.T("L.EditFlipV");
-        _cropOverlayLabel.Text = _localization.T("L.EditCropOverlay");
+        _cropButtonLabel.Text = _localization.T("L.EditCropEnter");
         _safeNote.Text = _localization.T("L.EditOriginalUnchanged");
         _cancelLabel.Text = _localization.T("L.EditCancel");
         _exportLabelControl.Text = _localization.T("L.EditExportCopy");
@@ -378,13 +359,6 @@ internal sealed class EditPanelView : UserControl
     }
 
     public void SetCropSize(string text) => _cropSize.Text = text;
-
-    public void SetCropOverlay(bool active)
-    {
-        _syncing = true;
-        _cropOverlay.IsChecked = active;
-        _syncing = false;
-    }
 
     public void SetActiveRatio(string ratio)
     {

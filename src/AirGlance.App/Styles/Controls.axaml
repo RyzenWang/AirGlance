@@ -1305,6 +1305,100 @@
     <Setter Property="Opacity" Value="0.9" />
   </Style>
 
+  <Style Selector="Button.edit-crop-entry">
+    <Setter Property="Background" Value="{DynamicResource SurfaceAlt}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="Foreground" Value="{DynamicResource Coral}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+
+  <Style Selector="Button.edit-crop-entry:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#FFF3EF" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Coral}" />
+  </Style>
+
+  <Style Selector="Border.crop-bar">
+    <Setter Property="Width" Value="860" />
+    <Setter Property="Height" Value="72" />
+    <Setter Property="Padding" Value="14,12" />
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="15" />
+    <Setter Property="BoxShadow" Value="0 24 70 0 #55281F18" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Bottom" />
+    <Setter Property="Margin" Value="0,0,0,24" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-chip">
+    <Setter Property="Height" Value="27" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="#DED5CA" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-chip.active">
+    <Setter Property="Background" Value="#FFF3EF" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Coral}" />
+    <Setter Property="Foreground" Value="{DynamicResource Coral}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-reset">
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-reset:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-action">
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="{DynamicResource Surface}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Foreground" Value="{DynamicResource Ink}" />
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-action:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-primary">
+    <Setter Property="Height" Value="34" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Foreground" Value="{DynamicResource OnCoral}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="Button.crop-bar-primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Coral}" />
+    <Setter Property="Opacity" Value="0.9" />
+  </Style>
+
   <Style Selector="Border.edit-mode-chip">
     <Setter Property="Background" Value="{DynamicResource SurfaceAlt}" />
     <Setter Property="CornerRadius" Value="9" />

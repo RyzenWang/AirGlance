@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Diagnostics;
 using AirGlance.App.Controls;
 using AirGlance.App.Services;
@@ -40,8 +41,10 @@ public partial class MainWindow : Window
     private bool _cursorHidden;
     private bool _chromeVisible = true;
     private bool _dualMode;
-    private bool _cropActive = true;
+    private bool _cropMode;
     private bool _cropDragging;
+    private CropRegion _cropBeforeEnter = CropRegion.Full;
+    private string _cropAspectBeforeEnter = "free";
     private string _cropAspect = "free";
     private DualCanvasView? _dualView;
     private Border? _exportScrim;
@@ -60,6 +63,9 @@ public partial class MainWindow : Window
     private Border FilmstripHost = null!;
     private EditPanelView EditPanel = null!;
     private CropOverlay CropControl = null!;
+    private CropToolbarView CropBar = null!;
+    private Border CropModeTag = null!;
+    private Border CropSafeTag = null!;
     private ContentControl InfoContentHost = null!;
     private Border EmptyCard = null!;
     private Border LoadingChip = null!;
@@ -635,8 +641,62 @@ public partial class MainWindow : Window
         EditPanel.ResetCropRequested += OnEditResetCropRequested;
         EditPanel.TransformRequested += OnEditTransformRequested;
         EditPanel.CropAspectRequested += OnEditCropAspectRequested;
-        EditPanel.CropOverlayChanged += OnEditCropOverlayChanged;
+        EditPanel.CropRequested += OnEditCropRequested;
         root.Children.Add(EditPanel);
+
+        CropBar = new CropToolbarView(_services.Localization) { IsVisible = false };
+        CropBar.SetValue(Panel.ZIndexProperty, 55);
+        CropBar.ResetRequested += OnCropBarResetRequested;
+        CropBar.CancelRequested += OnCropBarCancelRequested;
+        CropBar.DoneRequested += OnCropBarDoneRequested;
+        CropBar.AspectRequested += OnEditCropAspectRequested;
+        root.Children.Add(CropBar);
+
+        CropModeTag = new Border
+        {
+            IsVisible = false,
+            IsHitTestVisible = false,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(24, 22, 0, 0),
+            Padding = new Thickness(12, 8),
+            CornerRadius = new CornerRadius(10),
+            Background = new SolidColorBrush(Color.FromArgb(178, 15, 12, 10)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(36, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = _services.Localization.T("L.EditCropTag"),
+                FontSize = 10,
+                FontWeight = FontWeight.SemiBold,
+                LetterSpacing = 0.8,
+                Foreground = new SolidColorBrush(Color.Parse("#F5EFE8"))
+            }
+        };
+        CropModeTag.SetValue(Panel.ZIndexProperty, 55);
+        root.Children.Add(CropModeTag);
+
+        CropSafeTag = new Border
+        {
+            IsVisible = false,
+            IsHitTestVisible = false,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 22, 24, 0),
+            Padding = new Thickness(12, 8),
+            CornerRadius = new CornerRadius(10),
+            Background = new SolidColorBrush(Color.FromArgb(178, 15, 12, 10)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(36, 255, 255, 255)),
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock
+            {
+                Text = _services.Localization.T("L.EditSafeTag"),
+                FontSize = 10.5,
+                Foreground = new SolidColorBrush(Color.Parse("#D8D2CA"))
+            }
+        };
+        CropSafeTag.SetValue(Panel.ZIndexProperty, 55);
+        root.Children.Add(CropSafeTag);
 
         // Transient toast.
         ToastBorder = new Border { IsVisible = false };
@@ -873,15 +933,18 @@ public partial class MainWindow : Window
 
         LoadingChip.IsVisible = _viewModel.IsLoading;
         TileLoadingChip.IsVisible = _viewModel.ShowRegionLoading;
-        InfoHost.IsVisible = _viewModel.InfoShown;
+        InfoHost.IsVisible = _viewModel.InfoShown && !_cropMode;
         InfoHost.Margin = _viewModel.FilmstripShown
             ? new Thickness(0, 82, 22, 150)
             : new Thickness(0, 82, 22, 92);
-        EditPanel.IsVisible = _viewModel.IsEditing;
+        EditPanel.IsVisible = _viewModel.IsEditing && !_cropMode;
         EditPanel.Margin = _viewModel.FilmstripShown
             ? new Thickness(0, 82, 22, 150)
             : new Thickness(0, 82, 22, 92);
-        CropControl.IsActive = _viewModel.IsEditing && _cropActive;
+        CropBar.IsVisible = _viewModel.IsEditing && _cropMode;
+        CropModeTag.IsVisible = _viewModel.IsEditing && _cropMode;
+        CropSafeTag.IsVisible = _viewModel.IsEditing && _cropMode;
+        CropControl.IsActive = _viewModel.IsEditing && _cropMode;
         if (_viewModel.IsEditing && !_cropDragging && CropControl.Crop != _viewModel.Crop)
         {
             CropControl.SetCrop(_viewModel.Crop);
@@ -898,28 +961,30 @@ public partial class MainWindow : Window
                     ? _services.Localization.T("L.EditUnavailable")
                     : _services.Localization.T("L.EditHint");
         ToolTip.SetTip(EditButton, editTip);
-        FilmstripHost.IsVisible = _viewModel.FilmstripShown;
-        Dock.IsVisible = !_viewModel.OverlayVisible;
+        FilmstripHost.IsVisible = _viewModel.FilmstripShown && !_cropMode;
+        Dock.IsVisible = !_viewModel.OverlayVisible && !_cropMode;
         Dock.Margin = _viewModel.FilmstripShown
             ? new Thickness(0, 0, 0, 150)
             : new Thickness(0, 0, 0, 22);
 
-        var showNavigation = _viewModel.HasImage && count > 1 && !_viewModel.OverlayVisible;
+        var showNavigation = _viewModel.HasImage && count > 1 && !_viewModel.OverlayVisible && !_cropMode;
         PrevButton.IsVisible = showNavigation;
         NextButton.IsVisible = showNavigation;
 
         InfoToggle.Classes.Set("active", _viewModel.InfoShown);
         FilmstripToggle.Classes.Set("active", _viewModel.FilmstripShown);
         FullscreenButton.Classes.Set("active", _viewModel.IsFullscreen);
-        TopBar.IsVisible = !_viewModel.IsFullscreen;
+        TopBar.IsVisible = !_viewModel.IsFullscreen && !_cropMode;
 
         TransientMessageText.Text = _viewModel.TransientMessage ?? string.Empty;
         ToastBorder.IsVisible = !string.IsNullOrWhiteSpace(_viewModel.TransientMessage);
         DragOverlay.IsVisible = _viewModel.IsDragOver;
 
-        CanvasBorder.Padding = _viewModel.IsFullscreen
-            ? new Thickness(0)
-            : new Thickness(56, 42, 56, 58);
+        CanvasBorder.Padding = _cropMode
+            ? new Thickness(32, 32, 32, 150)
+            : _viewModel.IsFullscreen
+                ? new Thickness(0)
+                : new Thickness(56, 42, 56, 58);
         if (_viewModel.IsFullscreen)
         {
             if (!CanvasBorder.Classes.Contains("fullscreen"))
@@ -961,7 +1026,7 @@ public partial class MainWindow : Window
         }
 
         CanvasBorder.IsVisible = true;
-        WindowChip.IsVisible = OperatingSystem.IsWindows() && !_viewModel.IsFullscreen;
+        WindowChip.IsVisible = OperatingSystem.IsWindows() && !_viewModel.IsFullscreen && !_cropMode;
     }
 
     private void UpdateTopBarLayout()
@@ -996,14 +1061,14 @@ public partial class MainWindow : Window
 
         var empty = _viewModel.OverlayVisible;
         var topVisible = _chromeVisible || empty;
-        TopBar.IsVisible = !_viewModel.IsFullscreen;
+        TopBar.IsVisible = !_viewModel.IsFullscreen && !_cropMode;
         TopBar.Opacity = topVisible ? 1 : 0;
         TopBar.IsHitTestVisible = topVisible;
 
         var controlsVisible = _chromeVisible && !empty;
-        Dock.Opacity = controlsVisible ? 1 : 0;
-        Dock.IsHitTestVisible = controlsVisible;
-        var navVisible = controlsVisible && !_viewModel.IsFullscreen;
+        Dock.Opacity = controlsVisible && !_cropMode ? 1 : 0;
+        Dock.IsHitTestVisible = controlsVisible && !_cropMode;
+        var navVisible = controlsVisible && !_viewModel.IsFullscreen && !_cropMode;
         PrevHost.Opacity = navVisible ? 1 : 0;
         NextHost.Opacity = navVisible ? 1 : 0;
         PrevHost.IsHitTestVisible = navVisible;
@@ -1011,7 +1076,7 @@ public partial class MainWindow : Window
 
         // In fullscreen the hint appears once the dock has faded out, so the two
         // never share the bottom-right corner on a narrow screen.
-        FullscreenHint.IsVisible = _viewModel.IsFullscreen && !_chromeVisible;
+        FullscreenHint.IsVisible = _viewModel.IsFullscreen && !_chromeVisible && !_cropMode;
     }
 
     private void OnChromeTimerTick(object? sender, EventArgs e)
@@ -1555,11 +1620,20 @@ public partial class MainWindow : Window
                 case Key.V:
                     await _viewModel.FlipVerticalAsync();
                     break;
+                case Key.Enter when _cropMode:
+                    OnCropBarDoneRequested(this, EventArgs.Empty);
+                    break;
                 case Key.F11:
                 case Key.F:
                     ToggleFullscreen();
                     break;
                 case Key.Escape:
+                    if (_cropMode)
+                    {
+                        OnCropBarCancelRequested(this, EventArgs.Empty);
+                        break;
+                    }
+
                     if (_viewModel.IsEditing)
                     {
                         await CloseEditAsync();
@@ -1944,13 +2018,15 @@ public partial class MainWindow : Window
             _viewModel.ToggleInfo();
         }
 
-        _cropActive = false;
+        _cropMode = false;
         _cropAspect = "free";
+        _cropBeforeEnter = CropRegion.Full;
+        _cropAspectBeforeEnter = "free";
         CropControl.Reset();
         CropControl.AspectRatio = null;
         CropControl.IsActive = false;
-        EditPanel.SetCropOverlay(false);
         EditPanel.SetActiveRatio("free");
+        CropBar.SetActiveRatio("free");
         _viewModel.SetCrop(CropRegion.Full);
         UpdateCropUi();
         ApplyViewModelState();
@@ -2008,6 +2084,55 @@ public partial class MainWindow : Window
         ApplyViewModelState();
     }
 
+    private void OnEditCropRequested(object? sender, EventArgs e) => EnterCropMode();
+
+    private void EnterCropMode()
+    {
+        if (!_viewModel.IsEditing || _cropMode)
+        {
+            return;
+        }
+
+        _cropBeforeEnter = _viewModel.Crop;
+        _cropAspectBeforeEnter = _cropAspect;
+        _cropMode = true;
+        CropControl.SetCrop(_cropBeforeEnter);
+        CropControl.IsActive = true;
+        CropBar.SetActiveRatio(_cropAspect);
+        UpdateCropUi();
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private void OnCropBarResetRequested(object? sender, EventArgs e)
+    {
+        CropControl.Reset();
+        _viewModel.SetCrop(CropRegion.Full);
+        UpdateCropUi();
+    }
+
+    private void OnCropBarCancelRequested(object? sender, EventArgs e)
+    {
+        _viewModel.SetCrop(_cropBeforeEnter);
+        CropControl.SetCrop(_cropBeforeEnter);
+        _cropAspect = _cropAspectBeforeEnter;
+        CropControl.AspectRatio = AspectFor(_cropAspect);
+        CropBar.SetActiveRatio(_cropAspect);
+        _cropMode = false;
+        CropControl.IsActive = false;
+        UpdateCropUi();
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private void OnCropBarDoneRequested(object? sender, EventArgs e)
+    {
+        _cropMode = false;
+        CropControl.IsActive = false;
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
     private void OnEditCropAspectRequested(object? sender, string ratio)
     {
         double? aspect = ratio switch
@@ -2020,20 +2145,18 @@ public partial class MainWindow : Window
             _ => null
         };
 
+        if (!_cropMode)
+        {
+            EnterCropMode();
+        }
+
         _cropAspect = ratio;
-        _cropActive = true;
         CropControl.AspectRatio = aspect;
         CropControl.IsActive = true;
-        EditPanel.SetCropOverlay(true);
         EditPanel.SetActiveRatio(ratio);
+        CropBar.SetActiveRatio(ratio);
         _viewModel.SetCrop(CropControl.Crop);
         UpdateCropUi();
-    }
-
-    private void OnEditCropOverlayChanged(object? sender, bool active)
-    {
-        _cropActive = active;
-        CropControl.IsActive = _viewModel.IsEditing && active;
     }
 
     private void OnCropChanged(object? sender, EventArgs e)
@@ -2060,12 +2183,24 @@ public partial class MainWindow : Window
             "16:9" => "16:9",
             _ => _services.Localization.T("L.EditFree")
         };
-        EditPanel.SetCropSize(_services.Localization.Format(
+        var text = _services.Localization.Format(
             "L.EditCropSizeFormat",
             width,
             height,
-            label));
+            label);
+        EditPanel.SetCropSize(text);
+        CropBar.SetSize($"{width} × {height}");
     }
+
+    private double? AspectFor(string ratio) => ratio switch
+    {
+        "original" when Viewer.SourcePixelWidth > 0 && Viewer.SourcePixelHeight > 0 =>
+            (double)Viewer.SourcePixelWidth / Viewer.SourcePixelHeight,
+        "1:1" => 1,
+        "4:3" => 4.0 / 3,
+        "16:9" => 16.0 / 9,
+        _ => null
+    };
 
     private async void OnEditExportRequested(object? sender, EventArgs e)
     {
@@ -2083,11 +2218,12 @@ public partial class MainWindow : Window
         var crop = _viewModel.Crop;
         var cropWidth = Math.Max(1, (int)Math.Round(Viewer.SourcePixelWidth * crop.Width));
         var cropHeight = Math.Max(1, (int)Math.Round(Viewer.SourcePixelHeight * crop.Height));
+        var croppedPreview = CreateCroppedPreviewBitmap(crop);
         var dialog = new EditExportDialog(
             _services,
             path,
-            _viewModel.CurrentBitmap,
-            crop,
+            croppedPreview,
+            croppedPreview is null ? crop : CropRegion.Full,
             cropWidth,
             cropHeight,
             defaults,
@@ -2112,6 +2248,7 @@ public partial class MainWindow : Window
             _root.Effect = previousEffect;
             _root.Children.Remove(_exportScrim);
             _exportScrim = null;
+            croppedPreview?.Dispose();
         }
 
         if (string.IsNullOrWhiteSpace(result))
@@ -2120,16 +2257,57 @@ public partial class MainWindow : Window
         }
 
         await _viewModel.FinishEditAsync();
+        _cropMode = false;
         CropControl.IsActive = false;
-        _cropActive = false;
         ApplyViewModelState();
+    }
+
+    private WriteableBitmap? CreateCroppedPreviewBitmap(CropRegion crop)
+    {
+        if (_viewModel.CurrentBitmap is not { } source)
+        {
+            return null;
+        }
+
+        var sourceWidth = source.PixelSize.Width;
+        var sourceHeight = source.PixelSize.Height;
+        var (x, y, width, height) = crop.Clamp().ToPixels(sourceWidth, sourceHeight);
+        var target = new WriteableBitmap(
+            new PixelSize(width, height),
+            new Vector(96, 96),
+            PixelFormat.Bgra8888,
+            AlphaFormat.Premul);
+
+        try
+        {
+            using var sourceBuffer = source.Lock();
+            using var targetBuffer = target.Lock();
+            var rowBytes = width * 4;
+            var row = new byte[rowBytes];
+            for (var rowIndex = 0; rowIndex < height; rowIndex++)
+            {
+                Marshal.Copy(
+                    sourceBuffer.Address + (y + rowIndex) * sourceBuffer.RowBytes + x * 4,
+                    row,
+                    0,
+                    rowBytes);
+                Marshal.Copy(row, 0, targetBuffer.Address + rowIndex * targetBuffer.RowBytes, rowBytes);
+            }
+
+            return target;
+        }
+        catch
+        {
+            target.Dispose();
+            return null;
+        }
     }
 
     private async Task CloseEditAsync()
     {
         await _viewModel.CancelEditAsync();
+        _cropMode = false;
         CropControl.IsActive = false;
-        _cropActive = false;
         ApplyViewModelState();
     }
 
@@ -2270,7 +2448,7 @@ public partial class MainWindow : Window
 
     private void OnCropCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!_viewModel.IsEditing || !_cropActive)
+        if (!_viewModel.IsEditing || !_cropMode)
         {
             return;
         }
