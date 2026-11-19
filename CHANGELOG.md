@@ -5,6 +5,14 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Large TIFF 100% viewing no longer stops on a blurry proxy or leaves the
+  region-loading prompt visible. A proxy upgrade that finishes after region mode
+  starts no longer replaces and clears the live tile source.
+
 ## [0.4.1] - 2026-11-19
 
 ### Added

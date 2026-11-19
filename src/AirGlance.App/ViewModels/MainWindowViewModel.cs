@@ -514,6 +514,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                     break;
                 }
 
+                // Region tiles were published while this larger proxy was being
+                // decoded. Replacing the viewer image now would clear the tile
+                // source and leave the canvas stuck on a blurry proxy.
+                if (_regionActive || _isRegionOpening)
+                {
+                    break;
+                }
+
                 _loader.Store(path, target, target, decoded);
                 _rawDecoded = decoded;
                 var edit = _edit;
@@ -565,6 +573,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         _isRegionOpening = true;
+        _proxyCts?.Cancel();
         var version = _loadVersion;
         try
         {
@@ -582,8 +591,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             }
 
             _regionActive = true;
-            _regionLoading = true;
-            ShowRegionLoading = true;
+            _regionLoading = false;
+            ShowRegionLoading = false;
             PublishTiled(tiles);
             UpdateStatus(metadata);
         }
