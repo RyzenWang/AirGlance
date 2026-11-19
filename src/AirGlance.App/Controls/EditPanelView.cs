@@ -28,8 +28,13 @@ internal sealed class EditPanelView : UserControl
     private readonly Button _rotateRight;
     private readonly Button _flipH;
     private readonly Button _flipV;
+    private readonly TextBlock _rotateLeftLabel;
+    private readonly TextBlock _rotateRightLabel;
+    private readonly TextBlock _flipHLabel;
+    private readonly TextBlock _flipVLabel;
     private readonly Button[] _ratioButtons;
-    private readonly CheckBox _cropOverlay;
+    private readonly TextBlock _cropOverlayLabel;
+    private readonly ToggleSwitch _cropOverlay;
     private readonly Button _exportCard;
     private readonly Button _cancel;
     private readonly Button _export;
@@ -50,9 +55,15 @@ internal sealed class EditPanelView : UserControl
         var eyebrow = new TextBlock { Text = "NON-DESTRUCTIVE", Classes = { "edit-eyebrow" } };
         var close = new Button
         {
-            Content = "×",
+            Content = new IconPath
+            {
+                Data = FindGeometry("IconClose"),
+                Width = 15,
+                Height = 15,
+                Stroke = new SolidColorBrush(Color.Parse("#69645C")),
+                StrokeThickness = 1.7
+            },
             Classes = { "icon" },
-            FontSize = 19,
             Width = 30,
             Height = 30,
             HorizontalContentAlignment = HorizontalAlignment.Center,
@@ -86,18 +97,14 @@ internal sealed class EditPanelView : UserControl
         _resetButton.Click += (_, _) => ResetRequested?.Invoke(this, EventArgs.Empty);
         body.Children.Add(transformHeader);
 
-        _rotateLeft = ToolButton("L.EditRotateLeft", out var rotateLeftText);
+        _rotateLeft = ToolButton("L.EditRotateLeft", "IconRotateLeft", out _rotateLeftLabel);
         _rotateLeft.Click += (_, _) => TransformRequested?.Invoke(this, EditAction.Left);
-        _rotateLeft.Content = rotateLeftText;
-        _rotateRight = ToolButton("L.EditRotateRight", out var rotateRightText);
+        _rotateRight = ToolButton("L.EditRotateRight", "IconRotateRight", out _rotateRightLabel);
         _rotateRight.Click += (_, _) => TransformRequested?.Invoke(this, EditAction.Right);
-        _rotateRight.Content = rotateRightText;
-        _flipH = ToolButton("L.EditFlipH", out var flipHText);
+        _flipH = ToolButton("L.EditFlipH", "IconFlipHorizontal", out _flipHLabel);
         _flipH.Click += (_, _) => TransformRequested?.Invoke(this, EditAction.FlipH);
-        _flipH.Content = flipHText;
-        _flipV = ToolButton("L.EditFlipV", out var flipVText);
+        _flipV = ToolButton("L.EditFlipV", "IconFlipVertical", out _flipVLabel);
         _flipV.Click += (_, _) => TransformRequested?.Invoke(this, EditAction.FlipV);
-        _flipV.Content = flipVText;
         var tools = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
@@ -142,11 +149,19 @@ internal sealed class EditPanelView : UserControl
         };
         body.Children.Add(_cropSize);
 
-        _cropOverlay = new CheckBox
+        _cropOverlayLabel = new TextBlock
         {
-            Content = _localization.T("L.EditCropOverlay"),
+            Text = _localization.T("L.EditCropOverlay"),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _cropOverlay = new ToggleSwitch
+        {
             IsChecked = true,
-            Margin = new Thickness(0, 9, 0, 0)
+            OnContent = string.Empty,
+            OffContent = string.Empty,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center
         };
         _cropOverlay.Click += (_, _) =>
         {
@@ -155,7 +170,15 @@ internal sealed class EditPanelView : UserControl
                 CropOverlayChanged?.Invoke(this, _cropOverlay.IsChecked == true);
             }
         };
-        body.Children.Add(_cropOverlay);
+        var cropToggleRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(0, 9, 0, 0)
+        };
+        cropToggleRow.Children.Add(_cropOverlayLabel);
+        Grid.SetColumn(_cropOverlay, 1);
+        cropToggleRow.Children.Add(_cropOverlay);
+        body.Children.Add(cropToggleRow);
         body.Children.Add(Separator());
 
         _exportLabel = SectionLabel(out _, out var exportHeader, showAction: false);
@@ -173,45 +196,55 @@ internal sealed class EditPanelView : UserControl
             FontSize = 10.5,
             Margin = new Thickness(0, 3, 0, 0)
         };
+        var exportIcon = new Border
+        {
+            Width = 34,
+            Height = 34,
+            CornerRadius = new CornerRadius(9),
+            Background = new SolidColorBrush(Color.Parse("#FBE9E2")),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new IconPath
+            {
+                Data = FindGeometry("IconDownload"),
+                Width = 18,
+                Height = 18,
+                Stroke = new SolidColorBrush(Color.Parse("#D65A43")),
+                StrokeThickness = 1.8,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        var exportText = new StackPanel
+        {
+            Children = { _exportCardTitle, _exportCardSub },
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var exportChevron = new IconPath
+        {
+            Data = FindGeometry("IconChevronRight"),
+            Width = 16,
+            Height = 16,
+            Stroke = new SolidColorBrush(Color.Parse("#948A7E")),
+            StrokeThickness = 1.7,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var exportContent = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            ColumnSpacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        exportContent.Children.Add(exportIcon);
+        Grid.SetColumn(exportText, 1);
+        exportContent.Children.Add(exportText);
+        Grid.SetColumn(exportChevron, 2);
+        exportContent.Children.Add(exportChevron);
         _exportCard = new Button
         {
             Classes = { "edit-card" },
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            Content = new Grid
-            {
-                ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
-                ColumnSpacing = 10,
-                Children =
-                {
-                    new Border
-                    {
-                        Width = 34,
-                        Height = 34,
-                        CornerRadius = new CornerRadius(9),
-                        Background = new SolidColorBrush(Color.Parse("#FBE9E2")),
-                        Child = new TextBlock
-                        {
-                            Text = "↓",
-                            FontSize = 17,
-                            Foreground = new SolidColorBrush(Color.Parse("#D65A43")),
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center
-                        }
-                    },
-                    new StackPanel
-                    {
-                        Children = { _exportCardTitle, _exportCardSub },
-                        VerticalAlignment = VerticalAlignment.Center
-                    },
-                    new TextBlock
-                    {
-                        Text = "›",
-                        FontSize = 17,
-                        Foreground = new SolidColorBrush(Color.Parse("#948A7E")),
-                        VerticalAlignment = VerticalAlignment.Center
-                    }
-                }
-            }
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = exportContent
         };
         _exportCard.Click += (_, _) => ExportRequested?.Invoke(this, EventArgs.Empty);
         body.Children.Add(_exportCard);
@@ -227,10 +260,29 @@ internal sealed class EditPanelView : UserControl
 
         _safeNote = new TextBlock
         {
-            Text = "✓  " + _localization.T("L.EditOriginalUnchanged"),
+            Text = _localization.T("L.EditOriginalUnchanged"),
             Classes = { "caption" },
             FontSize = 10.5,
-            Margin = new Thickness(0, 0, 0, 9)
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var safeRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Margin = new Thickness(0, 0, 0, 9),
+            Children =
+            {
+                new IconPath
+                {
+                    Data = FindGeometry("IconShieldCheck"),
+                    Width = 14,
+                    Height = 14,
+                    Stroke = new SolidColorBrush(Color.Parse("#237F76")),
+                    StrokeThickness = 1.7,
+                    VerticalAlignment = VerticalAlignment.Center
+                },
+                _safeNote
+            }
         };
         _cancel = new Button
         {
@@ -255,7 +307,7 @@ internal sealed class EditPanelView : UserControl
         var footer = new Border
         {
             Classes = { "edit-footer" },
-            Child = new StackPanel { Children = { _safeNote, actions } }
+            Child = new StackPanel { Children = { safeRow, actions } }
         };
         Grid.SetRow(footer, 2);
         grid.Children.Add(footer);
@@ -299,12 +351,12 @@ internal sealed class EditPanelView : UserControl
         _exportLabel.Text = _localization.T("L.EditExport");
         _resetButton.Content = _localization.T("L.EditReset");
         _resetCropButton.Content = _localization.T("L.EditResetCrop");
-        _rotateLeft.Content = _localization.T("L.EditRotateLeft");
-        _rotateRight.Content = _localization.T("L.EditRotateRight");
-        _flipH.Content = _localization.T("L.EditFlipH");
-        _flipV.Content = _localization.T("L.EditFlipV");
-        _cropOverlay.Content = _localization.T("L.EditCropOverlay");
-        _safeNote.Text = "✓  " + _localization.T("L.EditOriginalUnchanged");
+        _rotateLeftLabel.Text = _localization.T("L.EditRotateLeft");
+        _rotateRightLabel.Text = _localization.T("L.EditRotateRight");
+        _flipHLabel.Text = _localization.T("L.EditFlipH");
+        _flipVLabel.Text = _localization.T("L.EditFlipV");
+        _cropOverlayLabel.Text = _localization.T("L.EditCropOverlay");
+        _safeNote.Text = _localization.T("L.EditOriginalUnchanged");
         _cancel.Content = _localization.T("L.EditCancel");
         _export.Content = _localization.T("L.EditExportCopy");
         _exportCardTitle.Text = _localization.T("L.EditExportCopy");
@@ -357,23 +409,51 @@ internal sealed class EditPanelView : UserControl
         return label;
     }
 
-    private Button ToolButton(string key, out TextBlock text)
+    private Button ToolButton(string key, string iconKey, out TextBlock label)
     {
-        text = new TextBlock
+        var text = new TextBlock
         {
             Text = _localization.T(key),
             FontSize = 10,
             TextWrapping = TextWrapping.NoWrap,
-            HorizontalAlignment = HorizontalAlignment.Center
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
         };
+        var icon = new IconPath
+        {
+            Data = FindGeometry(iconKey),
+            Width = 17,
+            Height = 17,
+            Stroke = new SolidColorBrush(Color.Parse("#69645C")),
+            StrokeThickness = 1.65,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var content = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            RowSpacing = 3,
+            Height = 38,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        content.Children.Add(icon);
+        Grid.SetRow(text, 1);
+        content.Children.Add(text);
+        label = text;
         return new Button
         {
-            Content = text,
+            Content = content,
             Classes = { "edit-tool" },
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center
         };
     }
+
+    private static Geometry FindGeometry(string key) =>
+        Application.Current?.FindResource(key) as Geometry
+        ?? StreamGeometry.Parse("M 0 0");
 
     private Button RatioButton(string ratio, out Button button)
     {

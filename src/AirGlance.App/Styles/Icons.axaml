@@ -31,6 +31,12 @@
   <StreamGeometry x:Key="IconMinus">M 5 12 H 19</StreamGeometry>
   <StreamGeometry x:Key="IconPlus">M 12 5 V 19 M 5 12 H 19</StreamGeometry>
   <StreamGeometry x:Key="IconFit">M 5 6 H 19 A 1 1 0 0 1 20 7 V 17 A 1 1 0 0 1 19 18 H 5 A 1 1 0 0 1 4 17 V 7 A 1 1 0 0 1 5 6 Z M 8 9 H 16 V 15 H 8 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconRotateLeft">M 4 10 A 8 8 0 1 1 6.3 16.7 M 4 4 V 10 H 10</StreamGeometry>
+  <StreamGeometry x:Key="IconRotateRight">M 20 10 A 8 8 0 1 0 17.7 16.7 M 20 4 V 10 H 14</StreamGeometry>
+  <StreamGeometry x:Key="IconFlipHorizontal">M 12 3 V 21 M 9 6 L 4 12 L 9 18 Z M 15 6 L 20 12 L 15 18 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconFlipVertical">M 3 12 H 21 M 6 9 L 12 4 L 18 9 Z M 6 15 L 12 20 L 18 15 Z</StreamGeometry>
+  <StreamGeometry x:Key="IconDownload">M 12 3 V 15 M 7 10 L 12 15 L 17 10 M 4 21 H 20</StreamGeometry>
+  <StreamGeometry x:Key="IconShieldCheck">M 12 3 L 4 6 V 11 C 4 16 7.4 19.6 12 21 C 16.6 19.6 20 16 20 11 V 6 Z M 8.5 12 L 10.7 14.2 L 15.5 9.4</StreamGeometry>
   <StreamGeometry x:Key="IconEdit">M 4 20 H 8 L 20 8 L 16 4 L 4 16 Z M 13.5 5.5 L 18.5 10.5</StreamGeometry>
   <StreamGeometry x:Key="IconRotate">M 20 12 A 8 8 0 1 1 17.7 6.4 M 20 4 V 9 H 15</StreamGeometry>
   <StreamGeometry x:Key="IconPlay">M 8 5.5 L 18 12 L 8 18.5 Z</StreamGeometry>

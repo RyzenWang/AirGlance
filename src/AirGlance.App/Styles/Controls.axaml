@@ -1221,6 +1221,10 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
 
+  <Style Selector="Button.edit-tool:pointerover controls|IconPath">
+    <Setter Property="Stroke" Value="{DynamicResource Coral}" />
+  </Style>
+
   <Style Selector="Button.edit-tool:pointerover /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Coral}" />
@@ -1236,6 +1240,8 @@
     <Setter Property="CornerRadius" Value="14" />
     <Setter Property="Foreground" Value="{DynamicResource InkSecondary}" />
     <Setter Property="FontSize" Value="11" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
 
   <Style Selector="Button.edit-chip.active">
