@@ -2113,10 +2113,10 @@ public partial class MainWindow : Window
 
     private void OnCropBarCancelRequested(object? sender, EventArgs e)
     {
-        _viewModel.SetCrop(_cropBeforeEnter);
-        CropControl.SetCrop(_cropBeforeEnter);
         _cropAspect = _cropAspectBeforeEnter;
         CropControl.AspectRatio = AspectFor(_cropAspect);
+        _viewModel.SetCrop(_cropBeforeEnter);
+        CropControl.SetCrop(_cropBeforeEnter);
         CropBar.SetActiveRatio(_cropAspect);
         _cropMode = false;
         CropControl.IsActive = false;
