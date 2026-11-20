@@ -168,6 +168,77 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Fact]
+    public void Preview_parallel_tiled_keeps_the_corner_colours()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateTiff(path, tiled: true, width: 2048, height: 1536, tileSize: 256, rowsPerStrip: 0);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 512, 384);
+
+            Assert.Equal(512, bitmap.Width);
+            Assert.Equal(384, bitmap.Height);
+            Assert.Equal("red", Classify(Pixel(bitmap, 2, 2)));
+            Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 3, 2)));
+            Assert.Equal("blue", Classify(Pixel(bitmap, 2, bitmap.Height - 3)));
+            Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 3, bitmap.Height - 3)));
+            for (var index = 0; index < bitmap.Width * bitmap.Height; index++)
+            {
+                Assert.Equal(255, bitmap.Pixels[index * 4 + 3]);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Preview_parallel_stripped_keeps_the_corner_colours()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateTiff(path, tiled: false, width: 2048, height: 1536, tileSize: 0, rowsPerStrip: 32);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 512, 384);
+
+            Assert.Equal(512, bitmap.Width);
+            Assert.Equal(384, bitmap.Height);
+            Assert.Equal("red", Classify(Pixel(bitmap, 2, 2)));
+            Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 3, 2)));
+            Assert.Equal("blue", Classify(Pixel(bitmap, 2, bitmap.Height - 3)));
+            Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 3, bitmap.Height - 3)));
+            for (var index = 0; index < bitmap.Width * bitmap.Height; index++)
+            {
+                Assert.Equal(255, bitmap.Pixels[index * 4 + 3]);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Preview_honours_cancellation()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateTiff(path, tiled: true, width: 2048, height: 1536, tileSize: 256, rowsPerStrip: 0);
+            using var source = new CancellationTokenSource();
+            source.Cancel();
+
+            Assert.Throws<OperationCanceledException>(
+                () => TiffPreviewDecoder.DecodePreview(path, 512, 384, source.Token));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
