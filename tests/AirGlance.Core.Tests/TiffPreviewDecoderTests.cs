@@ -460,9 +460,53 @@ public sealed class TiffPreviewDecoderTests
     }
 
     [Fact]
+    public void Preview_preserves_alpha_for_planar16_rgba()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "planar16-rgba.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        var red = Pixel(bitmap, 1, 1);
+        Assert.Equal("red", Classify(red));
+        Assert.Equal(255, red.A);
+        var green = Pixel(bitmap, bitmap.Width - 2, 1);
+        Assert.Equal("green", Classify(green));
+        Assert.Equal(156, green.A);
+        var blue = Pixel(bitmap, 1, bitmap.Height - 2);
+        Assert.Equal("blue", Classify(blue));
+        Assert.Equal(156, blue.A);
+        var yellow = Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2);
+        Assert.Equal("yellow", Classify(yellow));
+        Assert.Equal(255, yellow.A);
+    }
+
+    [Fact]
     public void Preview_decodes_16bit_palette_quadrants()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Assets", "palette16-quadrants.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
+    [Fact]
+    public void Preview_decodes_signed16_quadrants()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "int16-quadrants.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
+    [Fact]
+    public void Preview_decodes_float16_quadrants()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "float16-quadrants.tif");
         var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
 
         Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));

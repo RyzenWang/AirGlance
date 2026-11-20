@@ -84,7 +84,8 @@ public sealed class TiffRegionReader : IDisposable
 
     public bool RequiresStreamingCache =>
         _rawLayout is RegionRawLayout.YCbCrSub8 or RegionRawLayout.RgbPlanar8 or
-            RegionRawLayout.RgbPlanar16 or RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 ||
+            RegionRawLayout.RgbPlanar16 or RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or
+            RegionRawLayout.RgbaPlanar16 ||
         IsOversizedSingleStrip();
 
     public void Prepare(CancellationToken cancellationToken = default)
@@ -97,7 +98,7 @@ public sealed class TiffRegionReader : IDisposable
                 EnsureYCbCrSubsampledCache(cancellationToken);
             }
             else if (_rawLayout is RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
-                     RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8)
+                     RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
             {
                 EnsurePlanarCache(cancellationToken);
             }
@@ -311,7 +312,7 @@ public sealed class TiffRegionReader : IDisposable
     private void ReadStripped(int x, int y, int width, int height, byte[] destination)
     {
         if (_rawLayout is RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
-            RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8)
+            RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
         {
             ReadSingleStripStreaming(x, y, width, height, destination);
             return;
@@ -589,7 +590,7 @@ public sealed class TiffRegionReader : IDisposable
             }
 
             var stripsPerPlane = (PixelHeight + (int)rowsPerStrip - 1) / (int)rowsPerStrip;
-            var wide = _rawLayout == RegionRawLayout.RgbPlanar16;
+            var wide = _rawLayout is RegionRawLayout.RgbPlanar16 or RegionRawLayout.RgbaPlanar16;
             var bytesPerSample = wide ? 2 : 1;
             var planeSize = checked(PixelWidth * (int)rowsPerStrip * bytesPerSample);
             if (planeSize > MaximumStripRasterBytes)
@@ -601,7 +602,10 @@ public sealed class TiffRegionReader : IDisposable
                     Path.GetExtension(_path));
             }
 
-            var planeCount = _rawLayout is RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 ? 4 : 3;
+            var planeCount = _rawLayout is RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or
+                RegionRawLayout.RgbaPlanar16
+                ? 4
+                : 3;
             var planes = new byte[planeCount][];
             for (var plane = 0; plane < planeCount; plane++)
             {
@@ -643,6 +647,10 @@ public sealed class TiffRegionReader : IDisposable
                             red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
                             green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
                             blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                            if (_rawLayout == RegionRawLayout.RgbaPlanar16)
+                            {
+                                alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                            }
                         }
                         else if (_rawLayout == RegionRawLayout.CmykPlanar8)
                         {
@@ -1207,6 +1215,25 @@ public sealed class TiffRegionReader : IDisposable
                     FromFloat(ReadSingleNative(source, offset)),
                     FromFloat(ReadSingleNative(source, offset + 4)),
                     FromFloat(ReadSingleNative(source, offset + 8)));
+            case RegionRawLayout.Float16Gray:
+                var grayHalf = FromFloat(ReadHalfNative(source, offset));
+                return Opaque(grayHalf, grayHalf, grayHalf);
+            case RegionRawLayout.Float16GrayInverted:
+                var invertedHalf = (byte)(255 - FromFloat(ReadHalfNative(source, offset)));
+                return Opaque(invertedHalf, invertedHalf, invertedHalf);
+            case RegionRawLayout.Float16Rgb:
+                return Opaque(
+                    FromFloat(ReadHalfNative(source, offset)),
+                    FromFloat(ReadHalfNative(source, offset + 2)),
+                    FromFloat(ReadHalfNative(source, offset + 4)));
+            case RegionRawLayout.Gray16Int:
+                var graySigned = Signed16ToByte(ReadUInt16Native(source, offset));
+                return Opaque(graySigned, graySigned, graySigned);
+            case RegionRawLayout.Rgb16Int:
+                return Opaque(
+                    Signed16ToByte(ReadUInt16Native(source, offset)),
+                    Signed16ToByte(ReadUInt16Native(source, offset + 2)),
+                    Signed16ToByte(ReadUInt16Native(source, offset + 4)));
             case RegionRawLayout.Palette8:
                 var palette = _rawPalette!;
                 var index = source[offset];
@@ -1303,10 +1330,14 @@ public sealed class TiffRegionReader : IDisposable
                     return RegionRawLayout.CmykPlanar8;
                 }
 
-                if (bits == 8 && samples == 4 && planarPhoto == 2 &&
-                    image.GetField(TiffTag.EXTRASAMPLES) is not null)
+                if (bits == 8 && samples == 4 && planarPhoto == 2)
                 {
                     return RegionRawLayout.RgbaPlanar8;
+                }
+
+                if (bits == 16 && samples == 4 && planarPhoto == 2)
+                {
+                    return RegionRawLayout.RgbaPlanar16;
                 }
             }
 
@@ -1327,7 +1358,7 @@ public sealed class TiffRegionReader : IDisposable
         if (bits == 16)
         {
             var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
-            if (sampleFormat is not (0 or 1))
+            if (sampleFormat is not (0 or 1 or 2 or 3))
             {
                 return RegionRawLayout.None;
             }
@@ -1349,6 +1380,39 @@ public sealed class TiffRegionReader : IDisposable
             if (samples == 1 && photometric == 0)
             {
                 return RegionRawLayout.Float32GrayInverted;
+            }
+        }
+
+        if (bits == 16 && TagInt(image, TiffTag.SAMPLEFORMAT) == 2 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return RegionRawLayout.Rgb16Int;
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return RegionRawLayout.Gray16Int;
+            }
+
+            return RegionRawLayout.None;
+        }
+
+        if (bits == 16 && TagInt(image, TiffTag.SAMPLEFORMAT) == 3 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return RegionRawLayout.Float16Rgb;
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return RegionRawLayout.Float16Gray;
+            }
+
+            if (samples == 1 && photometric == 0)
+            {
+                return RegionRawLayout.Float16GrayInverted;
             }
         }
 
@@ -1429,11 +1493,16 @@ public sealed class TiffRegionReader : IDisposable
             RegionRawLayout.RgbPlanar8 => 3,
             RegionRawLayout.RgbPlanar16 => 6,
             RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 => 4,
+            RegionRawLayout.RgbaPlanar16 => 8,
             RegionRawLayout.Rgb16 => 6,
             RegionRawLayout.Cmyk8 or RegionRawLayout.Rgba8 => 4,
             RegionRawLayout.Rgba16 => 8,
             RegionRawLayout.Float32Gray or RegionRawLayout.Float32GrayInverted => 4,
             RegionRawLayout.Float32Rgb => 12,
+            RegionRawLayout.Float16Gray or RegionRawLayout.Float16GrayInverted => 2,
+            RegionRawLayout.Float16Rgb => 6,
+            RegionRawLayout.Gray16Int => 2,
+            RegionRawLayout.Rgb16Int => 6,
             RegionRawLayout.Palette16 => 2,
             RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted or RegionRawLayout.Palette8 => 1,
             _ => 2
@@ -1449,6 +1518,12 @@ public sealed class TiffRegionReader : IDisposable
 
     private static byte FromFloat(float value) =>
         (byte)Math.Clamp((int)MathF.Round(value * 255f), 0, 255);
+
+    private static float ReadHalfNative(byte[] source, int offset) =>
+        (float)BitConverter.UInt16BitsToHalf(ReadUInt16Native(source, offset));
+
+    private static byte Signed16ToByte(ushort value) =>
+        (byte)Math.Clamp((unchecked((short)value) + 32768) >> 8, 0, 255);
 
     private static ushort ReadUInt16Native(byte[] source, int offset) =>
         BitConverter.IsLittleEndian
@@ -1556,12 +1631,18 @@ public sealed class TiffRegionReader : IDisposable
         RgbPlanar16,
         CmykPlanar8,
         RgbaPlanar8,
+        RgbaPlanar16,
         Cmyk8,
         Rgba8,
         Rgba16,
         Float32Gray,
         Float32GrayInverted,
         Float32Rgb,
+        Float16Gray,
+        Float16GrayInverted,
+        Float16Rgb,
+        Gray16Int,
+        Rgb16Int,
         Palette8,
         Palette16,
         YCbCr8,

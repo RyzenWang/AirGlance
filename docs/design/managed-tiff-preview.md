@@ -36,7 +36,7 @@
 
 ### 单元测试
 
-新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，36 个测试：
+新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，39 个测试：
 
 1. tiled TIFF 缩放到 80 × 50，四角颜色和 alpha 正确；
 2. stripped TIFF 同上；
@@ -73,9 +73,12 @@
 33. float32 RGB 四象限颜色正确；
 34. 16-bit palette 四象限颜色正确；
 35. planar 16-bit RGB 四象限颜色正确；
-36. planar 8-bit CMYK 四象限颜色正确。
+36. planar 8-bit CMYK 四象限颜色正确；
+37. planar 16-bit RGBA alpha（255/156）正确；
+38. float16 RGB 四象限颜色正确；
+39. signed 16-bit RGB 四象限颜色正确。
 
-完整套件：Core **171 passed**，App **35 passed**（含 29 个区域读取测试）。
+完整套件：Core **177 passed**，App **35 passed**（含 32 个区域读取测试）。
 
 ### 直接预览基准（256 MP，`TiffPreviewDecoder.DecodePreview`）
 
@@ -135,7 +138,7 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 - **并行输出的最后写入者**：行带边界可能有两个 worker 对同一目标像素采样，32 位原子写保证不会撕裂，但具体取哪个样本取决于调度；对代理无影响，但不是逐次完全一致。
 - **并行内存**：stripped 4K 预览的峰值增量约 113 MB（8 个 worker 的条带光栅 + 目标缓冲）。
 - **质量**：代理是 2× 过采样的最近邻，不是 Lanczos/box；细密网格和纹理可能比 libvips 硬。30% 以上由区域 tile 接管。
-- **格式长尾**：planar alpha、float16、非 uint 16-bit 仍走 `ReadRGBA*`；8-bit CMYK（含 CMYK JPEG）、RGBA（8/16-bit）、palette（8/16-bit）、RGB/YCbCr JPEG、非 JPEG 1×1 YCbCr、未压缩及 LZW/Deflate 压缩的 subsampled YCbCr、planar RGB 8/16-bit、planar CMYK 8-bit、float32 RGB/gray 已走 raw。
+- **格式长尾**：tiled planar、CMYK/alpha 的 16-bit planar 变体、12-bit JPEG 仍走 `ReadRGBA*`；常见 RGB/gray/CMYK/RGBA/palette/YCbCr/JPEG/planar/float16/float32/signed16 已走 raw。
 - **16-bit multi-strip 内存**：8 个 worker 各有一份条带光栅；16000 宽、`rowsPerStrip=128` 时峰值约 287 MB。
 - **16-bit 区域**：tiled 和 multi-strip 走 raw 区域路径，100% 可用；单 strip 的 raw RGB/gray 会建临时 BGRA 缓存（16-bit 首次约 9.9 s，8-bit 约 6.9 s，磁盘约 1 GB），其他格式仍抛 `TooLarge`。16-bit tiled/multi-strip 100% 工作集约 479/671 MB。
 - **pyramid level 选择**：允许 level 比目标小最多 5%，用最近邻块上采样（8000 → 8192 约 2.4%）；细节会比全图略软。低于 95% 的 level 不选，8192 目标下仍可能回退全图。

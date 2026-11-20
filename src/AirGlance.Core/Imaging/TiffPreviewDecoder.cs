@@ -208,7 +208,7 @@ public static class TiffPreviewDecoder
     {
         var format = GetRawFormat(image);
         if (!image.IsTiled() && format.Layout is RawLayout.RgbPlanar8 or RawLayout.RgbPlanar16 or
-            RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8)
+            RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16)
         {
             DecodeStrippedPlanar(
                 image,
@@ -1528,7 +1528,7 @@ public static class TiffPreviewDecoder
         }
 
         var stripsPerPlane = (height + (int)rowsPerStrip - 1) / (int)rowsPerStrip;
-        var wide = format.Layout == RawLayout.RgbPlanar16;
+        var wide = format.Layout is RawLayout.RgbPlanar16 or RawLayout.RgbaPlanar16;
         var bytesPerSample = wide ? 2 : 1;
         var planeSize = checked(width * (int)rowsPerStrip * bytesPerSample);
         if (planeSize > MaximumRasterBytes)
@@ -1536,7 +1536,9 @@ public static class TiffPreviewDecoder
             throw Corrupt(path, "The planar TIFF strip is too large.");
         }
 
-        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 ? 4 : 3;
+        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16
+            ? 4
+            : 3;
         var planes = new byte[planeCount][];
         for (var plane = 0; plane < planeCount; plane++)
         {
@@ -1578,6 +1580,10 @@ public static class TiffPreviewDecoder
                         red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
                         green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
                         blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                        if (format.Layout == RawLayout.RgbaPlanar16)
+                        {
+                            alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                        }
                     }
                     else if (format.Layout == RawLayout.CmykPlanar8)
                     {
@@ -1822,6 +1828,12 @@ public static class TiffPreviewDecoder
     private static byte FromFloat(float value) =>
         (byte)Math.Clamp((int)MathF.Round(value * 255f), 0, 255);
 
+    private static float ReadHalfNative(byte[] source, int offset) =>
+        (float)BitConverter.UInt16BitsToHalf(ReadUInt16Native(source, offset));
+
+    private static byte Signed16ToByte(ushort value) =>
+        (byte)Math.Clamp((unchecked((short)value) + 32768) >> 8, 0, 255);
+
     private static ushort ReadUInt16Native(byte[] row, int offset)
     {
         // LibTiff returns 16-bit scanline samples in the machine byte order.
@@ -1837,9 +1849,14 @@ public static class TiffPreviewDecoder
             RawLayout.Rgb or RawLayout.RgbPlanar8 or RawLayout.YCbCr8 => 3,
             RawLayout.Rgb16 or RawLayout.RgbPlanar16 => 6,
             RawLayout.Cmyk8 or RawLayout.Rgba8 or RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 => 4,
+            RawLayout.RgbaPlanar16 => 8,
             RawLayout.Rgba16 => 8,
             RawLayout.Float32Gray or RawLayout.Float32GrayInverted => 4,
             RawLayout.Float32Rgb => 12,
+            RawLayout.Float16Gray or RawLayout.Float16GrayInverted => 2,
+            RawLayout.Float16Rgb => 6,
+            RawLayout.Gray16Int => 2,
+            RawLayout.Rgb16Int => 6,
             RawLayout.Palette16 => 2,
             RawLayout.Gray or RawLayout.GrayInverted or RawLayout.Palette8 => 1,
             _ => 2
@@ -1888,6 +1905,25 @@ public static class TiffPreviewDecoder
                     FromFloat(ReadSingleNative(source, offset)),
                     FromFloat(ReadSingleNative(source, offset + 4)),
                     FromFloat(ReadSingleNative(source, offset + 8)));
+            case RawLayout.Float16Gray:
+                var grayHalf = FromFloat(ReadHalfNative(source, offset));
+                return Opaque(grayHalf, grayHalf, grayHalf);
+            case RawLayout.Float16GrayInverted:
+                var invertedHalf = (byte)(255 - FromFloat(ReadHalfNative(source, offset)));
+                return Opaque(invertedHalf, invertedHalf, invertedHalf);
+            case RawLayout.Float16Rgb:
+                return Opaque(
+                    FromFloat(ReadHalfNative(source, offset)),
+                    FromFloat(ReadHalfNative(source, offset + 2)),
+                    FromFloat(ReadHalfNative(source, offset + 4)));
+            case RawLayout.Gray16Int:
+                var graySigned = Signed16ToByte(ReadUInt16Native(source, offset));
+                return Opaque(graySigned, graySigned, graySigned);
+            case RawLayout.Rgb16Int:
+                return Opaque(
+                    Signed16ToByte(ReadUInt16Native(source, offset)),
+                    Signed16ToByte(ReadUInt16Native(source, offset + 2)),
+                    Signed16ToByte(ReadUInt16Native(source, offset + 4)));
             case RawLayout.Palette8:
                 var palette = format.Palette!;
                 var index = source[offset];
@@ -2057,10 +2093,14 @@ public static class TiffPreviewDecoder
                     return new RawFormat(RawLayout.CmykPlanar8, null);
                 }
 
-                if (bits == 8 && samples == 4 && planarPhoto == 2 &&
-                    image.GetField(TiffTag.EXTRASAMPLES) is not null)
+                if (bits == 8 && samples == 4 && planarPhoto == 2)
                 {
                     return new RawFormat(RawLayout.RgbaPlanar8, null);
+                }
+
+                if (bits == 16 && samples == 4 && planarPhoto == 2)
+                {
+                    return new RawFormat(RawLayout.RgbaPlanar16, null);
                 }
             }
 
@@ -2081,7 +2121,7 @@ public static class TiffPreviewDecoder
         if (bits == 16)
         {
             var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
-            if (sampleFormat is not (0 or 1))
+            if (sampleFormat is not (0 or 1 or 2 or 3))
             {
                 return default;
             }
@@ -2103,6 +2143,39 @@ public static class TiffPreviewDecoder
             if (samples == 1 && photometric == 0)
             {
                 return new RawFormat(RawLayout.Float32GrayInverted, null);
+            }
+        }
+
+        if (bits == 16 && TagInt(image, TiffTag.SAMPLEFORMAT) == 2 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return new RawFormat(RawLayout.Rgb16Int, null);
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return new RawFormat(RawLayout.Gray16Int, null);
+            }
+
+            return default;
+        }
+
+        if (bits == 16 && TagInt(image, TiffTag.SAMPLEFORMAT) == 3 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return new RawFormat(RawLayout.Float16Rgb, null);
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return new RawFormat(RawLayout.Float16Gray, null);
+            }
+
+            if (samples == 1 && photometric == 0)
+            {
+                return new RawFormat(RawLayout.Float16GrayInverted, null);
             }
         }
 
@@ -2255,12 +2328,18 @@ public static class TiffPreviewDecoder
         RgbPlanar16,
         CmykPlanar8,
         RgbaPlanar8,
+        RgbaPlanar16,
         Cmyk8,
         Rgba8,
         Rgba16,
         Float32Gray,
         Float32GrayInverted,
         Float32Rgb,
+        Float16Gray,
+        Float16GrayInverted,
+        Float16Rgb,
+        Gray16Int,
+        Rgb16Int,
         Palette8,
         Palette16,
         YCbCr8,
