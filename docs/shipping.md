@@ -254,7 +254,7 @@ The MSIX packages are only for the Microsoft Store submission:
 - `AirGlance_1.0.0.0_x64.msix`
 
 The Microsoft Store package version is independent from the GitHub tag: the Store starts at `1.0.0.0` while the source tag is `v0.4.1`. The Store package is x64-only for the first submission. ARM64 is deferred until
-the NetVips native payload supports Windows ARM64. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
+all native payloads support Windows ARM64. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
 
 ### Package identity and publisher
 
@@ -277,7 +277,7 @@ The manifest also declares:
 - `TargetDeviceFamily` `Windows.Desktop` with `MinVersion="10.0.19041.0"` and `MaxVersionTested="10.0.26100.0"`;
 - `Application` with `Executable="AirGlance.exe"` and `EntryPoint="Windows.FullTrustApplication"`;
 - the `runFullTrust` restricted capability;
-- file associations for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif`, `.ico`, `.tif`, `.tiff`, `.avif` and `.svg`;
+- file associations for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif`, `.ico`, `.tif`, `.tiff` and `.svg`;
 - the package, tile and Store logos from `packaging/msix/Assets`.
 
 The manifest does not request network capabilities. It also has no telemetry component.

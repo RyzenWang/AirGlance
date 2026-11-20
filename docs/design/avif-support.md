@@ -1,6 +1,6 @@
 # AVIF 支持验证
 
-> 状态：已合并到 `main`，随 `v0.4.1` tag 提供。
+> 状态：历史记录。AVIF 和 libvips 已在 `spike/no-libvips` 中移除，当前版本不再支持 AVIF。
 
 ## 结果
 

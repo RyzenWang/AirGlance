@@ -26,7 +26,7 @@
   - 其他情况走 `ReadRGBAStrip`，单条带光栅上限 64 MiB。
 - **采样**：每个目标像素在每个轴上约 2 个采样点（`step ≈ 0.5 / scale`），最近邻写入；目标缓冲零初始化，所有目标像素都有采样覆盖。不是 Lanczos/box 平均，代理在细密纹理上会比 libvips 略硬。
 - **方向**：在内存目录中把 orientation 改成 `TOPLEFT`，返回原始存储方向；和区域 tile、`DecodeFullRaw` 一致。源文件不重写。
-- **回退**：Windows 上，单条带 16-bit/CMYK 等超出托管限制的情况回退到 `NetVipsTiffDecoder`；其他平台返回明确错误。
+- **回退**：超出托管限制的极端组合直接返回明确的 `Unsupported` 错误；libvips 回退已移除。
 - **路由**：`ImageDecoder.DecodeTiff` 的大图分支和 `ReadTiffMetadata` 的大图分支改走托管实现。
 - **并行解码**：大于 2 MP 的 tiled 和 multi-strip 图按源行带分给最多 8 个 worker，每个 worker 打开自己的 `Tiff` 句柄；目标像素用一次 32 位 `Volatile.Write` 写入，边界重复采样时 last-writer-wins，不会把像素拆成混合通道。worker 数还受 256 MiB 的每 worker 光栅预算限制。
 - **pyramid/subIFD**：递归遍历顶层目录及其 `SUBIFD` 子目录（深度上限 8，offset 去重），跳过 `SUBFILETYPE` 里 page/mask 的目录。LibTiff.NET 不暴露 classic TIFF（IFD type 13）的 `SUBIFD` 标签，所以 `GetField` 为空时用原始 IFD 解析器按 tag 330 读 offset；BigTIFF 的 IFD8 标签仍走 LibTiff。选面积最小、宽高都在目标 95% 以上、宽高比与全图一致、面积小于全图的 reduced level，直接在这个 IFD 上解码。选中的 level 也走并行路径：worker 通过 `OpenAtLevel` 打开同一目录或 subIFD。level 比目标略小时（例如 8000 → 8192），用 32 位块写入做最近邻上采样，保证目标没有空像素。
@@ -146,13 +146,13 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 - **16-bit 区域**：tiled 和 multi-strip 走 raw 区域路径，100% 可用；单 strip 的 raw RGB/gray 会建临时 BGRA 缓存（16-bit 首次约 9.9 s，8-bit 约 6.9 s，磁盘约 1 GB），其他格式仍抛 `TooLarge`。16-bit tiled/multi-strip 100% 工作集约 479/671 MB。
 - **pyramid level 选择**：允许 level 比目标小最多 5%，用最近邻块上采样（8000 → 8192 约 2.4%）；细节会比全图略软。低于 95% 的 level 不选，8192 目标下仍可能回退全图。
 - **pyramid 枚举范围**：递归 `SUBIFD` 树，但只跟随 SubIFD tag；不跟随 SubIFD 之间的 NextIFD 链，也不处理多页文档的页缩略图。`SUBFILETYPE` 的 page/mask 位会跳过；tag 缺失或为 0 时仍用尺寸和 1% 宽高比启发式，同比例的小页理论上可能被误选。
-- **12-bit JPEG**：当前 LibTiff.NET 与自带 mozjpeg 都是 8-bit，无法解码 12-bit JPEG-in-TIFF；暂不实现，仍走 libvips 回退。后续需要单独构建/接入 12-bit libjpeg。
+- **12-bit JPEG**：当前 LibTiff.NET 与自带 mozjpeg 都是 8-bit，无法解码 12-bit JPEG-in-TIFF；暂不实现，直接返回不支持，不再回退 libvips。后续需要单独构建/接入 12-bit libjpeg。
 - **ICC**：元数据会显示 ICC 描述，但预览像素没有做 ICC→sRGB 转换，和旧的大 TIFF 路径一致。
 - **方向**：大 TIFF 仍按原始存储方向显示；代理和区域 tile 一致，但和普通 TIFF 的“应用 orientation”行为不同。
 
 ## 下一步
 
 1. **更多金字塔布局**：SubIFD NextIFD 链、更多 `SUBFILETYPE` 组合、多页文档的页缩略图。
-2. **更多 16-bit / 长尾路径**：CMYK/YCbCr/JPEG 转换；之后可以移除 libvips 回退。
+2. **更多 16-bit / 长尾路径**：CMYK/YCbCr/JPEG 转换；libvips 回退已移除。
 3. **单 strip 并行**：需要能按行带解码的 LZW 流式实现，或者先接受顺序路径。
 4. 用真实 Cosmic（tiled）和 Trifid（single strip）验证预览和区域浏览。

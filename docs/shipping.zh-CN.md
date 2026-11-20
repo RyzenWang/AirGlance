@@ -253,7 +253,7 @@ MSIX 包仅用于 Microsoft Store 提交：
 
 - `AirGlance_1.0.0.0_x64.msix`
 
-Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，源码 tag 仍为 `v0.4.1`。首个 Store 提交仅提供 x64。arm64 等到 NetVips 提供 Windows ARM64 原生包后再加入。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
+Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，源码 tag 仍为 `v0.4.1`。首个 Store 提交仅提供 x64。arm64 等到所有原生包支持 Windows ARM64 后再加入。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
 
 ### 包标识和发布者
 
@@ -276,7 +276,7 @@ Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，�
 - `TargetDeviceFamily` 为 `Windows.Desktop`，`MinVersion="10.0.19041.0"`，`MaxVersionTested="10.0.26100.0"`；
 - `Application`，其 `Executable="AirGlance.exe"`，`EntryPoint="Windows.FullTrustApplication"`；
 - `runFullTrust` 受限功能；
-- 对 `.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.tif`、`.tiff`、`.avif` 和 `.svg` 的文件关联；
+- 对 `.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.tif`、`.tiff` 和 `.svg` 的文件关联；
 - 来自 `packaging/msix/Assets` 的包、磁贴和 Store 徽标。
 
 清单不请求网络功能。它也没有遥测组件。

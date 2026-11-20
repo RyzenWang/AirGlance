@@ -5,7 +5,7 @@
 AirGlance 在图像显示到屏幕之前会做两项检查：
 
 1. 文件扩展名必须位于受支持列表中（`SupportedFormats`）。这决定了该文件是否会出现在文件夹列表中，以及命令行或拖放处理程序是否接受它。
-2. 普通位图格式由 SkiaSharp 的 `SKCodec` 解码；TIFF 走 LibTiff/libvips，AVIF 走 NetVips/libvips，SVG 由 Svg.Skia 光栅化。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
+2. 普通位图格式由 SkiaSharp 的 `SKCodec` 解码；TIFF 走 LibTiff，SVG 由 Svg.Skia 光栅化。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
 
 即使文件内容恰好是受支持的图像，扩展名不受支持的文件也会被拒绝。信息面板中显示的格式名称优先取自编解码器，无法获取时回退到扩展名。
 
@@ -16,7 +16,6 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | JPEG | `.jpg`、`.jpeg`、`.jfif` | 8 位 BGRA 输出；报告为 8 位 | 1 | 否；保存的 JPEG 副本会被压平为白色 | 已应用，EXIF 1–8 | 从 APP2 读取并转换为 sRGB | `orientation-1..8.jpg`、`display-p3.jpg`、`adobe-rgb.jpg`、`srgb.jpg`、`exif-full.jpg` |
 | PNG | `.png` | BGRA 输出；源位深从 IHDR 报告（测试夹具中为 8 或 16） | 1 | 保留 | 为信息面板从 `eXIf` 读取；不应用到像素 | 从 `iCCP` 读取并转换为 sRGB | `alpha.png`、`display-p3.png`、`gradient-16bit.png` |
 | WebP | `.webp` | 8 位 BGRA 输出 | 1 | 保留 | 为信息面板读取 EXIF；没有显示方向测试夹具 | 从 `ICCP` 读取并转换为 sRGB | `alpha.webp` |
-| AVIF | `.avif` | 由 NetVips/libvips 解码为 BGRA | 1（第一帧） | 通过 RGBA 路径保留 | 第一版未应用 | 第一版未读取 | `sample.avif` |
 | BMP | `.bmp` | 由 `SKCodec` 解码 | 1 | 未纳入测试覆盖 | 未读取 | 未读取 | 无测试夹具 |
 | GIF | `.gif` | 8 位 BGRA 输出；按 GIF 处置规则合成每一帧 | 全部帧 | 通过合成输出保留；没有专门的透明度测试夹具 | 未读取 | 未读取 | `animated.gif` |
 | ICO | `.ico` | 由编解码器选择的一幅图像 | 1 | 沿 BGRA 解码路径保留；未做测试夹具验证 | 未读取 | 未读取 | 无测试夹具 |
@@ -46,7 +45,7 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | 动画 WebP / APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 视频（MP4、MOV、WebM、MKV 等） | 不列出，也不打开 |
 
-HEIC、RAW 等格式是有意不支持的，而不是尚未完成的工作。AVIF 在 Windows x64 上通过内置 libvips 原生库支持。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
+HEIC、AVIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。SkiaSharp 无法解码它们，AirGlance 也不再包含 libvips。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
 
 ## 确切行为
 

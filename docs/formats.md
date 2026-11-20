@@ -5,7 +5,7 @@
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.
-2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff/libvips, AVIF uses NetVips/libvips, and SVG uses Svg.Skia. A supported extension with unreadable content is reported as corrupt, not unsupported.
+2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff, and SVG uses Svg.Skia. A supported extension with unreadable content is reported as corrupt, not unsupported.
 
 A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension.
 
@@ -15,7 +15,6 @@ A file with an unsupported extension is refused even if its content happens to b
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | JPEG | `.jpg`, `.jpeg`, `.jfif` | 8-bit BGRA output; 8-bit reported | 1 | No; saved JPEG copies are flattened to white | Applied, EXIF 1–8 | Read from APP2 and converted to sRGB | `orientation-1..8.jpg`, `display-p3.jpg`, `adobe-rgb.jpg`, `srgb.jpg`, `exif-full.jpg` |
 | PNG | `.png` | BGRA output; source bit depth reported from IHDR (8 or 16 in the fixtures) | 1 | Preserved | Read from `eXIf` for the info panel; not applied to pixels | Read from `iCCP` and converted to sRGB | `alpha.png`, `display-p3.png`, `gradient-16bit.png` |
-| AVIF | `.avif` | Decoded by NetVips/libvips to BGRA | 1 (first frame) | Carried through RGBA | Not applied in the first pass | Not read in the first pass | `sample.avif` |
 | WebP | `.webp` | 8-bit BGRA output | 1 | Preserved | EXIF read for the info panel; no display-orientation fixture | Read from `ICCP` and converted to sRGB | `alpha.webp` |
 | BMP | `.bmp` | Decoded by `SKCodec` | 1 | Not test-covered | Not read | Not read | No fixture |
 | GIF | `.gif` | 8-bit BGRA output; every frame composited with GIF disposal rules | All frames | Carried through the composited output; no dedicated transparency fixture | Not read | Not read | `animated.gif` |
@@ -46,7 +45,7 @@ The info panel reads the profile separately from the file header:
 | Animated WebP / APNG | First frame is shown as a still image; no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 
-HEIC and RAW are deliberately absent, not pending work. AVIF is supported on Windows x64 through the bundled libvips native library. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
+HEIC, AVIF and RAW are deliberately absent, not pending work. SkiaSharp cannot decode them and AirGlance no longer ships libvips. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
 
 ## Exact behavior
 

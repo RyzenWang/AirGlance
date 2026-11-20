@@ -125,8 +125,8 @@ tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-stri
 
 - **单 strip 超大图**：raw RGB/gray 单 strip 超过 64 MiB 时走临时 BGRA 缓存。打开区域源即后台开始顺序解码，chip 显示进度；**16-bit 16000² 约 9.9 s，8-bit 约 6.9 s**；之后 512 tile 约 20 ms。缓存文件 `DeleteOnClose`，App 退出/句柄关闭时删除；离开区域会取消未完成的建缓存。非 raw 格式（CMYK/YCbCr/alpha 等）仍返回 `TooLarge`。
 - **stripped 随机访问成本**：一个 512 tile 跨 `ceil(512 / ROWSPERSTRIP)` 条带，每条带按整宽解码。同一行带内的 tile 命中缓存很快；跨行带随机跳转的缓存命中率低，单块仍可能几十到几百毫秒。96 MiB 缓存大小需要按目标图像宽度和 `ROWSPERSTRIP` 再调。
-- **大 TIFF 预览/元数据仍走 libvips**：`NetVipsTiffDecoder.ReadMetadata` / `DecodePreview` 没有改，因此 Linux/macOS 的大 TIFF 端到端仍不可用。下一步是把预览也改成托管实现（按 tile 网格抽样降采样）或保留 libvips 仅做预览。
-- **方向与坐标**：区域读取返回原始存储方向，代理图 `NetVipsTiffDecoder` 走 `Thumbnail(noRotate: false)`，两者对带 orientation 的大 TIFF 可能不一致；这在大 TIFF 路径里是既有问题，需要端到端决定“代理和 tile 都用显示方向”还是“都用原始方向”。
+- **大 TIFF 预览/元数据**：已改为托管 `TiffPreviewDecoder`，`NetVipsTiffDecoder` 已随 libvips 一起移除。
+- **方向与坐标**：区域读取返回原始存储方向，代理图由托管预览生成；两者对带 orientation 的大 TIFF 需要保持一致。
 - **颜色**：TIFF ICC 仍未参与像素转换，与当前完整解码路径一致。
 
 ## 下一步
