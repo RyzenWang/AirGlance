@@ -53,6 +53,27 @@ jobs:
         shell: pwsh
         run: ./native/avif/build.ps1 -NasmDirectory "C:\Program Files\NASM"
 
+      - name: Install AVIF build dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install meson
+
+      - name: Build AVIF decoder (macOS)
+        if: runner.os == 'macOS'
+        run: bash native/avif/build.sh
+
+      - name: Install AVIF build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build meson
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            sudo apt-get install -y --no-install-recommends nasm
+          fi
+
+      - name: Build AVIF decoder (Linux)
+        if: runner.os == 'Linux'
+        run: bash native/avif/build.sh
+
       - name: Restore
         run: dotnet restore AirGlance.sln
 

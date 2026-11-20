@@ -110,11 +110,22 @@ jobs:
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Install Linux NativeAOT build dependencies
+      - name: Install Linux NativeAOT and AVIF build dependencies
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang zlib1g-dev
+          sudo apt-get install -y --no-install-recommends clang zlib1g-dev cmake ninja-build meson
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            sudo apt-get install -y --no-install-recommends nasm
+          fi
+
+      - name: Install AVIF build dependencies (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install meson
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            brew install nasm
+          fi
 
       - name: Install AVIF build dependencies (Windows)
         if: matrix.platform == 'windows'

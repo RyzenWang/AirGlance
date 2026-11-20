@@ -103,6 +103,12 @@ echo "  dotnet:  $DOTNET"
 echo "  Output:  $ARTIFACTS_DIR"
 echo ""
 
+AVIF_BUILD_SCRIPT="$REPO_ROOT/native/avif/build.sh"
+if [[ -f "$AVIF_BUILD_SCRIPT" ]]; then
+    echo "Building AVIF decoder for $RID..."
+    bash "$AVIF_BUILD_SCRIPT" "$RID"
+fi
+
 echo "Publishing with NativeAOT..."
 "$DOTNET" publish "$PROJECT" \
     -c Release \
@@ -120,6 +126,19 @@ fi
 # Strip any symbol files that survived the publish. Release archives must not
 # contain PDBs or their platform equivalents.
 find "$PUBLISH_DIR" -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.mdb' \) -delete
+
+if [[ -f "$AVIF_BUILD_SCRIPT" ]]; then
+    if [[ "$PLATFORM" == "macos" ]]; then
+        AVIF_LIBRARY="$PUBLISH_DIR/libairglance_avif.dylib"
+    else
+        AVIF_LIBRARY="$PUBLISH_DIR/libairglance_avif.so"
+    fi
+
+    if [[ ! -f "$AVIF_LIBRARY" ]]; then
+        echo "error: the AVIF decoder was not copied to '$AVIF_LIBRARY'." >&2
+        exit 1
+    fi
+fi
 
 if [[ "$PLATFORM" == "macos" ]]; then
     APP_DIR="$TMP_ROOT/AirGlance.app"

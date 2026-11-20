@@ -5,6 +5,7 @@
   -->
   <PropertyGroup>
     <AirGlanceAvifRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</AirGlanceAvifRid>
+    <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and '$(AIRGLANCE_AVIF_RID)' != ''">$(AIRGLANCE_AVIF_RID)</AirGlanceAvifRid>
     <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</AirGlanceAvifRid>
     <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-arm64</AirGlanceAvifRid>
     <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</AirGlanceAvifRid>

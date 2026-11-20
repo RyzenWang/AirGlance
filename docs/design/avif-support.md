@@ -1,7 +1,8 @@
 # AVIF 支持验证
 
 > 状态：历史记录。0.4.1 通过 libvips 支持 AVIF，0.5.0 随 libvips 移除；2026-11-20
-> 已通过 libavif + dav1d 在 Windows x64 恢复，见 [avif-revival.md](avif-revival.md)。
+> 已通过 libavif + dav1d 在 Windows x64、macOS 和 Linux 恢复（Windows arm64 暂未接入），
+> 见 [avif-revival.md](avif-revival.md)。
 
 ## 结果
 

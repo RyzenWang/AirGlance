@@ -26,7 +26,7 @@ HarfBuzzSharp is a transitive dependency of SkiaSharp. Its native HarfBuzz libra
 
 SkiaSharp and HarfBuzzSharp ship native binaries for each supported platform. Those binaries include Skia (BSD-3-Clause, [google/skia](https://github.com/google/skia)) and HarfBuzz (MIT, [harfbuzz/harfbuzz](https://github.com/harfbuzz/harfbuzz)). The .NET runtime and Avalonia native assets carry their own notices from their projects.
 
-The Windows x64 build also bundles `airglance_avif.dll`, built from libavif 1.4.2 and dav1d 1.5.5. Both libraries are BSD-2-Clause. The required notice follows; it applies to libavif (Copyright 2019 Joe Drago) and dav1d (Copyright (c) 2018-2025 VideoLAN and dav1d authors):
+The Windows x64, macOS and Linux builds also bundle a native AVIF decoder (`airglance_avif.dll`, `libairglance_avif.dylib` or `libairglance_avif.so`), built from libavif 1.4.2 and dav1d 1.5.5. Both libraries are BSD-2-Clause. The required notice follows; it applies to libavif (Copyright 2019 Joe Drago) and dav1d (Copyright (c) 2018-2025 VideoLAN and dav1d authors):
 
 ```text
 Redistribution and use in source and binary forms, with or without
