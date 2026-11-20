@@ -460,6 +460,18 @@ public sealed class TiffPreviewDecoderTests
     }
 
     [Fact]
+    public void Preview_decodes_non_jpeg_ycbcr_quadrants()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "ycbcr-quadrants.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
+    [Fact]
     public void Preview_decodes_cmyk_jpeg_quadrants()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Assets", "cmyk-quadrants-jpeg.tif");

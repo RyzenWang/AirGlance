@@ -1389,6 +1389,7 @@ public static class TiffPreviewDecoder
             RawLayout.Rgb => 3,
             RawLayout.Rgb16 => 6,
             RawLayout.Cmyk8 or RawLayout.Rgba8 => 4,
+            RawLayout.Rgb or RawLayout.YCbCr8 => 3,
             RawLayout.Gray or RawLayout.GrayInverted or RawLayout.Palette8 => 1,
             _ => 2
         };
@@ -1426,6 +1427,8 @@ public static class TiffPreviewDecoder
                     (byte)(palette[index] >> 8),
                     (byte)(palette[256 + index] >> 8),
                     (byte)(palette[512 + index] >> 8));
+            case RawLayout.YCbCr8:
+                return FromYCbCr(source[offset], source[offset + 1], source[offset + 2]);
             case RawLayout.Gray:
                 return Opaque(source[offset], source[offset], source[offset]);
             case RawLayout.Gray16:
@@ -1585,6 +1588,12 @@ public static class TiffPreviewDecoder
             return new RawFormat(RawLayout.Rgb, null);
         }
 
+        if (bits == 8 && samples == 3 && photometric == 6 &&
+            compression != 7 && HasUnitSubsampling(image))
+        {
+            return new RawFormat(RawLayout.YCbCr8, null);
+        }
+
         if (bits == 8 && samples == 4 && photometric == 5)
         {
             return new RawFormat(RawLayout.Cmyk8, null);
@@ -1665,6 +1674,7 @@ public static class TiffPreviewDecoder
         Cmyk8,
         Rgba8,
         Palette8,
+        YCbCr8,
         Gray,
         Gray16,
         GrayInverted,
@@ -1699,6 +1709,26 @@ public static class TiffPreviewDecoder
 
     private static int RoundUp(int value, int step) =>
         step <= 1 ? value : ((value + step - 1) / step) * step;
+
+    private static bool HasUnitSubsampling(Tiff image)
+    {
+        var field = image.GetField(TiffTag.YCBCRSUBSAMPLING);
+        return field is { Length: >= 2 } &&
+               field[0].ToInt() == 1 &&
+               field[1].ToInt() == 1;
+    }
+
+    private static uint FromYCbCr(byte y, byte cb, byte cr)
+    {
+        var blueDifference = cb - 128;
+        var redDifference = cr - 128;
+        var red = ClampByte(y + ((91881 * redDifference) >> 16));
+        var green = ClampByte(y - ((22554 * blueDifference + 46802 * redDifference) >> 16));
+        var blue = ClampByte(y + ((116130 * blueDifference) >> 16));
+        return Opaque((byte)red, (byte)green, (byte)blue);
+    }
+
+    private static int ClampByte(int value) => value < 0 ? 0 : value > 255 ? 255 : value;
 
     private static void EnableJpegRgbMode(Tiff image)
     {

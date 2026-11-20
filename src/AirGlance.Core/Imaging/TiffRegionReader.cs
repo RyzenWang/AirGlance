@@ -641,6 +641,8 @@ public sealed class TiffRegionReader : IDisposable
                     (byte)(palette[index] >> 8),
                     (byte)(palette[256 + index] >> 8),
                     (byte)(palette[512 + index] >> 8));
+            case RegionRawLayout.YCbCr8:
+                return FromYCbCr(source[offset], source[offset + 1], source[offset + 2]);
             case RegionRawLayout.Gray8:
                 return Opaque(source[offset], source[offset], source[offset]);
             case RegionRawLayout.Gray16:
@@ -727,6 +729,12 @@ public sealed class TiffRegionReader : IDisposable
             return RegionRawLayout.Rgb8;
         }
 
+        if (bits == 8 && samples == 3 && photometric == 6 &&
+            compression != 7 && HasUnitSubsampling(image))
+        {
+            return RegionRawLayout.YCbCr8;
+        }
+
         if (bits == 8 && samples == 4 && photometric == 5)
         {
             return RegionRawLayout.Cmyk8;
@@ -766,7 +774,7 @@ public sealed class TiffRegionReader : IDisposable
         layout switch
         {
             RegionRawLayout.None => 0,
-            RegionRawLayout.Rgb8 => 3,
+            RegionRawLayout.Rgb8 or RegionRawLayout.YCbCr8 => 3,
             RegionRawLayout.Rgb16 => 6,
             RegionRawLayout.Cmyk8 or RegionRawLayout.Rgba8 => 4,
             RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted or RegionRawLayout.Palette8 => 1,
@@ -777,6 +785,26 @@ public sealed class TiffRegionReader : IDisposable
         BitConverter.IsLittleEndian
             ? (ushort)(source[offset] | (source[offset + 1] << 8))
             : (ushort)((source[offset] << 8) | source[offset + 1]);
+
+    private static bool HasUnitSubsampling(Tiff image)
+    {
+        var field = image.GetField(TiffTag.YCBCRSUBSAMPLING);
+        return field is { Length: >= 2 } &&
+               field[0].ToInt() == 1 &&
+               field[1].ToInt() == 1;
+    }
+
+    private static uint FromYCbCr(byte y, byte cb, byte cr)
+    {
+        var blueDifference = cb - 128;
+        var redDifference = cr - 128;
+        var red = ClampByte(y + ((91881 * redDifference) >> 16));
+        var green = ClampByte(y - ((22554 * blueDifference + 46802 * redDifference) >> 16));
+        var blue = ClampByte(y + ((116130 * blueDifference) >> 16));
+        return Opaque((byte)red, (byte)green, (byte)blue);
+    }
+
+    private static int ClampByte(int value) => value < 0 ? 0 : value > 255 ? 255 : value;
 
     private static void EnableJpegRgbMode(Tiff image)
     {
@@ -826,6 +854,7 @@ public sealed class TiffRegionReader : IDisposable
         Cmyk8,
         Rgba8,
         Palette8,
+        YCbCr8,
         Gray8,
         Gray16,
         Gray8Inverted,
