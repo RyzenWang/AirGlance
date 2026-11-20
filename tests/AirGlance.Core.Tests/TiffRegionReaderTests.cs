@@ -499,6 +499,7 @@ public sealed class TiffRegionReaderTests
     [Theory]
     [InlineData("planar16-rgb.tif")]
     [InlineData("planar-cmyk.tif")]
+    [InlineData("planar16-cmyk.tif")]
     public void Region_reader_streams_planar_16bit_and_cmyk(string name)
     {
         using var reader = TiffRegionReader.Open(Asset(name));

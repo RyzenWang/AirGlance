@@ -542,6 +542,7 @@ public sealed class TiffPreviewDecoderTests
     [Theory]
     [InlineData("planar16-rgb.tif")]
     [InlineData("planar-cmyk.tif")]
+    [InlineData("planar16-cmyk.tif")]
     public void Preview_decodes_planar_16bit_and_cmyk(string name)
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);

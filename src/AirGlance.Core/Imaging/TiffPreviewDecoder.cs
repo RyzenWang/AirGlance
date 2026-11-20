@@ -208,7 +208,7 @@ public static class TiffPreviewDecoder
     {
         var format = GetRawFormat(image);
         if (format.Layout is RawLayout.RgbPlanar8 or RawLayout.RgbPlanar16 or
-            RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16)
+            RawLayout.CmykPlanar8 or RawLayout.CmykPlanar16 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16)
         {
             if (image.IsTiled())
             {
@@ -1547,9 +1547,9 @@ public static class TiffPreviewDecoder
             throw Corrupt(path, "The planar TIFF tile is unusable.");
         }
 
-        var wide = format.Layout is RawLayout.RgbPlanar16 or RawLayout.RgbaPlanar16;
+        var wide = format.Layout is RawLayout.RgbPlanar16 or RawLayout.RgbaPlanar16 or RawLayout.CmykPlanar16;
         var bytesPerSample = wide ? 2 : 1;
-        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16
+        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16 or RawLayout.CmykPlanar16
             ? 4
             : 3;
         var planes = new byte[planeCount][];
@@ -1592,12 +1592,25 @@ public static class TiffPreviewDecoder
                         byte alpha = 255;
                         if (wide)
                         {
-                            red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
-                            green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
-                            blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
-                            if (format.Layout == RawLayout.RgbaPlanar16)
+                            if (format.Layout == RawLayout.CmykPlanar16)
                             {
-                                alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                var c16 = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                                var m16 = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                                var y16 = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                                var k16 = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                red = (byte)(255 - Math.Min(255, c16 + k16));
+                                green = (byte)(255 - Math.Min(255, m16 + k16));
+                                blue = (byte)(255 - Math.Min(255, y16 + k16));
+                            }
+                            else
+                            {
+                                red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                                green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                                blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                                if (format.Layout == RawLayout.RgbaPlanar16)
+                                {
+                                    alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                }
                             }
                         }
                         else if (format.Layout == RawLayout.CmykPlanar8)
@@ -1656,7 +1669,7 @@ public static class TiffPreviewDecoder
         }
 
         var stripsPerPlane = (height + (int)rowsPerStrip - 1) / (int)rowsPerStrip;
-        var wide = format.Layout is RawLayout.RgbPlanar16 or RawLayout.RgbaPlanar16;
+        var wide = format.Layout is RawLayout.RgbPlanar16 or RawLayout.RgbaPlanar16 or RawLayout.CmykPlanar16;
         var bytesPerSample = wide ? 2 : 1;
         var planeSize = checked(width * (int)rowsPerStrip * bytesPerSample);
         if (planeSize > MaximumRasterBytes)
@@ -1664,7 +1677,7 @@ public static class TiffPreviewDecoder
             throw Corrupt(path, "The planar TIFF strip is too large.");
         }
 
-        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16
+        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 or RawLayout.RgbaPlanar16 or RawLayout.CmykPlanar16
             ? 4
             : 3;
         var planes = new byte[planeCount][];
@@ -1705,12 +1718,25 @@ public static class TiffPreviewDecoder
                     byte alpha = 255;
                     if (wide)
                     {
-                        red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
-                        green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
-                        blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
-                        if (format.Layout == RawLayout.RgbaPlanar16)
+                        if (format.Layout == RawLayout.CmykPlanar16)
                         {
-                            alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                            var c16 = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                            var m16 = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                            var y16 = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                            var k16 = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                            red = (byte)(255 - Math.Min(255, c16 + k16));
+                            green = (byte)(255 - Math.Min(255, m16 + k16));
+                            blue = (byte)(255 - Math.Min(255, y16 + k16));
+                        }
+                        else
+                        {
+                            red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                            green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                            blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                            if (format.Layout == RawLayout.RgbaPlanar16)
+                            {
+                                alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                            }
                         }
                     }
                     else if (format.Layout == RawLayout.CmykPlanar8)
@@ -1977,7 +2003,7 @@ public static class TiffPreviewDecoder
             RawLayout.Rgb or RawLayout.RgbPlanar8 or RawLayout.YCbCr8 => 3,
             RawLayout.Rgb16 or RawLayout.RgbPlanar16 => 6,
             RawLayout.Cmyk8 or RawLayout.Rgba8 or RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 => 4,
-            RawLayout.RgbaPlanar16 => 8,
+            RawLayout.CmykPlanar16 => 8,
             RawLayout.Rgba16 => 8,
             RawLayout.Float32Gray or RawLayout.Float32GrayInverted => 4,
             RawLayout.Float32Rgb => 12,
@@ -2221,6 +2247,11 @@ public static class TiffPreviewDecoder
                     return new RawFormat(RawLayout.CmykPlanar8, null);
                 }
 
+                if (bits == 16 && samples == 4 && planarPhoto == 5)
+                {
+                    return new RawFormat(RawLayout.CmykPlanar16, null);
+                }
+
                 if (bits == 8 && samples == 4 && planarPhoto == 2)
                 {
                     return new RawFormat(RawLayout.RgbaPlanar8, null);
@@ -2455,6 +2486,7 @@ public static class TiffPreviewDecoder
         RgbPlanar8,
         RgbPlanar16,
         CmykPlanar8,
+        CmykPlanar16,
         RgbaPlanar8,
         RgbaPlanar16,
         Cmyk8,

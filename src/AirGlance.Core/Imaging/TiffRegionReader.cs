@@ -84,8 +84,8 @@ public sealed class TiffRegionReader : IDisposable
 
     public bool RequiresStreamingCache =>
         _rawLayout is RegionRawLayout.YCbCrSub8 or RegionRawLayout.RgbPlanar8 or
-            RegionRawLayout.RgbPlanar16 or RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or
-            RegionRawLayout.RgbaPlanar16 ||
+            RegionRawLayout.RgbPlanar16 or RegionRawLayout.CmykPlanar8 or RegionRawLayout.CmykPlanar16 or
+            RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16 ||
         IsOversizedSingleStrip();
 
     public void Prepare(CancellationToken cancellationToken = default)
@@ -98,7 +98,7 @@ public sealed class TiffRegionReader : IDisposable
                 EnsureYCbCrSubsampledCache(cancellationToken);
             }
             else if (_rawLayout is RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
-                     RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
+                     RegionRawLayout.CmykPlanar8 or RegionRawLayout.CmykPlanar16 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
             {
                 EnsurePlanarCache(cancellationToken);
             }
@@ -250,7 +250,7 @@ public sealed class TiffRegionReader : IDisposable
     private void ReadTiled(int x, int y, int width, int height, byte[] destination)
     {
         if (_rawLayout is RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
-            RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
+            RegionRawLayout.CmykPlanar8 or RegionRawLayout.CmykPlanar16 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
         {
             ReadSingleStripStreaming(x, y, width, height, destination);
             return;
@@ -319,7 +319,7 @@ public sealed class TiffRegionReader : IDisposable
     private void ReadStripped(int x, int y, int width, int height, byte[] destination)
     {
         if (_rawLayout is RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
-            RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
+            RegionRawLayout.CmykPlanar8 or RegionRawLayout.CmykPlanar16 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
         {
             ReadSingleStripStreaming(x, y, width, height, destination);
             return;
@@ -547,7 +547,8 @@ public sealed class TiffRegionReader : IDisposable
         {
             RegionRawLayout.YCbCrSub8 => EnsureYCbCrSubsampledCache(),
             RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
-                RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 => EnsurePlanarCache(),
+                RegionRawLayout.CmykPlanar8 or RegionRawLayout.CmykPlanar16 or
+                RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16 => EnsurePlanarCache(),
             _ => EnsureSingleStripCache()
         };
         var rowBytes = width * 4;
@@ -634,12 +635,25 @@ public sealed class TiffRegionReader : IDisposable
                         byte alpha = 255;
                         if (wide)
                         {
-                            red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
-                            green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
-                            blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
-                            if (_rawLayout == RegionRawLayout.RgbaPlanar16)
+                            if (_rawLayout == RegionRawLayout.CmykPlanar16)
                             {
-                                alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                var c16 = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                                var m16 = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                                var y16 = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                                var k16 = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                red = (byte)(255 - Math.Min(255, c16 + k16));
+                                green = (byte)(255 - Math.Min(255, m16 + k16));
+                                blue = (byte)(255 - Math.Min(255, y16 + k16));
+                            }
+                            else
+                            {
+                                red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                                green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                                blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                                if (_rawLayout == RegionRawLayout.RgbaPlanar16)
+                                {
+                                    alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                }
                             }
                         }
                         else if (_rawLayout == RegionRawLayout.CmykPlanar8)
@@ -716,7 +730,7 @@ public sealed class TiffRegionReader : IDisposable
             }
 
             var stripsPerPlane = (PixelHeight + (int)rowsPerStrip - 1) / (int)rowsPerStrip;
-            var wide = _rawLayout is RegionRawLayout.RgbPlanar16 or RegionRawLayout.RgbaPlanar16;
+            var wide = _rawLayout is RegionRawLayout.RgbPlanar16 or RegionRawLayout.RgbaPlanar16 or RegionRawLayout.CmykPlanar16;
             var bytesPerSample = wide ? 2 : 1;
             var planeSize = checked(PixelWidth * (int)rowsPerStrip * bytesPerSample);
             if (planeSize > MaximumStripRasterBytes)
@@ -728,8 +742,8 @@ public sealed class TiffRegionReader : IDisposable
                     Path.GetExtension(_path));
             }
 
-            var planeCount = _rawLayout is RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or
-                RegionRawLayout.RgbaPlanar16
+            var planeCount = _rawLayout is RegionRawLayout.CmykPlanar8 or RegionRawLayout.CmykPlanar16 or
+                RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16
                 ? 4
                 : 3;
             var planes = new byte[planeCount][];
@@ -770,12 +784,25 @@ public sealed class TiffRegionReader : IDisposable
                         byte alpha = 255;
                         if (wide)
                         {
-                            red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
-                            green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
-                            blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
-                            if (_rawLayout == RegionRawLayout.RgbaPlanar16)
+                            if (_rawLayout == RegionRawLayout.CmykPlanar16)
                             {
-                                alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                var c16 = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                                var m16 = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                                var y16 = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                                var k16 = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                red = (byte)(255 - Math.Min(255, c16 + k16));
+                                green = (byte)(255 - Math.Min(255, m16 + k16));
+                                blue = (byte)(255 - Math.Min(255, y16 + k16));
+                            }
+                            else
+                            {
+                                red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                                green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                                blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                                if (_rawLayout == RegionRawLayout.RgbaPlanar16)
+                                {
+                                    alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                                }
                             }
                         }
                         else if (_rawLayout == RegionRawLayout.CmykPlanar8)
@@ -1456,6 +1483,11 @@ public sealed class TiffRegionReader : IDisposable
                     return RegionRawLayout.CmykPlanar8;
                 }
 
+                if (bits == 16 && samples == 4 && planarPhoto == 5)
+                {
+                    return RegionRawLayout.CmykPlanar16;
+                }
+
                 if (bits == 8 && samples == 4 && planarPhoto == 2)
                 {
                     return RegionRawLayout.RgbaPlanar8;
@@ -1619,6 +1651,7 @@ public sealed class TiffRegionReader : IDisposable
             RegionRawLayout.RgbPlanar8 => 3,
             RegionRawLayout.RgbPlanar16 => 6,
             RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 => 4,
+            RegionRawLayout.CmykPlanar16 => 8,
             RegionRawLayout.RgbaPlanar16 => 8,
             RegionRawLayout.Rgb16 => 6,
             RegionRawLayout.Cmyk8 or RegionRawLayout.Rgba8 => 4,
@@ -1756,6 +1789,7 @@ public sealed class TiffRegionReader : IDisposable
         RgbPlanar8,
         RgbPlanar16,
         CmykPlanar8,
+        CmykPlanar16,
         RgbaPlanar8,
         RgbaPlanar16,
         Cmyk8,
