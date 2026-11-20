@@ -1,7 +1,7 @@
 # AVIF 重新支持可行性评估
 
-> 状态：已实现 Windows x64 spike（2026-11-20）。其他 RID 尚未接入，`SupportedFormats`
-> 会在缺少原生库时隐藏 `.avif`。
+> 状态：已实现 Windows x64、macOS x64/arm64、Linux x64/arm64（2026-11-20）。Windows
+> arm64 尚未接入 ARM64 工具链，`SupportedFormats` 会在缺少原生库时隐藏 `.avif`。
 >
 > 背景：0.5.0 移除 libvips 后 AVIF 不再支持，但 MSIX 仍注册 `.avif` 文件关联，
 > 用户从“打开方式”选择 AirGlance 打开 AVIF 会得到“不支持的格式”。本次评估回答
@@ -254,15 +254,16 @@ native/avif/
    和实际能力不一致。
 5. HEIC/HEIF、RAW、AVIF 编码继续不支持；AVIF 动画只取第一帧。
 
-## 实现结果（2026-11-20，Windows x64）
+## 实现结果（2026-11-20，Windows x64 + macOS/Linux）
 
-本评估按“先 Windows x64 spike”落地，已完成并本地验证：
+本评估先完成 Windows x64 spike，再把同一 shim 扩到 macOS/Linux：
 
-- 原生层：libavif 1.4.2 + dav1d 1.5.5，x86 SIMD，静态 CRT，单个
-  `airglance_avif.dll` **2.06 MiB**；压缩进 zip 后约 **0.84 MiB**。
+- 原生层：libavif 1.4.2 + dav1d 1.5.5，Windows x64 打开 x86 SIMD，静态 CRT，单个
+  `airglance_avif.dll` **2.06 MiB**；macOS/Linux 用 `build.sh` 构建 PIC 静态库并链接
+  `libairglance_avif.dylib` / `libairglance_avif.so`。macOS/Linux 构建由 CI 验证。
 - C#：`AvifNative`（`LibraryImport`）、`LibAvifDecoder`、`SupportedFormats` 门控、
-  `ImageDecoder` 的预览/全图/元数据分支；`Directory.Build.targets` 把 DLL 复制到
-  可执行文件和测试输出。
+  `ImageDecoder` 的预览/全图/元数据分支；`Directory.Build.targets` 把对应 RID 的库
+  复制到可执行文件和测试输出。
 - 测试：10 个 AVIF 测试通过（基础、alpha、10-bit/irot、ICC/EXIF、动画首帧、1×1、
   损坏、可用性、支持列表、预览缩放）；Core 187 + App 35 全绿。
 - AOT 打包实测（win-x64 zip 解压后运行 `--bench=decode`）：
@@ -271,11 +272,13 @@ native/avif/
 - 打包后的完整启动路径（`--bench=startup`，1440 × 900）：first window
   **122.1 ms**、first frame **191.1 ms**、decode **17.1 ms**、峰值 100.8 MB。
 - 包体：带 AVIF 的 win-x64 zip **20.84 MB**（十进制显示），低于 30 MB 预算；
-  DLL 本身 2.06 MiB。
-- 限制：只做了 Windows x64；`win-arm64`/macOS/Linux 隐藏 `.avif`；ICC 只读描述、
-  不做像素色彩管理；HDR/gain map 不支持；AVIF 编码不支持；动画只取第一帧。
-- 构建：`native/avif/build.ps1` 下载/校验源码并构建；`pack.ps1` 为 `win-x64`
-  自动调用；CI 的 Windows 测试、Release 和 Store 任务已加构建步骤。
+  DLL 本身 2.06 MiB，压缩后约 0.84 MiB。
+- 平台：Windows x64、macOS x64/arm64、Linux x64/arm64；Windows arm64 暂无 ARM64
+  工具链，隐藏 `.avif`。
+- 限制：ICC 只读描述、不做像素色彩管理；HDR/gain map 不支持；AVIF 编码不支持；
+  动画只取第一帧；`clap`/`imir` 无端到端夹具。
+- 构建：`native/avif/build.ps1` / `build.sh` 下载/校验源码并构建；`pack.ps1` /
+  `pack.sh` 自动调用；CI 的 Windows/macOS/Linux 测试和 Release 任务已加构建步骤。
 
 ## 已有基础
 

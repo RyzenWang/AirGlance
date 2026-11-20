@@ -53,7 +53,10 @@ At 100 percent, a 100 MP JPEG creates a temporary tile file of about 400 MB unde
   - Windows: Visual Studio 2022 C++ desktop workload and a Windows SDK.
   - macOS: Xcode command line tools. `pack.sh` also uses `/usr/libexec/PlistBuddy` and `ditto`.
   - Linux: clang, zlib and the native dependencies required by .NET NativeAOT on the target distribution. ICU is required unless globalization is made invariant; AirGlance has not been changed to invariant globalization.
-- Windows x64 AVIF decoder: CMake and Ninja (from Visual Studio), Python 3 with Meson 1.7.2 (`python -m pip install --user meson==1.7.2`), and NASM. `native/avif/build.ps1` downloads and verifies libavif 1.4.2 / dav1d 1.5.5 and builds `airglance_avif.dll`. `pack.ps1` runs it automatically for `win-x64`; without NASM dav1d is built without x86 SIMD.
+- AVIF decoder:
+  - Windows x64: CMake and Ninja (from Visual Studio), Python 3 with Meson 1.7.2 (`python -m pip install --user meson==1.7.2`), and NASM. `native/avif/build.ps1` downloads and verifies libavif 1.4.2 / dav1d 1.5.5 and builds `airglance_avif.dll`. `pack.ps1` runs it automatically.
+  - macOS/Linux: CMake, Ninja, Meson, a C compiler and (on x64) NASM. `native/avif/build.sh` builds `libairglance_avif.dylib` or `libairglance_avif.so`; `pack.sh` runs it automatically.
+  - Windows arm64 is not built yet and hides `.avif`.
 - The package versions in `Directory.Packages.props`. SkiaSharp 4.150.1 and Avalonia 11.3.22 share one native asset graph; do not replace either with a 3.x SkiaSharp package.
 - For Store packaging: a Windows 10/11 SDK with `MakeAppx.exe`, `signtool.exe` and the Windows App Certification Kit.
 - A display for manual smoke tests. The build and packaging steps are headless, but launching the app is not. Linux smoke tests need X11/Wayland or Xvfb.
@@ -118,7 +121,7 @@ at the archive root.
 ```text
 AirGlance.app/Contents/
   Info.plist
-  MacOS/                 (publish output, including AirGlance and native libraries)
+  MacOS/                 (publish output, including AirGlance, libairglance_avif.dylib and native libraries)
   Resources/airglance.icns
 ```
 
@@ -141,6 +144,7 @@ The archive is created with `ditto -c -k --keepParent`, so `AirGlance.app` is at
 
 ```text
 AirGlance
+libairglance_avif.so
 airglance.desktop
 icons/airglance-16.png
 ...
