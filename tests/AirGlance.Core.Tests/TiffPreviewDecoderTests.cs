@@ -384,6 +384,50 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Fact]
+    public void Preview_uses_16bit_raw_tiles()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateSixteenBitTiff(path, 2048, 1536, tiled: true, tileSize: 256);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 512, 384);
+
+            Assert.Equal(512, bitmap.Width);
+            Assert.Equal(384, bitmap.Height);
+            Assert.Equal("red", Classify(Pixel(bitmap, 2, 2)));
+            Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 3, 2)));
+            Assert.Equal("blue", Classify(Pixel(bitmap, 2, bitmap.Height - 3)));
+            Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 3, bitmap.Height - 3)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Preview_uses_16bit_raw_strips()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateSixteenBitTiff(path, 2048, 1536, tiled: false, rowsPerStrip: 32);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 512, 384);
+
+            Assert.Equal(512, bitmap.Width);
+            Assert.Equal(384, bitmap.Height);
+            Assert.Equal("red", Classify(Pixel(bitmap, 2, 2)));
+            Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 3, 2)));
+            Assert.Equal("blue", Classify(Pixel(bitmap, 2, bitmap.Height - 3)));
+            Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 3, bitmap.Height - 3)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
@@ -566,7 +610,13 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
-    private static void CreateSixteenBitTiff(string path, int width, int height)
+    private static void CreateSixteenBitTiff(
+        string path,
+        int width,
+        int height,
+        bool tiled = false,
+        int tileSize = 256,
+        int rowsPerStrip = 0)
     {
         using var tiff = Tiff.Open(path, "w");
         Assert.NotNull(tiff);
@@ -579,8 +629,46 @@ public sealed class TiffPreviewDecoderTests
         tiff.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
         tiff.SetField(TiffTag.PHOTOMETRIC, Photometric.RGB);
         tiff.SetField(TiffTag.COMPRESSION, Compression.LZW);
-        tiff.SetField(TiffTag.ROWSPERSTRIP, height);
-        var row = new byte[width * 3 * 2];
+        if (tiled)
+        {
+            tiff.SetField(TiffTag.TILEWIDTH, tileSize);
+            tiff.SetField(TiffTag.TILELENGTH, tileSize);
+            var tile = new byte[tileSize * tileSize * 6];
+            var tilesAcross = (width + tileSize - 1) / tileSize;
+            var tilesDown = (height + tileSize - 1) / tileSize;
+            for (var tileY = 0; tileY < tilesDown; tileY++)
+            {
+                for (var tileX = 0; tileX < tilesAcross; tileX++)
+                {
+                    Array.Clear(tile);
+                    for (var y = 0; y < tileSize; y++)
+                    {
+                        for (var x = 0; x < tileSize; x++)
+                        {
+                            var imageX = tileX * tileSize + x;
+                            var imageY = tileY * tileSize + y;
+                            if (imageX >= width || imageY >= height)
+                            {
+                                continue;
+                            }
+
+                            var (red, green, blue) = Pattern16(imageX, imageY, width, height);
+                            var offset = (y * tileSize + x) * 6;
+                            WriteUInt16Native(tile, offset, red);
+                            WriteUInt16Native(tile, offset + 2, green);
+                            WriteUInt16Native(tile, offset + 4, blue);
+                        }
+                    }
+
+                    tiff.WriteEncodedTile(tileY * tilesAcross + tileX, tile, 0, tile.Length);
+                }
+            }
+
+            return;
+        }
+
+        tiff.SetField(TiffTag.ROWSPERSTRIP, rowsPerStrip > 0 ? rowsPerStrip : height);
+        var row = new byte[width * 6];
         for (var y = 0; y < height; y++)
         {
             for (var x = 0; x < width; x++)

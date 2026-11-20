@@ -241,33 +241,6 @@ public static class TiffPreviewDecoder
             return;
         }
 
-        var rowsPerStrip = TagLong(image, TiffTag.ROWSPERSTRIP);
-        if (rowsPerStrip <= 0 || rowsPerStrip > decodeHeight)
-        {
-            rowsPerStrip = decodeHeight;
-        }
-
-        var stripRasterBytes = (long)decodeWidth * rowsPerStrip * sizeof(int);
-        if (rowsPerStrip >= decodeHeight || stripRasterBytes > MaximumRasterBytes)
-        {
-            var scanlineLayout = GetScanline16Layout(image);
-            if (scanlineLayout != Scanline16Layout.None)
-            {
-                DecodeStrippedScanline16(
-                    image,
-                    path,
-                    decodeWidth,
-                    decodeHeight,
-                    targetWidth,
-                    targetHeight,
-                    sampleScale,
-                    scanlineLayout,
-                    pixels,
-                    cancellationToken);
-                return;
-            }
-        }
-
         if (allowParallel &&
             TryDecodeStrippedParallel(
                 image,
@@ -858,7 +831,7 @@ public static class TiffPreviewDecoder
             throw Corrupt(path, "The TIFF tile is not readable.");
         }
 
-        var bytesPerPixel = layout == RawLayout.Rgb ? 3 : 1;
+        var bytesPerPixel = RawPixelBytes(layout);
         var raw = new byte[tileSize];
         for (var tileY = firstTileY; tileY < bandEnd; tileY += tileHeight)
         {
@@ -887,40 +860,18 @@ public static class TiffPreviewDecoder
                             continue;
                         }
 
-                        if (layout == RawLayout.Rgb)
-                        {
-                            WriteScaledOpaque(
-                                pixels,
-                                targetWidth,
-                                targetHeight,
-                                sourceX,
-                                sourceY,
-                                width,
-                                height,
-                                raw[offset],
-                                raw[offset + 1],
-                                raw[offset + 2]);
-                        }
-                        else
-                        {
-                            var gray = raw[offset];
-                            if (layout == RawLayout.GrayInverted)
-                            {
-                                gray = (byte)(255 - gray);
-                            }
-
-                            WriteScaledOpaque(
-                                pixels,
-                                targetWidth,
-                                targetHeight,
-                                sourceX,
-                                sourceY,
-                                width,
-                                height,
-                                gray,
-                                gray,
-                                gray);
-                        }
+                        ReadRawPixel(raw, offset, layout, out var red, out var green, out var blue);
+                        WriteScaledOpaque(
+                            pixels,
+                            targetWidth,
+                            targetHeight,
+                            sourceX,
+                            sourceY,
+                            width,
+                            height,
+                            red,
+                            green,
+                            blue);
                     }
                 }
             }
@@ -1065,7 +1016,7 @@ public static class TiffPreviewDecoder
 
         using var image = OpenAtLevel(path, directory, subIfdOffset);
         var raw = new byte[stripSize];
-        var bytesPerPixel = layout == RawLayout.Rgb ? 3 : 1;
+        var bytesPerPixel = RawPixelBytes(layout);
         var firstStrip = bandStart / rowsPerStrip;
         var lastStrip = (bandEnd - 1) / rowsPerStrip;
         for (var strip = firstStrip; strip <= lastStrip; strip++)
@@ -1093,40 +1044,18 @@ public static class TiffPreviewDecoder
                         continue;
                     }
 
-                    if (layout == RawLayout.Rgb)
-                    {
-                        WriteScaledOpaque(
-                            pixels,
-                            targetWidth,
-                            targetHeight,
-                            sourceX,
-                            sourceY,
-                            width,
-                            height,
-                            raw[offset],
-                            raw[offset + 1],
-                            raw[offset + 2]);
-                    }
-                    else
-                    {
-                        var gray = raw[offset];
-                        if (layout == RawLayout.GrayInverted)
-                        {
-                            gray = (byte)(255 - gray);
-                        }
-
-                        WriteScaledOpaque(
-                            pixels,
-                            targetWidth,
-                            targetHeight,
-                            sourceX,
-                            sourceY,
-                            width,
-                            height,
-                            gray,
-                            gray,
-                            gray);
-                    }
+                    ReadRawPixel(raw, offset, layout, out var red, out var green, out var blue);
+                    WriteScaledOpaque(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        red,
+                        green,
+                        blue);
                 }
             }
         }
@@ -1361,7 +1290,7 @@ public static class TiffPreviewDecoder
                 Path.GetExtension(path));
         }
 
-        var bytesPerPixel = layout == RawLayout.Rgb ? 3 : 1;
+        var bytesPerPixel = RawPixelBytes(layout);
         var raw = new byte[tileSize];
         var step = SampleStep(scale);
         var tilesAcross = (width + tileWidth - 1) / tileWidth;
@@ -1392,40 +1321,18 @@ public static class TiffPreviewDecoder
                             continue;
                         }
 
-                        if (layout == RawLayout.Rgb)
-                        {
-                            WriteScaledOpaque(
-                                pixels,
-                                targetWidth,
-                                targetHeight,
-                                sourceX,
-                                sourceY,
-                                width,
-                                height,
-                                raw[offset],
-                                raw[offset + 1],
-                                raw[offset + 2]);
-                        }
-                        else
-                        {
-                            var gray = raw[offset];
-                            if (layout == RawLayout.GrayInverted)
-                            {
-                                gray = (byte)(255 - gray);
-                            }
-
-                            WriteScaledOpaque(
-                                pixels,
-                                targetWidth,
-                                targetHeight,
-                                sourceX,
-                                sourceY,
-                                width,
-                                height,
-                                gray,
-                                gray,
-                                gray);
-                        }
+                        ReadRawPixel(raw, offset, layout, out var red, out var green, out var blue);
+                        WriteScaledOpaque(
+                            pixels,
+                            targetWidth,
+                            targetHeight,
+                            sourceX,
+                            sourceY,
+                            width,
+                            height,
+                            red,
+                            green,
+                            blue);
                     }
                 }
             }
@@ -1444,7 +1351,7 @@ public static class TiffPreviewDecoder
         byte[] pixels,
         CancellationToken cancellationToken)
     {
-        var bytesPerPixel = layout == RawLayout.Rgb ? 3 : 1;
+        var bytesPerPixel = RawPixelBytes(layout);
         var row = new byte[checked(width * bytesPerPixel)];
         var step = SampleStep(scale);
         for (var sourceY = 0; sourceY < height; sourceY++)
@@ -1463,161 +1370,20 @@ public static class TiffPreviewDecoder
             for (var sourceX = 0; sourceX < width; sourceX += step)
             {
                 var offset = sourceX * bytesPerPixel;
-                if (layout == RawLayout.Rgb)
-                {
-                    WriteScaledOpaque(
-                        pixels,
-                        targetWidth,
-                        targetHeight,
-                        sourceX,
-                        sourceY,
-                        width,
-                        height,
-                        row[offset],
-                        row[offset + 1],
-                        row[offset + 2]);
-                }
-                else
-                {
-                    var gray = row[offset];
-                    if (layout == RawLayout.GrayInverted)
-                    {
-                        gray = (byte)(255 - gray);
-                    }
-
-                    WriteScaledOpaque(
-                        pixels,
-                        targetWidth,
-                        targetHeight,
-                        sourceX,
-                        sourceY,
-                        width,
-                        height,
-                        gray,
-                        gray,
-                        gray);
-                }
+                ReadRawPixel(row, offset, layout, out var red, out var green, out var blue);
+                WriteScaledOpaque(
+                    pixels,
+                    targetWidth,
+                    targetHeight,
+                    sourceX,
+                    sourceY,
+                    width,
+                    height,
+                    red,
+                    green,
+                    blue);
             }
         }
-    }
-
-    private static void DecodeStrippedScanline16(
-        Tiff image,
-        string path,
-        int width,
-        int height,
-        int targetWidth,
-        int targetHeight,
-        double scale,
-        Scanline16Layout layout,
-        byte[] pixels,
-        CancellationToken cancellationToken)
-    {
-        var samples = layout == Scanline16Layout.Rgb ? 3 : 1;
-        var row = new byte[checked(width * samples * 2)];
-        var step = SampleStep(scale);
-        for (var sourceY = 0; sourceY < height; sourceY++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!image.ReadScanline(row, sourceY))
-            {
-                throw Corrupt(path, "The TIFF scanline could not be decoded.");
-            }
-
-            if (sourceY % step != 0)
-            {
-                continue;
-            }
-
-            for (var sourceX = 0; sourceX < width; sourceX += step)
-            {
-                var offset = sourceX * samples * 2;
-                if (layout == Scanline16Layout.Rgb)
-                {
-                    WriteScaledOpaque(
-                        pixels,
-                        targetWidth,
-                        targetHeight,
-                        sourceX,
-                        sourceY,
-                        width,
-                        height,
-                        (byte)(ReadUInt16Native(row, offset) >> 8),
-                        (byte)(ReadUInt16Native(row, offset + 2) >> 8),
-                        (byte)(ReadUInt16Native(row, offset + 4) >> 8));
-                }
-                else
-                {
-                    var gray = (byte)(ReadUInt16Native(row, offset) >> 8);
-                    if (layout == Scanline16Layout.GrayInverted)
-                    {
-                        gray = (byte)(255 - gray);
-                    }
-
-                    WriteScaledOpaque(
-                        pixels,
-                        targetWidth,
-                        targetHeight,
-                        sourceX,
-                        sourceY,
-                        width,
-                        height,
-                        gray,
-                        gray,
-                        gray);
-                }
-            }
-        }
-    }
-
-    private static Scanline16Layout GetScanline16Layout(Tiff image)
-    {
-        if (TagInt(image, TiffTag.BITSPERSAMPLE) != 16)
-        {
-            return Scanline16Layout.None;
-        }
-
-        var samples = TagInt(image, TiffTag.SAMPLESPERPIXEL);
-        if (samples == 0)
-        {
-            samples = 1;
-        }
-
-        var planar = TagInt(image, TiffTag.PLANARCONFIG);
-        if (planar is not (0 or 1))
-        {
-            return Scanline16Layout.None;
-        }
-
-        var compression = TagInt(image, TiffTag.COMPRESSION);
-        if (compression is not (1 or 5 or 8 or 32946 or 32773))
-        {
-            return Scanline16Layout.None;
-        }
-
-        var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
-        if (sampleFormat is not (0 or 1))
-        {
-            return Scanline16Layout.None;
-        }
-
-        var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
-        if (samples == 3 && photometric == 2)
-        {
-            return Scanline16Layout.Rgb;
-        }
-
-        if (samples == 1 && photometric == 1)
-        {
-            return Scanline16Layout.Gray;
-        }
-
-        if (samples == 1 && photometric == 0)
-        {
-            return Scanline16Layout.GrayInverted;
-        }
-
-        return Scanline16Layout.None;
     }
 
     private static ushort ReadUInt16Native(byte[] row, int offset)
@@ -1628,12 +1394,53 @@ public static class TiffPreviewDecoder
             : (ushort)((row[offset] << 8) | row[offset + 1]);
     }
 
-    private enum Scanline16Layout
+    private static bool IsRgbLayout(RawLayout layout) => layout is RawLayout.Rgb or RawLayout.Rgb16;
+
+    private static bool Is16BitLayout(RawLayout layout) =>
+        layout is RawLayout.Rgb16 or RawLayout.Gray16 or RawLayout.Gray16Inverted;
+
+    private static bool IsInvertedGrayLayout(RawLayout layout) =>
+        layout is RawLayout.GrayInverted or RawLayout.Gray16Inverted;
+
+    private static int RawPixelBytes(RawLayout layout) =>
+        (IsRgbLayout(layout) ? 3 : 1) * (Is16BitLayout(layout) ? 2 : 1);
+
+    private static void ReadRawPixel(
+        byte[] source,
+        int offset,
+        RawLayout layout,
+        out byte red,
+        out byte green,
+        out byte blue)
     {
-        None,
-        Rgb,
-        Gray,
-        GrayInverted
+        switch (layout)
+        {
+            case RawLayout.Rgb:
+                red = source[offset];
+                green = source[offset + 1];
+                blue = source[offset + 2];
+                return;
+            case RawLayout.Rgb16:
+                red = (byte)(ReadUInt16Native(source, offset) >> 8);
+                green = (byte)(ReadUInt16Native(source, offset + 2) >> 8);
+                blue = (byte)(ReadUInt16Native(source, offset + 4) >> 8);
+                return;
+            case RawLayout.Gray:
+                red = green = blue = source[offset];
+                return;
+            case RawLayout.Gray16:
+                red = green = blue = (byte)(ReadUInt16Native(source, offset) >> 8);
+                return;
+            case RawLayout.GrayInverted:
+                red = green = blue = (byte)(255 - source[offset]);
+                return;
+            case RawLayout.Gray16Inverted:
+                red = green = blue = (byte)(255 - (ReadUInt16Native(source, offset) >> 8));
+                return;
+            default:
+                red = green = blue = 0;
+                return;
+        }
     }
 
     private static void WriteScaledOpaque(
@@ -1735,7 +1542,8 @@ public static class TiffPreviewDecoder
 
     private static RawLayout GetRawLayout(Tiff image)
     {
-        if (TagInt(image, TiffTag.BITSPERSAMPLE) != 8)
+        var bits = TagInt(image, TiffTag.BITSPERSAMPLE);
+        if (bits is not (8 or 16))
         {
             return RawLayout.None;
         }
@@ -1758,20 +1566,29 @@ public static class TiffPreviewDecoder
             return RawLayout.None;
         }
 
+        if (bits == 16)
+        {
+            var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
+            if (sampleFormat is not (0 or 1))
+            {
+                return RawLayout.None;
+            }
+        }
+
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
         if (samples == 3 && photometric == 2)
         {
-            return RawLayout.Rgb;
+            return bits == 16 ? RawLayout.Rgb16 : RawLayout.Rgb;
         }
 
         if (samples == 1 && photometric == 1)
         {
-            return RawLayout.Gray;
+            return bits == 16 ? RawLayout.Gray16 : RawLayout.Gray;
         }
 
         if (samples == 1 && photometric == 0)
         {
-            return RawLayout.GrayInverted;
+            return bits == 16 ? RawLayout.Gray16Inverted : RawLayout.GrayInverted;
         }
 
         return RawLayout.None;
@@ -1781,8 +1598,11 @@ public static class TiffPreviewDecoder
     {
         None,
         Rgb,
+        Rgb16,
         Gray,
-        GrayInverted
+        Gray16,
+        GrayInverted,
+        Gray16Inverted
     }
 
     private static (int Width, int Height, double Scale) ComputeTarget(
