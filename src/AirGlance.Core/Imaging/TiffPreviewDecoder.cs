@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ public static class TiffPreviewDecoder
     private const long ParallelPixelThreshold = 2_000_000;
     private const long ParallelWorkerMemoryBudget = 256L * 1024 * 1024;
     private const int MaximumParallelWorkers = 8;
+    private const int MaximumPyramidDepth = 8;
     private const double PyramidUpscaleTolerance = 0.95;
 
     public static ImageMetadata ReadMetadata(string path)
@@ -95,7 +97,7 @@ public static class TiffPreviewDecoder
             // requested preview. The selected level is small enough to decode on
             // the calling handle, so no worker has to re-open a sub-directory.
             var decodedReducedLevel = false;
-            var level = FindReducedLevel(image, width, height, targetWidth, targetHeight);
+            var level = FindReducedLevel(image, path, width, height, targetWidth, targetHeight);
             if (level is { } reduced && TrySwitchToLevel(image, reduced))
             {
                 var decodeWidth = TagInt(image, TiffTag.IMAGEWIDTH);
@@ -271,6 +273,7 @@ public static class TiffPreviewDecoder
 
     private static ReducedLevel? FindReducedLevel(
         Tiff image,
+        string path,
         int fullWidth,
         int fullHeight,
         int targetWidth,
@@ -306,39 +309,76 @@ public static class TiffPreviewDecoder
             bestArea = area;
         }
 
+        var visited = new HashSet<long>();
+        var directoryOffsets = ReadTopLevelIfdOffsets(path);
         var directoryCount = image.NumberOfDirectories();
-        for (short directory = 1; directory < directoryCount; directory++)
+        for (short directory = 0; directory < directoryCount; directory++)
         {
             if (!image.SetDirectory(directory))
             {
                 continue;
             }
 
-            Consider(
-                TagInt(image, TiffTag.IMAGEWIDTH),
-                TagInt(image, TiffTag.IMAGELENGTH),
-                directory,
-                0);
-        }
-
-        image.SetDirectory(0);
-        foreach (var offset in ReadSubIfdOffsets(image))
-        {
-            if (!image.SetSubDirectory(offset))
-            {
-                continue;
-            }
-
-            Consider(
-                TagInt(image, TiffTag.IMAGEWIDTH),
-                TagInt(image, TiffTag.IMAGELENGTH),
-                0,
-                offset);
-            image.SetDirectory(0);
+            var currentIfdOffset = directory < directoryOffsets.Count ? directoryOffsets[directory] : 0;
+            VisitLevel(image, directory, 0, currentIfdOffset, 0);
         }
 
         image.SetDirectory(0);
         return best;
+
+        void VisitLevel(Tiff current, short directory, long subIfdOffset, long currentIfdOffset, int depth)
+        {
+            var subfileField = current.GetField(TiffTag.SUBFILETYPE);
+            var subfileType = subfileField is { Length: > 0 } ? subfileField[0].ToInt() : 0;
+            var isPage = (subfileType & 2) != 0;
+            var isMask = (subfileType & 4) != 0;
+            if (isPage || isMask)
+            {
+                return;
+            }
+
+            Consider(
+                TagInt(current, TiffTag.IMAGEWIDTH),
+                TagInt(current, TiffTag.IMAGELENGTH),
+                directory,
+                subIfdOffset);
+
+            if (depth >= MaximumPyramidDepth)
+            {
+                return;
+            }
+
+            var offsets = ReadSubIfdOffsets(current);
+            if (offsets.Length == 0 && currentIfdOffset > 0)
+            {
+                offsets = ReadSubIfdOffsetsFromFile(path, currentIfdOffset);
+            }
+
+            foreach (var offset in offsets)
+            {
+                if (offset <= 0 || !visited.Add(offset))
+                {
+                    continue;
+                }
+
+                if (!current.SetSubDirectory(offset))
+                {
+                    continue;
+                }
+
+                VisitLevel(current, 0, offset, offset, depth + 1);
+
+                // Return to this level before visiting the next child.
+                if (subIfdOffset > 0)
+                {
+                    current.SetSubDirectory(subIfdOffset);
+                }
+                else
+                {
+                    current.SetDirectory(directory);
+                }
+            }
+        }
     }
 
     private static bool TrySwitchToLevel(Tiff image, ReducedLevel level)
@@ -403,6 +443,245 @@ public static class TiffPreviewDecoder
         }
 
         return [];
+    }
+
+    private readonly record struct IfdLayout(bool Little, bool BigTiff, long FirstIfdOffset)
+    {
+        public int CountSize => BigTiff ? 8 : 2;
+
+        public int EntrySize => BigTiff ? 20 : 12;
+
+        public int OffsetSize => BigTiff ? 8 : 4;
+    }
+
+    private static List<long> ReadTopLevelIfdOffsets(string path)
+    {
+        var offsets = new List<long>();
+        try
+        {
+            using var stream = OpenIfdStream(path);
+            if (!TryReadIfdLayout(stream, out var layout))
+            {
+                return offsets;
+            }
+
+            var offset = layout.FirstIfdOffset;
+            while (offset > 0 && offsets.Count < 4096)
+            {
+                offsets.Add(offset);
+                stream.Position = offset;
+                var count = layout.BigTiff
+                    ? ReadUInt64(stream, layout.Little)
+                    : ReadUInt16(stream, layout.Little);
+                if (count > 1_000_000)
+                {
+                    break;
+                }
+
+                var nextPosition = offset + layout.CountSize + (long)count * layout.EntrySize;
+                if (nextPosition < 0 || nextPosition + layout.OffsetSize > stream.Length)
+                {
+                    break;
+                }
+
+                stream.Position = nextPosition;
+                offset = layout.BigTiff
+                    ? (long)ReadUInt64(stream, layout.Little)
+                    : ReadUInt32(stream, layout.Little);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or EndOfStreamException or ArgumentException)
+        {
+            // A broken directory chain just means no raw IFD fallback.
+        }
+
+        return offsets;
+    }
+
+    private static long[] ReadSubIfdOffsetsFromFile(string path, long ifdOffset)
+    {
+        try
+        {
+            using var stream = OpenIfdStream(path);
+            return TryReadIfdLayout(stream, out var layout)
+                ? ReadSubIfdOffsetsAt(stream, ifdOffset, layout)
+                : [];
+        }
+        catch (Exception exception) when (exception is IOException or EndOfStreamException or ArgumentException)
+        {
+            return [];
+        }
+    }
+
+    private static long[] ReadSubIfdOffsetsAt(Stream stream, long ifdOffset, in IfdLayout layout)
+    {
+        if (ifdOffset <= 0 || ifdOffset + layout.CountSize > stream.Length)
+        {
+            return [];
+        }
+
+        stream.Position = ifdOffset;
+        var count = layout.BigTiff
+            ? ReadUInt64(stream, layout.Little)
+            : ReadUInt16(stream, layout.Little);
+        if (count is 0 or > 4096)
+        {
+            return [];
+        }
+
+        var entryBase = ifdOffset + layout.CountSize;
+        for (ulong index = 0; index < count; index++)
+        {
+            var position = entryBase + (long)index * layout.EntrySize;
+            if (position + layout.EntrySize > stream.Length)
+            {
+                return [];
+            }
+
+            stream.Position = position;
+            var tag = ReadUInt16(stream, layout.Little);
+            var type = ReadUInt16(stream, layout.Little);
+            var itemCount = layout.BigTiff
+                ? ReadUInt64(stream, layout.Little)
+                : ReadUInt32(stream, layout.Little);
+            var valuePosition = stream.Position;
+            if (tag != 330)
+            {
+                continue;
+            }
+
+            if (type is not (4 or 13 or 18) || itemCount is 0 or > 4096)
+            {
+                return [];
+            }
+
+            var offsetWidth = type == 18 || (layout.BigTiff && type == 13) ? 8 : 4;
+            var valueSize = layout.BigTiff ? 8 : 4;
+            var inline = itemCount * (ulong)offsetWidth <= (ulong)valueSize;
+            if (inline)
+            {
+                stream.Position = valuePosition;
+            }
+            else
+            {
+                stream.Position = valuePosition;
+                var dataOffset = offsetWidth == 8
+                    ? (long)ReadUInt64(stream, layout.Little)
+                    : ReadUInt32(stream, layout.Little);
+                if (dataOffset <= 0 || dataOffset > stream.Length)
+                {
+                    return [];
+                }
+
+                stream.Position = dataOffset;
+            }
+
+            var result = new long[(int)itemCount];
+            for (var item = 0; item < result.Length; item++)
+            {
+                result[item] = offsetWidth == 8
+                    ? (long)ReadUInt64(stream, layout.Little)
+                    : ReadUInt32(stream, layout.Little);
+            }
+
+            return result;
+        }
+
+        return [];
+    }
+
+    private static FileStream OpenIfdStream(string path) =>
+        new(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 4096,
+            FileOptions.RandomAccess);
+
+    private static bool TryReadIfdLayout(Stream stream, out IfdLayout layout)
+    {
+        layout = default;
+        if (stream.Length < 8)
+        {
+            return false;
+        }
+
+        stream.Position = 0;
+        Span<byte> header = stackalloc byte[16];
+        var headerLength = (int)Math.Min(header.Length, stream.Length);
+        ReadExactly(stream, header[..headerLength]);
+        var little = header[0] == (byte)'I' && header[1] == (byte)'I';
+        var big = header[0] == (byte)'M' && header[1] == (byte)'M';
+        if (!little && !big)
+        {
+            return false;
+        }
+
+        var magic = little
+            ? BinaryPrimitives.ReadUInt16LittleEndian(header.Slice(2, 2))
+            : BinaryPrimitives.ReadUInt16BigEndian(header.Slice(2, 2));
+        if (magic == 42)
+        {
+            var first = little
+                ? BinaryPrimitives.ReadUInt32LittleEndian(header.Slice(4, 4))
+                : BinaryPrimitives.ReadUInt32BigEndian(header.Slice(4, 4));
+            layout = new IfdLayout(little, false, first);
+            return true;
+        }
+
+        if (magic == 43 && headerLength >= 16)
+        {
+            var first = little
+                ? BinaryPrimitives.ReadUInt64LittleEndian(header.Slice(8, 8))
+                : BinaryPrimitives.ReadUInt64BigEndian(header.Slice(8, 8));
+            layout = new IfdLayout(little, true, (long)first);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static ushort ReadUInt16(Stream stream, bool little)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        ReadExactly(stream, buffer);
+        return little
+            ? BinaryPrimitives.ReadUInt16LittleEndian(buffer)
+            : BinaryPrimitives.ReadUInt16BigEndian(buffer);
+    }
+
+    private static uint ReadUInt32(Stream stream, bool little)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        ReadExactly(stream, buffer);
+        return little
+            ? BinaryPrimitives.ReadUInt32LittleEndian(buffer)
+            : BinaryPrimitives.ReadUInt32BigEndian(buffer);
+    }
+
+    private static ulong ReadUInt64(Stream stream, bool little)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        ReadExactly(stream, buffer);
+        return little
+            ? BinaryPrimitives.ReadUInt64LittleEndian(buffer)
+            : BinaryPrimitives.ReadUInt64BigEndian(buffer);
+    }
+
+    private static void ReadExactly(Stream stream, Span<byte> buffer)
+    {
+        var read = 0;
+        while (read < buffer.Length)
+        {
+            var count = stream.Read(buffer[read..]);
+            if (count <= 0)
+            {
+                throw new EndOfStreamException();
+            }
+
+            read += count;
+        }
     }
 
     private readonly record struct ReducedLevel(

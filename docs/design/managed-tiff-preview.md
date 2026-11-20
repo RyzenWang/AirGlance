@@ -25,14 +25,14 @@
 - **回退**：Windows 上，单条带 16-bit/CMYK 等超出托管限制的情况回退到 `NetVipsTiffDecoder`；其他平台返回明确错误。
 - **路由**：`ImageDecoder.DecodeTiff` 的大图分支和 `ReadTiffMetadata` 的大图分支改走托管实现。
 - **并行解码**：大于 2 MP 的 tiled 和 multi-strip 图按源行带分给最多 8 个 worker，每个 worker 打开自己的 `Tiff` 句柄；目标像素用一次 32 位 `Volatile.Write` 写入，边界重复采样时 last-writer-wins，不会把像素拆成混合通道。worker 数还受 256 MiB 的每 worker 光栅预算限制。
-- **pyramid/subIFD**：枚举顶层目录和 `SUBIFD` 标签里的 IFD，选面积最小、宽高都在目标 95% 以上、宽高比与全图一致、面积小于全图的 reduced level，直接在这个 IFD 上解码。选中的 level 也走并行路径：worker 通过 `OpenAtLevel` 打开同一目录或 subIFD。level 比目标略小时（例如 8000 → 8192），用 32 位块写入做最近邻上采样，保证目标没有空像素。
+- **pyramid/subIFD**：递归遍历顶层目录及其 `SUBIFD` 子目录（深度上限 8，offset 去重），跳过 `SUBFILETYPE` 里 page/mask 的目录。LibTiff.NET 不暴露 classic TIFF（IFD type 13）的 `SUBIFD` 标签，所以 `GetField` 为空时用原始 IFD 解析器按 tag 330 读 offset；BigTIFF 的 IFD8 标签仍走 LibTiff。选面积最小、宽高都在目标 95% 以上、宽高比与全图一致、面积小于全图的 reduced level，直接在这个 IFD 上解码。选中的 level 也走并行路径：worker 通过 `OpenAtLevel` 打开同一目录或 subIFD。level 比目标略小时（例如 8000 → 8192），用 32 位块写入做最近邻上采样，保证目标没有空像素。
 - **应用修正**：`MainWindowViewModel.OnZoomChanged` 在 `percent >= 30` 时不再启动代理升级。旧逻辑在区域模式打开的同一帧还会启动 8192 代理升级，导致“8192 代理 + 区域 tile”同时解码，100% 时工作集冲到 ~1.4 GB。修正后只走区域 tile。
 
 ## 验证
 
 ### 单元测试
 
-新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，14 个测试：
+新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，16 个测试：
 
 1. tiled TIFF 缩放到 80 × 50，四角颜色和 alpha 正确；
 2. stripped TIFF 同上；
@@ -47,9 +47,11 @@
 11. 已取消的 token 抛出 `OperationCanceledException`；
 12. 两层目录 TIFF 在目标较小时选中 reduced 目录（绿色），而不是全图目录（红色）；
 13. 2048 × 1536 reduced 目录超过并行阈值时，worker 仍然打开该目录（绿色），不是 dir 0（红色）；
-14. 2048 reduced 目录被放大到 2100 目标时没有空像素，且仍选中 reduced 目录。
+14. 2048 reduced 目录被放大到 2100 目标时没有空像素，且仍选中 reduced 目录；
+15. 三层目录里 dir 1 是 page（绿色）、dir 2 是 reduced（蓝色），预览选蓝色而不是 page；
+16. classic TIFF（IFD type 13）的 `subifd-levels.tif` fixture 选中 100 × 75 的蓝色 subIFD。
 
-完整套件：Core **128 passed**，App **35 passed**。
+完整套件：Core **130 passed**，App **35 passed**。
 
 ### 直接预览基准（256 MP，`TiffPreviewDecoder.DecodePreview`）
 
@@ -97,13 +99,13 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 - **质量**：代理是 2× 过采样的最近邻，不是 Lanczos/box；细密网格和纹理可能比 libvips 硬。30% 以上由区域 tile 接管。
 - **格式长尾**：16-bit、palette、CMYK、YCbCr、JPEG-in-TIFF 仍走 `ReadRGBA*`；单 strip 的 16-bit 等超出 64 MiB 条带上限时，Windows 回退 libvips，其他平台返回错误。
 - **pyramid level 选择**：允许 level 比目标小最多 5%，用最近邻块上采样（8000 → 8192 约 2.4%）；细节会比全图略软。低于 95% 的 level 不选，8192 目标下仍可能回退全图。
-- **pyramid 枚举范围**：只看顶层目录和首目录的 `SUBIFD`；嵌套 subIFD、`SUBFILETYPE` 语义、多页文档里的缩略页没有细查。宽度、高度和 1% 宽高比是启发式，同比例的小页可能被误选。
+- **pyramid 枚举范围**：递归 `SUBIFD` 树，但只跟随 SubIFD tag；不跟随 SubIFD 之间的 NextIFD 链，也不处理多页文档的页缩略图。`SUBFILETYPE` 的 page/mask 位会跳过；tag 缺失或为 0 时仍用尺寸和 1% 宽高比启发式，同比例的小页理论上可能被误选。
 - **ICC**：元数据会显示 ICC 描述，但预览像素没有做 ICC→sRGB 转换，和旧的大 TIFF 路径一致。
 - **方向**：大 TIFF 仍按原始存储方向显示；代理和区域 tile 一致，但和普通 TIFF 的“应用 orientation”行为不同。
 
 ## 下一步
 
-1. **更多金字塔布局**：嵌套 subIFD、多页金字塔、`SUBFILETYPE` 语义。
+1. **更多金字塔布局**：SubIFD NextIFD 链、更多 `SUBFILETYPE` 组合、多页文档的页缩略图。
 2. **16-bit / 长尾快速路径**：`ReadScanline` + 16-bit 转换，覆盖天文/扫描类 TIFF 的单 strip；之后可以移除 libvips 回退。
 3. **单 strip 并行**：需要能按行带解码的 LZW 流式实现，或者先接受顺序路径。
 4. 用真实 Cosmic（tiled）和 Trifid（single strip）验证预览和区域浏览。

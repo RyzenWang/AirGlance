@@ -318,6 +318,43 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Fact]
+    public void Preview_skips_a_page_and_uses_the_reduced_directory()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateThreeLevelTiff(path);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 200, 150);
+
+            Assert.Equal(200, bitmap.Width);
+            Assert.Equal(150, bitmap.Height);
+            // dir 1 is a page (green), dir 2 is reduced (blue). The page must
+            // not win the smaller-area selection.
+            Assert.Equal("blue", Classify(Pixel(bitmap, 100, 75)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Preview_uses_a_subifd_level()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "subifd-levels.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 100, 75);
+
+        Assert.Equal(100, bitmap.Width);
+        Assert.Equal(75, bitmap.Height);
+        Assert.Equal(400, bitmap.SourceWidth);
+        Assert.Equal(300, bitmap.SourceHeight);
+
+        // The 100 x 75 subIFD is blue; the full directory is red and the
+        // 200 x 150 subIFD is green.
+        Assert.Equal("blue", Classify(Pixel(bitmap, 50, 37)));
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
@@ -459,9 +496,32 @@ public sealed class TiffPreviewDecoderTests
         WriteSolidDirectory(tiff, reducedWidth, reducedHeight, 0, 160, 60);
     }
 
-    private static void WriteSolidDirectory(Tiff tiff, int width, int height, byte red, byte green, byte blue)
+    private static void CreateThreeLevelTiff(string path)
+    {
+        using var tiff = Tiff.Open(path, "w");
+        Assert.NotNull(tiff);
+        WriteSolidDirectory(tiff, 800, 600, 255, 0, 0);
+        tiff.WriteDirectory();
+        WriteSolidDirectory(tiff, 400, 300, 0, 160, 60, subfileType: 2);
+        tiff.WriteDirectory();
+        WriteSolidDirectory(tiff, 400, 300, 0, 90, 255, subfileType: 1);
+    }
+
+    private static void WriteSolidDirectory(
+        Tiff tiff,
+        int width,
+        int height,
+        byte red,
+        byte green,
+        byte blue,
+        int? subfileType = null)
     {
         SetCommonFields(tiff, width, height, samplesPerPixel: 3, Orientation.TOPLEFT);
+        if (subfileType is { } value)
+        {
+            tiff.SetField(TiffTag.SUBFILETYPE, value);
+        }
+
         tiff.SetField(TiffTag.ROWSPERSTRIP, 64);
         var row = new byte[width * 3];
         for (var x = 0; x < width; x++)
