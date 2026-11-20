@@ -1585,7 +1585,7 @@ public static class TiffPreviewDecoder
             return new RawFormat(RawLayout.Rgb, null);
         }
 
-        if (bits == 8 && samples == 4 && photometric == 5 && compression != 7)
+        if (bits == 8 && samples == 4 && photometric == 5)
         {
             return new RawFormat(RawLayout.Cmyk8, null);
         }

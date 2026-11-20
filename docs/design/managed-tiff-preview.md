@@ -15,12 +15,12 @@
 
 - **元数据**：用 LibTiff.NET 读宽度、高度、`BITSPERSAMPLE`、`ICCPROFILE`；`FormatName = "TIFF"`，方向按原始存储方向报告。
 - **tiled 预览**：
-  - 8-bit/16-bit RGB/gray、8-bit CMYK、8-bit RGBA、8-bit palette、JPEG（RGB 或 YCbCr）、contig、无损压缩（None/LZW/Deflate/PackBits）走快速路径：`ReadEncodedTile` 取原始样本，只采样需要的像素；
+  - 8-bit/16-bit RGB/gray、8-bit CMYK、8-bit RGBA、8-bit palette、JPEG（RGB、YCbCr、CMYK）、contig、无损压缩（None/LZW/Deflate/PackBits）走快速路径：`ReadEncodedTile` 取原始样本，只采样需要的像素；
   - RGBA 的 alpha 按 RGBA 路径同样预乘；palette 查 `COLORMAP`；
-  - YCbCr JPEG 在 raw 读取前设 `JPEGCOLORMODE=RGB`，LibTiff 返回 RGB；其他 YCbCr（非 JPEG）仍走 RGBA 转换；
-  - 其他情况（planar、float、CMYK JPEG）走 `ReadRGBATile` 的 RGBA 转换路径。
+  - YCbCr JPEG 在 raw 读取前设 `JPEGCOLORMODE=RGB`，LibTiff 返回 RGB；CMYK JPEG 返回 CMYK；其他 YCbCr（非 JPEG）仍走 RGBA 转换；
+  - 其他情况（planar、float、16-bit palette/alpha）走 `ReadRGBATile` 的 RGBA 转换路径。
 - **stripped 预览**：
-  - 8-bit/16-bit RGB/gray、8-bit CMYK、8-bit RGBA、8-bit palette、JPEG（RGB 或 YCbCr）走 `ReadScanline` 逐行快速路径：内存只有一行，**单 strip 大图也能预览**；
+  - 8-bit/16-bit RGB/gray、8-bit CMYK、8-bit RGBA、8-bit palette、JPEG（RGB、YCbCr、CMYK）走 `ReadScanline` 逐行快速路径：内存只有一行，**单 strip 大图也能预览**；
   - 16-bit sample 取高字节转 8-bit；CMYK 按 `255 - min(255, C + K)` 转 RGB；palette 查 `COLORMAP`；RGBA 预乘 alpha；YCbCr JPEG 设 `JPEGCOLORMODE=RGB`；
   - 多 strip 的 16-bit 走 `ReadEncodedStrip` 的并行 raw 路径；
   - 其他情况走 `ReadRGBAStrip`，单条带光栅上限 64 MiB。
@@ -36,7 +36,7 @@
 
 ### 单元测试
 
-新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，25 个测试：
+新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，26 个测试：
 
 1. tiled TIFF 缩放到 80 × 50，四角颜色和 alpha 正确；
 2. stripped TIFF 同上；
@@ -62,9 +62,10 @@
 22. 4200 × 4000 的 CMYK 单 strip（raw strip 67.2 MB）走 scanline，四角颜色正确；
 23. palette 四象限 TIFF 的四角颜色正确；
 24. RGBA 四象限 TIFF 的四角颜色和 alpha（255/200）正确；
-25. 2048 × 1536 YCbCr JPEG 四象限（128 行 strip）走 raw 并行路径，四角颜色正确。
+25. 2048 × 1536 YCbCr JPEG 四象限（128 行 strip）走 raw 并行路径，四角颜色正确；
+26. 2048 × 1536 CMYK JPEG 四象限（128 行 strip）走 raw 并行路径，四角颜色正确。
 
-完整套件：Core **149 passed**，App **35 passed**（含 18 个区域读取测试）。
+完整套件：Core **151 passed**，App **35 passed**（含 19 个区域读取测试）。
 
 ### 直接预览基准（256 MP，`TiffPreviewDecoder.DecodePreview`）
 
@@ -124,7 +125,7 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 - **并行输出的最后写入者**：行带边界可能有两个 worker 对同一目标像素采样，32 位原子写保证不会撕裂，但具体取哪个样本取决于调度；对代理无影响，但不是逐次完全一致。
 - **并行内存**：stripped 4K 预览的峰值增量约 113 MB（8 个 worker 的条带光栅 + 目标缓冲）。
 - **质量**：代理是 2× 过采样的最近邻，不是 Lanczos/box；细密网格和纹理可能比 libvips 硬。30% 以上由区域 tile 接管。
-- **格式长尾**：非 JPEG 的 YCbCr、planar separate、float、CMYK JPEG 仍走 `ReadRGBA*`；8-bit CMYK、RGBA、palette、RGB/YCbCr JPEG 已走 raw，16-bit RGB/gray 也已 raw，但非 JPEG YCbCr/非 uint 的 16-bit 仍可能回退 libvips（Windows）或报错。
+- **格式长尾**：非 JPEG 的 YCbCr、planar separate、float、16-bit palette/alpha 仍走 `ReadRGBA*`；8-bit CMYK（含 CMYK JPEG）、RGBA、palette、RGB/YCbCr JPEG 已走 raw，16-bit RGB/gray 也已 raw，但非 JPEG YCbCr/非 uint 的 16-bit 仍可能回退 libvips（Windows）或报错。
 - **16-bit multi-strip 内存**：8 个 worker 各有一份条带光栅；16000 宽、`rowsPerStrip=128` 时峰值约 287 MB。
 - **16-bit 区域**：tiled 和 multi-strip 走 raw 区域路径，100% 可用；单 strip 的 raw RGB/gray 会建临时 BGRA 缓存（16-bit 首次约 9.9 s，8-bit 约 6.9 s，磁盘约 1 GB），其他格式仍抛 `TooLarge`。16-bit tiled/multi-strip 100% 工作集约 479/671 MB。
 - **pyramid level 选择**：允许 level 比目标小最多 5%，用最近邻块上采样（8000 → 8192 约 2.4%）；细节会比全图略软。低于 95% 的 level 不选，8192 目标下仍可能回退全图。

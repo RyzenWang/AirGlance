@@ -727,7 +727,7 @@ public sealed class TiffRegionReader : IDisposable
             return RegionRawLayout.Rgb8;
         }
 
-        if (bits == 8 && samples == 4 && photometric == 5 && compression != 7)
+        if (bits == 8 && samples == 4 && photometric == 5)
         {
             return RegionRawLayout.Cmyk8;
         }
