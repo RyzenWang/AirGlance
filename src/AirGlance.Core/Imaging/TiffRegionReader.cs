@@ -721,6 +721,12 @@ public sealed class TiffRegionReader : IDisposable
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 8 && samples == 3 && photometric == 6 && compression == 7)
+        {
+            EnableJpegRgbMode(image);
+            return RegionRawLayout.Rgb8;
+        }
+
         if (bits == 8 && samples == 4 && photometric == 5 && compression != 7)
         {
             return RegionRawLayout.Cmyk8;
@@ -771,6 +777,16 @@ public sealed class TiffRegionReader : IDisposable
         BitConverter.IsLittleEndian
             ? (ushort)(source[offset] | (source[offset + 1] << 8))
             : (ushort)((source[offset] << 8) | source[offset + 1]);
+
+    private static void EnableJpegRgbMode(Tiff image)
+    {
+        if (TagInt(image, TiffTag.COMPRESSION) == 7 &&
+            TagInt(image, TiffTag.PHOTOMETRIC) == 6 &&
+            TagInt(image, TiffTag.SAMPLESPERPIXEL) == 3)
+        {
+            image.SetField(TiffTag.JPEGCOLORMODE, JpegColorMode.RGB);
+        }
+    }
 
     private static ushort[]? ReadColorMap(Tiff image)
     {

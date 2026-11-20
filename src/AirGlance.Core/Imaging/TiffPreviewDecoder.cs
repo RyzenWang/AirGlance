@@ -1579,6 +1579,12 @@ public static class TiffPreviewDecoder
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 8 && samples == 3 && photometric == 6 && compression == 7)
+        {
+            EnableJpegRgbMode(image);
+            return new RawFormat(RawLayout.Rgb, null);
+        }
+
         if (bits == 8 && samples == 4 && photometric == 5 && compression != 7)
         {
             return new RawFormat(RawLayout.Cmyk8, null);
@@ -1694,6 +1700,16 @@ public static class TiffPreviewDecoder
     private static int RoundUp(int value, int step) =>
         step <= 1 ? value : ((value + step - 1) / step) * step;
 
+    private static void EnableJpegRgbMode(Tiff image)
+    {
+        if (TagInt(image, TiffTag.COMPRESSION) == 7 &&
+            TagInt(image, TiffTag.PHOTOMETRIC) == 6 &&
+            TagInt(image, TiffTag.SAMPLESPERPIXEL) == 3)
+        {
+            image.SetField(TiffTag.JPEGCOLORMODE, JpegColorMode.RGB);
+        }
+    }
+
     private static Tiff OpenAtLevel(string path, short directory, long subIfdOffset)
     {
         var image = Tiff.Open(path, "r");
@@ -1713,6 +1729,7 @@ public static class TiffPreviewDecoder
             }
 
             ForceStoredOrientation(image);
+            EnableJpegRgbMode(image);
             return image;
         }
         catch
@@ -1741,6 +1758,7 @@ public static class TiffPreviewDecoder
                 image.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
             }
 
+            EnableJpegRgbMode(image);
             return image;
         }
         catch
