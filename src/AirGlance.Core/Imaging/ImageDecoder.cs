@@ -690,7 +690,7 @@ public static class ImageDecoder
                     Path.GetExtension(path));
             }
 
-            return NetVipsTiffDecoder.DecodePreview(path, maxWidth, maxHeight, cancellationToken);
+            return DecodeLargeTiffPreview(path, maxWidth, maxHeight, cancellationToken);
         }
 
         try
@@ -773,6 +773,40 @@ public static class ImageDecoder
         catch (Exception exception)
         {
             throw TiffFailure(ImageLoadFailure.Corrupt, "The TIFF could not be decoded.", path, exception);
+        }
+    }
+
+    private static DecodedBitmap DecodeLargeTiffPreview(
+        string path,
+        int maxWidth,
+        int maxHeight,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return TiffPreviewDecoder.DecodePreview(path, maxWidth, maxHeight, cancellationToken);
+        }
+        catch (ImageLoadException exception) when (
+            OperatingSystem.IsWindows() &&
+            exception.Failure is ImageLoadFailure.TooLarge or ImageLoadFailure.Unsupported)
+        {
+            // The managed preview cannot stream every photometric/bit-depth
+            // combination yet; keep the libvips fallback on Windows for those.
+            return NetVipsTiffDecoder.DecodePreview(path, maxWidth, maxHeight, cancellationToken);
+        }
+    }
+
+    private static ImageMetadata ReadLargeTiffMetadata(string path)
+    {
+        try
+        {
+            return TiffPreviewDecoder.ReadMetadata(path);
+        }
+        catch (ImageLoadException) when (OperatingSystem.IsWindows())
+        {
+            // LibTiff.NET could not open the directory; keep the libvips fallback
+            // on Windows for files only libtiff can read.
+            return NetVipsTiffDecoder.ReadMetadata(path);
         }
     }
 
@@ -880,7 +914,7 @@ public static class ImageDecoder
         {
             if (IsLargeTiff(path))
             {
-                return NetVipsTiffDecoder.ReadMetadata(path);
+                return ReadLargeTiffMetadata(path);
             }
 
             var file = new FileInfo(path);

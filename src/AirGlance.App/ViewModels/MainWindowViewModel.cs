@@ -478,9 +478,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            if (percent >= RegionActivationPercent && !_isRegionOpening)
+            if (percent >= RegionActivationPercent)
             {
-                _ = OpenRegionAsync();
+                if (!_isRegionOpening)
+                {
+                    _ = OpenRegionAsync();
+                }
+
+                // Above the activation threshold the region tiles take over; do
+                // not spend a full preview decode on an 8192 proxy as well.
                 return;
             }
 
