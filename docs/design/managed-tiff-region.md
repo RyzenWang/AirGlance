@@ -22,7 +22,8 @@
 - **方向**：LibTiff 的 RGBA 读取会应用 TIFF orientation tag。区域路径需要“存储方向”的光栅，由 `ImageTransform` 统一应用一次方向，因此 `Open` 里把 orientation 在内存目录中改成 `TOPLEFT`。文件以只读方式打开，实测 SHA-256 不变。
 - **行序**：RGBA 路径的光栅原点在左下角，复制时翻转；raw tile/strip 是 top-down，直接映射。
 - **alpha**：RGBA 输出对 associated / unassociated alpha 都返回预乘颜色；raw 路径只支持无 alpha 的 RGB/gray。
-- **内存上限**：单条带 RGBA/raw 光栅超过 64 MiB 时抛出 `ImageLoadException(TooLarge)`。单 strip 的 40K 图仍需要流式解码。
+- **单 strip 流式缓存**：raw strip 超过 64 MiB 且 `ROWSPERSTRIP >= height` 时，第一次 `ReadTile` 用 `ReadScanline` 顺序解码，把 BGRA 行写进临时文件（`DeleteOnClose`），之后 tile 从文件随机读；磁盘占用 `width * height * 4`，内存只有两行。只覆盖 raw RGB/gray，其他格式仍返回 `TooLarge`。
+- **内存上限**：单条带 RGBA 或非 raw 光栅超过 64 MiB 时抛出 `ImageLoadException(TooLarge)`。
 - **线程**：所有读取在 `lock` 内串行化；`Tiff` 句柄不是线程安全的。
 
 ## 验证
@@ -41,9 +42,10 @@
 8. `Dispose` 后读取抛 `ObjectDisposedException`；
 9. 16-bit tiled TIFF 的四角颜色正确；
 10. 16-bit multi-strip TIFF 的四角颜色正确；
-11. 16-bit 单 strip TIFF（384 KB raw strip）的四角颜色正确。
+11. 16-bit 单 strip TIFF（384 KB raw strip）的四角颜色正确；
+12. 4200 × 4000 的 16-bit 单 strip（raw strip 100.8 MB）触发流式临时缓存，四角颜色正确。
 
-结果：Core 136 passed，App 35 passed。
+结果：Core 137 passed，App 35 passed。
 
 ### 大文件基准
 
@@ -77,9 +79,10 @@ peak WS delta=253.7MB alloc=626.3MB
 | --- | --- | --- |
 | 16-bit tiled | `区域 · 100%` | **479 MB** |
 | 16-bit multi-strip（128 rows） | `区域 · 100%` | **671 MB** |
-| 16-bit 单 strip | 不支持 | 只保留代理 |
+| 16-bit 单 strip | `区域 · 100%` | **474 MB**（首 tile 约 9.9 s，磁盘约 1 GB） |
+| 8-bit 单 strip | `区域 · 100%` | **372 MB**（首 tile 约 6.9 s，磁盘约 1 GB） |
 
-tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-strip 的 671 MB 主要来自 96 MiB raw strip 缓存和 16-bit 条带解码缓冲。
+tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-strip 的 671 MB 主要来自 96 MiB raw strip 缓存和 16-bit 条带解码缓冲；单 strip 的 474 MB 主要来自 App 代理/区域缓存，流式缓存本身只增加约 28 MB。
 
 ### 已覆盖的格式细节
 
@@ -95,7 +98,7 @@ tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-stri
 
 ## 已知限制
 
-- **单 strip 超大图**：`ROWSPERSTRIP = height` 且光栅超过 64 MiB 时返回 `TooLarge`。这类文件需要 `ReadScanline` 一遍顺序解码 + 临时 tile 缓存；早前 POC 已确认 `ReadScanline` 在 108 MB 单 strip LZW 上内存有界（托管分配 0.5 MB），实现是后续工作。16-bit 单 strip 同样受限。
+- **单 strip 超大图**：raw RGB/gray 单 strip 超过 64 MiB 时走临时 BGRA 缓存。首次 `ReadTile` 要顺序解码整图并写 1 GB 缓存：**16-bit 16000² 约 9.9 s，8-bit 约 6.9 s**；之后 512 tile 约 20 ms。缓存文件 `DeleteOnClose`，App 退出/句柄关闭时删除。非 raw 格式（CMYK/YCbCr/alpha 等）仍返回 `TooLarge`。
 - **stripped 随机访问成本**：一个 512 tile 跨 `ceil(512 / ROWSPERSTRIP)` 条带，每条带按整宽解码。同一行带内的 tile 命中缓存很快；跨行带随机跳转的缓存命中率低，单块仍可能几十到几百毫秒。96 MiB 缓存大小需要按目标图像宽度和 `ROWSPERSTRIP` 再调。
 - **大 TIFF 预览/元数据仍走 libvips**：`NetVipsTiffDecoder.ReadMetadata` / `DecodePreview` 没有改，因此 Linux/macOS 的大 TIFF 端到端仍不可用。下一步是把预览也改成托管实现（按 tile 网格抽样降采样）或保留 libvips 仅做预览。
 - **方向与坐标**：区域读取返回原始存储方向，代理图 `NetVipsTiffDecoder` 走 `Thumbnail(noRotate: false)`，两者对带 orientation 的大 TIFF 可能不一致；这在大 TIFF 路径里是既有问题，需要端到端决定“代理和 tile 都用显示方向”还是“都用原始方向”。

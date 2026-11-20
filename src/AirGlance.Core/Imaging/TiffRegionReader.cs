@@ -33,6 +33,7 @@ public sealed class TiffRegionReader : IDisposable
     private readonly int _rawPixelBytes;
     private int[] _tileRaster = [];
     private byte[] _rawTile = [];
+    private FileStream? _streamCache;
     private long _stripCacheBytes;
     private long _rawStripCacheBytes;
     private bool _disposed;
@@ -198,6 +199,8 @@ public sealed class TiffRegionReader : IDisposable
 
             _disposed = true;
             _image.Dispose();
+            _streamCache?.Dispose();
+            _streamCache = null;
             _stripCache.Clear();
             _stripOrder.Clear();
             _rawStripCache.Clear();
@@ -273,6 +276,12 @@ public sealed class TiffRegionReader : IDisposable
     {
         if (_rawLayout != RegionRawLayout.None)
         {
+            if (IsOversizedSingleStrip())
+            {
+                ReadSingleStripStreaming(x, y, width, height, destination);
+                return;
+            }
+
             ReadStrippedRaw(x, y, width, height, destination);
             return;
         }
@@ -475,6 +484,91 @@ public sealed class TiffRegionReader : IDisposable
                     destination[target + 3] = 255;
                 }
             }
+        }
+    }
+
+    private bool IsOversizedSingleStrip() =>
+        !_tiled &&
+        _rowsPerStrip >= PixelHeight &&
+        (long)PixelWidth * PixelHeight * _rawPixelBytes > MaximumStripRasterBytes;
+
+    private void ReadSingleStripStreaming(int x, int y, int width, int height, byte[] destination)
+    {
+        var cache = EnsureSingleStripCache();
+        var rowBytes = width * 4;
+        var row = new byte[rowBytes];
+        try
+        {
+            for (var pixelY = y; pixelY < y + height; pixelY++)
+            {
+                cache.Position = ((long)pixelY * PixelWidth + x) * 4;
+                cache.ReadExactly(row);
+                Buffer.BlockCopy(row, 0, destination, (pixelY - y) * rowBytes, rowBytes);
+            }
+        }
+        catch (EndOfStreamException)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Corrupt,
+                "The single-strip cache ended unexpectedly.",
+                _path,
+                Path.GetExtension(_path));
+        }
+    }
+
+    private FileStream EnsureSingleStripCache()
+    {
+        if (_streamCache is not null)
+        {
+            return _streamCache;
+        }
+
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            $"airglance-region-{Guid.NewGuid():N}.bgra");
+        var stream = new FileStream(
+            path,
+            FileMode.CreateNew,
+            FileAccess.ReadWrite,
+            FileShare.Read,
+            bufferSize: 1 << 20,
+            FileOptions.RandomAccess | FileOptions.DeleteOnClose);
+        try
+        {
+            var source = new byte[checked(PixelWidth * _rawPixelBytes)];
+            var bgra = new byte[checked(PixelWidth * 4)];
+            for (var pixelY = 0; pixelY < PixelHeight; pixelY++)
+            {
+                if (!_image.ReadScanline(source, pixelY))
+                {
+                    throw new ImageLoadException(
+                        ImageLoadFailure.Corrupt,
+                        "The single-strip TIFF could not be decoded.",
+                        _path,
+                        Path.GetExtension(_path));
+                }
+
+                for (var pixelX = 0; pixelX < PixelWidth; pixelX++)
+                {
+                    ReadRawPixel(source, pixelX * _rawPixelBytes, out var red, out var green, out var blue);
+                    var target = pixelX * 4;
+                    bgra[target] = blue;
+                    bgra[target + 1] = green;
+                    bgra[target + 2] = red;
+                    bgra[target + 3] = 255;
+                }
+
+                stream.Write(bgra, 0, bgra.Length);
+            }
+
+            stream.Flush();
+            _streamCache = stream;
+            return stream;
+        }
+        catch
+        {
+            stream.Dispose();
+            throw;
         }
     }
 

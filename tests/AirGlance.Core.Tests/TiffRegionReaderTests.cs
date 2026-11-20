@@ -311,6 +311,41 @@ public sealed class TiffRegionReaderTests
         }
     }
 
+    [Fact]
+    public void Region_reader_streams_an_oversized_single_strip()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            // 4200 x 4000 x 6 bytes is above the 64 MiB strip cap, so the
+            // reader has to build the temporary BGRA row cache.
+            CreateSixteenBitTiff(path, tiled: false, width: 4200, height: 4000, tileSize: 0, rowsPerStrip: 4000);
+            using var reader = TiffRegionReader.Open(path);
+            Assert.Equal(4200, reader.PixelWidth);
+            Assert.Equal(4000, reader.PixelHeight);
+
+            var top = reader.ReadTile(0, 0, 4, 4);
+            for (var index = 0; index < 4 * 4; index++)
+            {
+                Assert.Equal(255, top[index * 4 + 3]);
+                Assert.True(top[index * 4 + 2] > 200, "red channel");
+                Assert.True(top[index * 4] < 60, "blue channel");
+            }
+
+            var bottom = reader.ReadTile(0, 3996, 4, 4);
+            for (var index = 0; index < 4 * 4; index++)
+            {
+                Assert.Equal(255, bottom[index * 4 + 3]);
+                Assert.True(bottom[index * 4] > 200, "blue channel");
+                Assert.True(bottom[index * 4 + 2] < 60, "red channel");
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-region-" + Guid.NewGuid().ToString("N") + ".tif");
 
