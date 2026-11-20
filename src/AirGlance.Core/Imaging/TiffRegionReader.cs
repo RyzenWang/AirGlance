@@ -31,6 +31,7 @@ public sealed class TiffRegionReader : IDisposable
     private readonly LinkedList<int> _rawStripOrder = [];
     private readonly RegionRawLayout _rawLayout;
     private readonly int _rawPixelBytes;
+    private readonly ushort[]? _rawPalette;
     private int[] _tileRaster = [];
     private byte[] _rawTile = [];
     private FileStream? _streamCache;
@@ -66,6 +67,7 @@ public sealed class TiffRegionReader : IDisposable
 
         _rawLayout = GetRawLayout(image);
         _rawPixelBytes = RawPixelBytes(_rawLayout);
+        _rawPalette = _rawLayout == RegionRawLayout.Palette8 ? ReadColorMap(image) : null;
     }
 
     public int PixelWidth { get; }
@@ -428,12 +430,8 @@ public sealed class TiffRegionReader : IDisposable
                             continue;
                         }
 
-                        ReadRawPixel(raw, offset, out var red, out var green, out var blue);
                         var target = ((pixelY - y) * width + pixelX - x) * 4;
-                        destination[target] = blue;
-                        destination[target + 1] = green;
-                        destination[target + 2] = red;
-                        destination[target + 3] = 255;
+                        WriteBgra(destination, target, ReadRawPixel(raw, offset));
                     }
                 }
             }
@@ -492,12 +490,8 @@ public sealed class TiffRegionReader : IDisposable
                         continue;
                     }
 
-                    ReadRawPixel(raw, offset, out var red, out var green, out var blue);
                     var target = ((pixelY - y) * width + pixelX - x) * 4;
-                    destination[target] = blue;
-                    destination[target + 1] = green;
-                    destination[target + 2] = red;
-                    destination[target + 3] = 255;
+                    WriteBgra(destination, target, ReadRawPixel(raw, offset));
                 }
             }
         }
@@ -568,12 +562,8 @@ public sealed class TiffRegionReader : IDisposable
 
                 for (var pixelX = 0; pixelX < PixelWidth; pixelX++)
                 {
-                    ReadRawPixel(source, pixelX * _rawPixelBytes, out var red, out var green, out var blue);
                     var target = pixelX * 4;
-                    bgra[target] = blue;
-                    bgra[target + 1] = green;
-                    bgra[target + 2] = red;
-                    bgra[target + 3] = 255;
+                    WriteBgra(bgra, target, ReadRawPixel(source, pixelX * _rawPixelBytes));
                 }
 
                 stream.Write(bgra, 0, bgra.Length);
@@ -618,45 +608,81 @@ public sealed class TiffRegionReader : IDisposable
         _rawStripCacheBytes += bytes;
     }
 
-    private void ReadRawPixel(byte[] source, int offset, out byte red, out byte green, out byte blue)
+    private uint ReadRawPixel(byte[] source, int offset)
     {
         switch (_rawLayout)
         {
             case RegionRawLayout.Rgb8:
-                red = source[offset];
-                green = source[offset + 1];
-                blue = source[offset + 2];
-                return;
+                return Opaque(source[offset], source[offset + 1], source[offset + 2]);
             case RegionRawLayout.Rgb16:
-                red = (byte)(ReadUInt16Native(source, offset) >> 8);
-                green = (byte)(ReadUInt16Native(source, offset + 2) >> 8);
-                blue = (byte)(ReadUInt16Native(source, offset + 4) >> 8);
-                return;
+                return Opaque(
+                    (byte)(ReadUInt16Native(source, offset) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 2) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 4) >> 8));
             case RegionRawLayout.Cmyk8:
                 var cyan = source[offset];
                 var magenta = source[offset + 1];
                 var yellow = source[offset + 2];
                 var black = source[offset + 3];
-                red = (byte)(255 - Math.Min(255, cyan + black));
-                green = (byte)(255 - Math.Min(255, magenta + black));
-                blue = (byte)(255 - Math.Min(255, yellow + black));
-                return;
+                return Opaque(
+                    (byte)(255 - Math.Min(255, cyan + black)),
+                    (byte)(255 - Math.Min(255, magenta + black)),
+                    (byte)(255 - Math.Min(255, yellow + black)));
+            case RegionRawLayout.Rgba8:
+                return PremultipliedBgra(
+                    source[offset],
+                    source[offset + 1],
+                    source[offset + 2],
+                    source[offset + 3]);
+            case RegionRawLayout.Palette8:
+                var palette = _rawPalette!;
+                var index = source[offset];
+                return Opaque(
+                    (byte)(palette[index] >> 8),
+                    (byte)(palette[256 + index] >> 8),
+                    (byte)(palette[512 + index] >> 8));
             case RegionRawLayout.Gray8:
-                red = green = blue = source[offset];
-                return;
+                return Opaque(source[offset], source[offset], source[offset]);
             case RegionRawLayout.Gray16:
-                red = green = blue = (byte)(ReadUInt16Native(source, offset) >> 8);
-                return;
+                var gray16 = (byte)(ReadUInt16Native(source, offset) >> 8);
+                return Opaque(gray16, gray16, gray16);
             case RegionRawLayout.Gray8Inverted:
-                red = green = blue = (byte)(255 - source[offset]);
-                return;
+                var inverted = (byte)(255 - source[offset]);
+                return Opaque(inverted, inverted, inverted);
             case RegionRawLayout.Gray16Inverted:
-                red = green = blue = (byte)(255 - (ReadUInt16Native(source, offset) >> 8));
-                return;
+                var inverted16 = (byte)(255 - (ReadUInt16Native(source, offset) >> 8));
+                return Opaque(inverted16, inverted16, inverted16);
             default:
-                red = green = blue = 0;
-                return;
+                return 0xFF000000u;
         }
+    }
+
+    private static uint Opaque(byte red, byte green, byte blue) =>
+        0xFF000000u | ((uint)red << 16) | ((uint)green << 8) | blue;
+
+    private static uint PremultipliedBgra(byte red, byte green, byte blue, byte alpha)
+    {
+        if (alpha == 0)
+        {
+            return 0;
+        }
+
+        if (alpha != 255)
+        {
+            red = (byte)((red * alpha + 127) / 255);
+            green = (byte)((green * alpha + 127) / 255);
+            blue = (byte)((blue * alpha + 127) / 255);
+        }
+
+        return ((uint)alpha << 24) | ((uint)red << 16) | ((uint)green << 8) | blue;
+    }
+
+    private static void WriteBgra(byte[] destination, int offset, uint value)
+    {
+        destination[offset] = (byte)value;
+        destination[offset + 1] = (byte)(value >> 8);
+        destination[offset + 2] = (byte)(value >> 16);
+        destination[offset + 3] = (byte)(value >> 24);
     }
 
     private static RegionRawLayout GetRawLayout(Tiff image)
@@ -700,6 +726,18 @@ public sealed class TiffRegionReader : IDisposable
             return RegionRawLayout.Cmyk8;
         }
 
+        if (bits == 8 && samples == 1 && photometric == 3 && compression != 7 &&
+            ReadColorMap(image) is { Length: >= 768 })
+        {
+            return RegionRawLayout.Palette8;
+        }
+
+        if (bits == 8 && samples == 4 && photometric == 2 && compression != 7 &&
+            image.GetField(TiffTag.EXTRASAMPLES) is not null)
+        {
+            return RegionRawLayout.Rgba8;
+        }
+
         if (samples == 3 && photometric == 2)
         {
             return bits == 16 ? RegionRawLayout.Rgb16 : RegionRawLayout.Rgb8;
@@ -724,8 +762,8 @@ public sealed class TiffRegionReader : IDisposable
             RegionRawLayout.None => 0,
             RegionRawLayout.Rgb8 => 3,
             RegionRawLayout.Rgb16 => 6,
-            RegionRawLayout.Cmyk8 => 4,
-            RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted => 1,
+            RegionRawLayout.Cmyk8 or RegionRawLayout.Rgba8 => 4,
+            RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted or RegionRawLayout.Palette8 => 1,
             _ => 2
         };
 
@@ -734,12 +772,44 @@ public sealed class TiffRegionReader : IDisposable
             ? (ushort)(source[offset] | (source[offset + 1] << 8))
             : (ushort)((source[offset] << 8) | source[offset + 1]);
 
+    private static ushort[]? ReadColorMap(Tiff image)
+    {
+        var field = image.GetField(TiffTag.COLORMAP);
+        if (field is null)
+        {
+            return null;
+        }
+
+        foreach (var value in field)
+        {
+            switch (value.Value)
+            {
+                case ushort[] map when map.Length >= 768:
+                    return map;
+                case int[] ints when ints.Length >= 768:
+                {
+                    var map = new ushort[ints.Length];
+                    for (var index = 0; index < ints.Length; index++)
+                    {
+                        map[index] = (ushort)Math.Clamp(ints[index], 0, ushort.MaxValue);
+                    }
+
+                    return map;
+                }
+            }
+        }
+
+        return null;
+    }
+
     private enum RegionRawLayout
     {
         None,
         Rgb8,
         Rgb16,
         Cmyk8,
+        Rgba8,
+        Palette8,
         Gray8,
         Gray16,
         Gray8Inverted,
