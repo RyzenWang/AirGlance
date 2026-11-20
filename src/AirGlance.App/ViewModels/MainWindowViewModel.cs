@@ -88,12 +88,16 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isRegionOpening;
     private bool _regionActive;
     private bool _regionLoading;
+    private double _regionCacheProgress;
 
     [ObservableProperty]
     private bool _isEditing;
 
     [ObservableProperty]
     private bool _showRegionLoading;
+
+    [ObservableProperty]
+    private string _regionLoadingText = string.Empty;
     private ThumbnailService? _thumbnails;
     private bool _thumbnailsPending;
     private bool _slideshowBusy;
@@ -472,7 +476,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                     // viewport may still be finishing; do not leave the centered
                     // loading prompt on screen after leaving region scale.
                     _regionLoading = false;
+                    _regionCacheProgress = 0;
                     ShowRegionLoading = false;
+                    UpdateRegionLoadingText();
                 }
 
                 return;
@@ -630,7 +636,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
             _regionActive = true;
             _regionLoading = false;
+            _regionCacheProgress = 0;
             ShowRegionLoading = false;
+            UpdateRegionLoadingText();
             PublishTiled(tiles);
             UpdateStatus(metadata);
         }
@@ -976,7 +984,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _fullLoaded = false;
         _regionActive = false;
         _isRegionOpening = false;
+        _regionCacheProgress = 0;
         ShowRegionLoading = false;
+        UpdateRegionLoadingText();
         _edit = EditTransform.None;
         _editVersion++;
 
@@ -1209,12 +1219,49 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (old is not null)
         {
             old.TileLoadingChanged -= OnRegionTileLoadingChanged;
+            old.RegionProgressChanged -= OnRegionProgressChanged;
         }
 
         _tiledSource = tiles;
         tiles.TileLoadingChanged += OnRegionTileLoadingChanged;
+        tiles.RegionProgressChanged += OnRegionProgressChanged;
+        _regionCacheProgress = tiles.RegionProgress;
+        UpdateRegionLoadingText();
         TiledImagePresented?.Invoke(this, new TiledImagePresentedEventArgs(tiles));
         old?.Dispose();
+    }
+
+    private void OnRegionProgressChanged(object? sender, EventArgs e)
+    {
+        var tiles = _tiledSource;
+        if (!_regionActive || tiles is null || !ReferenceEquals(sender, tiles))
+        {
+            return;
+        }
+
+        _regionCacheProgress = tiles.RegionProgress;
+        if (_regionCacheProgress is > 0 and < 1)
+        {
+            ShowRegionLoading = true;
+        }
+        else if (!_regionLoading)
+        {
+            ShowRegionLoading = false;
+        }
+
+        UpdateRegionLoadingText();
+        if (_metadata is { } metadata)
+        {
+            UpdateStatus(metadata);
+        }
+    }
+
+    private void UpdateRegionLoadingText()
+    {
+        var progress = Math.Clamp(_regionCacheProgress, 0, 1);
+        RegionLoadingText = progress is > 0 and < 1
+            ? $"{_services.Localization.T("L.CachingRegion")} {progress * 100:0}%"
+            : _services.Localization.T("L.LoadingRegion");
     }
 
     private void OnRegionTileLoadingChanged(object? sender, EventArgs e)
@@ -1227,20 +1274,30 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (ZoomPercent < RegionActivationPercent)
         {
             _regionLoading = false;
+            _regionCacheProgress = 0;
             ShowRegionLoading = false;
+            UpdateRegionLoadingText();
             UpdateStatus(metadata);
             return;
         }
 
         _regionLoading = _tiledSource?.PendingTileCount > 0;
-        ShowRegionLoading = _regionLoading;
+        ShowRegionLoading = _regionLoading || _regionCacheProgress is > 0 and < 1;
+        UpdateRegionLoadingText();
         UpdateStatus(metadata);
     }
 
     private void DisposeTiled()
     {
         var old = _tiledSource;
+        if (old is not null)
+        {
+            old.TileLoadingChanged -= OnRegionTileLoadingChanged;
+            old.RegionProgressChanged -= OnRegionProgressChanged;
+        }
+
         _tiledSource = null;
+        _regionCacheProgress = 0;
         TiledImageCleared?.Invoke(this, EventArgs.Empty);
         old?.Dispose();
     }
@@ -1344,12 +1401,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (oldTiles is not null)
         {
             oldTiles.TileLoadingChanged -= OnRegionTileLoadingChanged;
+            oldTiles.RegionProgressChanged -= OnRegionProgressChanged;
         }
 
         _tiledSource = null;
         _regionActive = false;
         _regionLoading = false;
+        _regionCacheProgress = 0;
         ShowRegionLoading = false;
+        UpdateRegionLoadingText();
         IsEditing = false;
         _crop = CropRegion.Full;
         var oldBitmap = _currentBitmap;

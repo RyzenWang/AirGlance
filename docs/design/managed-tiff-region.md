@@ -22,7 +22,8 @@
 - **方向**：LibTiff 的 RGBA 读取会应用 TIFF orientation tag。区域路径需要“存储方向”的光栅，由 `ImageTransform` 统一应用一次方向，因此 `Open` 里把 orientation 在内存目录中改成 `TOPLEFT`。文件以只读方式打开，实测 SHA-256 不变。
 - **行序**：RGBA 路径的光栅原点在左下角，复制时翻转；raw tile/strip 是 top-down，直接映射。
 - **alpha**：RGBA 输出对 associated / unassociated alpha 都返回预乘颜色；raw 路径只支持无 alpha 的 RGB/gray。
-- **单 strip 流式缓存**：raw strip 超过 64 MiB 且 `ROWSPERSTRIP >= height` 时，第一次 `ReadTile` 用 `ReadScanline` 顺序解码，把 BGRA 行写进临时文件（`DeleteOnClose`），之后 tile 从文件随机读；磁盘占用 `width * height * 4`，内存只有两行。只覆盖 raw RGB/gray，其他格式仍返回 `TooLarge`。
+- **单 strip 流式缓存**：raw strip 超过 64 MiB 且 `ROWSPERSTRIP >= height` 时，打开区域源后由 `TiledImageSource` 立即在后台 `Task.Run` 调 `TiffRegionReader.Prepare()`，用 `ReadScanline` 顺序解码，把 BGRA 行写进临时文件（`DeleteOnClose`）；之后 tile 从文件随机读。磁盘占用 `width * height * 4`，内存只有两行。
+- **进度/取消**：`Prepare` 每约 1% 行数触发 `CacheProgressChanged`，`TiledImageSource` 转成 `RegionProgressChanged` 并更新居中 chip（如“正在缓存原始区域… 42%”）；离开区域/关闭窗口时取消 token，`Dispose` 等读取锁释放后清理。只覆盖 raw RGB/gray，其他格式仍返回 `TooLarge`。
 - **内存上限**：单条带 RGBA 或非 raw 光栅超过 64 MiB 时抛出 `ImageLoadException(TooLarge)`。
 - **线程**：所有读取在 `lock` 内串行化；`Tiff` 句柄不是线程安全的。
 
@@ -98,7 +99,7 @@ tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-stri
 
 ## 已知限制
 
-- **单 strip 超大图**：raw RGB/gray 单 strip 超过 64 MiB 时走临时 BGRA 缓存。首次 `ReadTile` 要顺序解码整图并写 1 GB 缓存：**16-bit 16000² 约 9.9 s，8-bit 约 6.9 s**；之后 512 tile 约 20 ms。缓存文件 `DeleteOnClose`，App 退出/句柄关闭时删除。非 raw 格式（CMYK/YCbCr/alpha 等）仍返回 `TooLarge`。
+- **单 strip 超大图**：raw RGB/gray 单 strip 超过 64 MiB 时走临时 BGRA 缓存。打开区域源即后台开始顺序解码，chip 显示进度；**16-bit 16000² 约 9.9 s，8-bit 约 6.9 s**；之后 512 tile 约 20 ms。缓存文件 `DeleteOnClose`，App 退出/句柄关闭时删除；离开区域会取消未完成的建缓存。非 raw 格式（CMYK/YCbCr/alpha 等）仍返回 `TooLarge`。
 - **stripped 随机访问成本**：一个 512 tile 跨 `ceil(512 / ROWSPERSTRIP)` 条带，每条带按整宽解码。同一行带内的 tile 命中缓存很快；跨行带随机跳转的缓存命中率低，单块仍可能几十到几百毫秒。96 MiB 缓存大小需要按目标图像宽度和 `ROWSPERSTRIP` 再调。
 - **大 TIFF 预览/元数据仍走 libvips**：`NetVipsTiffDecoder.ReadMetadata` / `DecodePreview` 没有改，因此 Linux/macOS 的大 TIFF 端到端仍不可用。下一步是把预览也改成托管实现（按 tile 网格抽样降采样）或保留 libvips 仅做预览。
 - **方向与坐标**：区域读取返回原始存储方向，代理图 `NetVipsTiffDecoder` 走 `Thumbnail(noRotate: false)`，两者对带 orientation 的大 TIFF 可能不一致；这在大 TIFF 路径里是既有问题，需要端到端决定“代理和 tile 都用显示方向”还是“都用原始方向”。

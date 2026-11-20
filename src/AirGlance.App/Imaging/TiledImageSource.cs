@@ -29,6 +29,7 @@ public sealed class TiledImageSource : IDisposable
     private readonly ConcurrentDictionary<int, byte> _pendingRegionTiles = [];
     private readonly Dictionary<int, WriteableBitmap> _cache = [];
     private readonly Queue<int> _cacheOrder = [];
+    private readonly CancellationTokenSource _regionPrepCts = new();
     private readonly long _tileBytes;
     private bool _disposed;
 
@@ -36,7 +37,11 @@ public sealed class TiledImageSource : IDisposable
 
     public event EventHandler? TileLoadingChanged;
 
+    public event EventHandler? RegionProgressChanged;
+
     public int PendingTileCount => _pendingRegionTiles.Count;
+
+    public double RegionProgress { get; private set; }
 
     private TiledImageSource(
         string path,
@@ -84,7 +89,49 @@ public sealed class TiledImageSource : IDisposable
     public static TiledImageSource OpenRegion(string path, int pixelWidth, int pixelHeight)
     {
         var region = TiffRegionReader.Open(path);
-        return new TiledImageSource(region, pixelWidth, pixelHeight);
+        var source = new TiledImageSource(region, pixelWidth, pixelHeight);
+        source.StartRegionPreparation();
+        return source;
+    }
+
+    private void StartRegionPreparation()
+    {
+        if (_region is null || !_region.RequiresStreamingCache)
+        {
+            return;
+        }
+
+        _region.CacheProgressChanged += OnRegionCacheProgress;
+        _ = Task.Run(
+            () =>
+            {
+                try
+                {
+                    _region.Prepare(_regionPrepCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Leaving the region cancels the prep.
+                }
+                catch
+                {
+                    // The tile request will surface the same failure.
+                }
+            });
+    }
+
+    private void OnRegionCacheProgress(double progress)
+    {
+        RegionProgress = progress;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                if (!_disposed)
+                {
+                    RegionProgressChanged?.Invoke(this, EventArgs.Empty);
+                }
+            },
+            DispatcherPriority.Background);
     }
 
     /// <summary>
@@ -387,6 +434,7 @@ public sealed class TiledImageSource : IDisposable
         }
 
         _disposed = true;
+        _regionPrepCts.Cancel();
         foreach (var bitmap in _cache.Values)
         {
             bitmap.Dispose();
@@ -395,6 +443,7 @@ public sealed class TiledImageSource : IDisposable
         _cache.Clear();
         _cacheOrder.Clear();
         _region?.Dispose();
+        _regionPrepCts.Dispose();
         _stream?.Dispose();
         if (_path is not null)
         {

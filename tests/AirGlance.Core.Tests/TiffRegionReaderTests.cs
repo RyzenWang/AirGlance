@@ -323,6 +323,18 @@ public sealed class TiffRegionReaderTests
             using var reader = TiffRegionReader.Open(path);
             Assert.Equal(4200, reader.PixelWidth);
             Assert.Equal(4000, reader.PixelHeight);
+            Assert.True(reader.RequiresStreamingCache);
+
+            var progress = new List<double>();
+            reader.CacheProgressChanged += value => progress.Add(value);
+            reader.Prepare();
+            Assert.NotEmpty(progress);
+            Assert.True(progress.Count > 10);
+            Assert.Equal(1, progress[^1]);
+            for (var index = 1; index < progress.Count; index++)
+            {
+                Assert.True(progress[index] >= progress[index - 1]);
+            }
 
             var top = reader.ReadTile(0, 0, 4, 4);
             for (var index = 0; index < 4 * 4; index++)

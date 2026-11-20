@@ -72,6 +72,22 @@ public sealed class TiffRegionReader : IDisposable
 
     public int PixelHeight { get; }
 
+    public event Action<double>? CacheProgressChanged;
+
+    public bool RequiresStreamingCache => IsOversizedSingleStrip();
+
+    public void Prepare(CancellationToken cancellationToken = default)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (IsOversizedSingleStrip())
+            {
+                EnsureSingleStripCache(cancellationToken);
+            }
+        }
+    }
+
     public static TiffRegionReader Open(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
@@ -516,7 +532,7 @@ public sealed class TiffRegionReader : IDisposable
         }
     }
 
-    private FileStream EnsureSingleStripCache()
+    private FileStream EnsureSingleStripCache(CancellationToken cancellationToken = default)
     {
         if (_streamCache is not null)
         {
@@ -537,8 +553,10 @@ public sealed class TiffRegionReader : IDisposable
         {
             var source = new byte[checked(PixelWidth * _rawPixelBytes)];
             var bgra = new byte[checked(PixelWidth * 4)];
+            var reportEvery = Math.Max(1, PixelHeight / 100);
             for (var pixelY = 0; pixelY < PixelHeight; pixelY++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!_image.ReadScanline(source, pixelY))
                 {
                     throw new ImageLoadException(
@@ -559,9 +577,14 @@ public sealed class TiffRegionReader : IDisposable
                 }
 
                 stream.Write(bgra, 0, bgra.Length);
+                if (pixelY % reportEvery == 0 || pixelY == PixelHeight - 1)
+                {
+                    CacheProgressChanged?.Invoke((pixelY + 1) / (double)PixelHeight);
+                }
             }
 
             stream.Flush();
+            CacheProgressChanged?.Invoke(1);
             _streamCache = stream;
             return stream;
         }

@@ -840,7 +840,7 @@ public partial class MainWindow : Window
     private void ApplyLanguage()
     {
         LoadingText.Text = _services.Localization.T("L.Loading");
-        TileLoadingText.Text = _services.Localization.T("L.LoadingRegion");
+        TileLoadingText.Text = _viewModel.RegionLoadingText;
         DropHintText.Text = _services.Localization.T("L.DropHint");
         AutomationProperties.SetName(MinimizeButton, _services.Localization.T("L.Minimize"));
         AutomationProperties.SetName(MaximizeButton, _services.Localization.T("L.Maximize"));
@@ -930,6 +930,7 @@ public partial class MainWindow : Window
         OverlayHint.IsVisible = !string.IsNullOrEmpty(_viewModel.OverlayHint);
 
         LoadingChip.IsVisible = _viewModel.IsLoading;
+        TileLoadingText.Text = _viewModel.RegionLoadingText;
         TileLoadingChip.IsVisible = _viewModel.ShowRegionLoading;
         InfoHost.IsVisible = _viewModel.InfoShown && !_cropMode;
         InfoHost.Margin = _viewModel.FilmstripShown
