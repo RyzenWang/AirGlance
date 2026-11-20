@@ -9,28 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- AVIF still-image decoding on Windows x64, macOS x64/arm64 and Linux x64/arm64
-  through a bundled libavif 1.4.2 + dav1d 1.5.5 native shim. The first frame is
-  decoded to 8-bit premultiplied BGRA with alpha, 10/12-bit source depths,
-  `irot`/`imir`, clean aperture and ICC/EXIF metadata. The decoder is built by
-  `native/avif/build.ps1` or `build.sh` and shipped as `airglance_avif.dll`,
-  `libairglance_avif.dylib` or `libairglance_avif.so`; builds without it hide
-  `.avif` instead of advertising an unopenable format.
+- AVIF still-image decoding on Windows x64/arm64, macOS x64/arm64 and Linux
+  x64/arm64 through a bundled libavif 1.4.2 + dav1d 1.5.5 native shim. The first
+  frame is decoded to 8-bit premultiplied BGRA with alpha, 10/12-bit source
+  depths, `irot`/`imir`, clean aperture and ICC/EXIF metadata. The decoder is
+  built by `native/avif/build.ps1`, `build-win-arm64.ps1` or `build.sh` and
+  shipped as `airglance_avif.dll`, `libairglance_avif.dylib` or
+  `libairglance_avif.so`; builds without it hide `.avif` instead of advertising
+  an unopenable format.
 - AVIF fixtures and tests for still images, alpha, 10-bit/`irot`, ICC/EXIF,
   animation first-frame behavior, one-pixel images and corrupt input.
 
 ### Changed
 
-- The Windows x64 packaging script builds the AVIF decoder before publishing;
-  `pack.sh` does the same for macOS and Linux. CI builds it on every test OS
-  before the test pass and in the Windows/macOS/Linux release jobs. Windows
-  arm64 omits AVIF until its ARM64 toolchain is added.
+- The Windows packaging script builds the AVIF decoder for both x64 and arm64
+  before publishing; `pack.sh` does the same for macOS and Linux. CI builds it
+  on every test OS before the test pass and in all release jobs. The Windows
+  arm64 decoder is cross-built with LLVM from the x64 host, has no x86 SIMD and
+  no hardware run is recorded.
 
 ### Documentation
 
 - README and format/architecture/shipping notes describe the AVIF decoder on
-  Windows x64, macOS and Linux, its build prerequisites and the remaining
-  Windows arm64 omission.
+  Windows x64/arm64, macOS and Linux, including the LLVM cross-build for Windows
+  arm64 and the lack of a Windows arm64 hardware run.
 - README now links the live Microsoft Store listing at the top and in Install;
   the Windows x64 section recommends the Store build and keeps the portable
   archive for offline and arm64 use. Shipping notes record the live listing.

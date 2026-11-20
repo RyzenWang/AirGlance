@@ -56,7 +56,7 @@ At 100 percent, a 100 MP JPEG creates a temporary tile file of about 400 MB unde
 - AVIF decoder:
   - Windows x64: CMake and Ninja (from Visual Studio), Python 3 with Meson 1.7.2 (`python -m pip install --user meson==1.7.2`), and NASM. `native/avif/build.ps1` downloads and verifies libavif 1.4.2 / dav1d 1.5.5 and builds `airglance_avif.dll`. `pack.ps1` runs it automatically.
   - macOS/Linux: CMake, Ninja, Meson, a C compiler and (on x64) NASM. `native/avif/build.sh` builds `libairglance_avif.dylib` or `libairglance_avif.so`; `pack.sh` runs it automatically.
-  - Windows arm64 is not built yet and hides `.avif`.
+  - Windows arm64: LLVM (clang, lld-link, llvm-ar) and a Windows SDK with ARM64 libraries. `native/avif/build-win-arm64.ps1` cross-builds `airglance_avif.dll` from the x64 host; it has no x86 SIMD and no hardware run is recorded.
 - The package versions in `Directory.Packages.props`. SkiaSharp 4.150.1 and Avalonia 11.3.22 share one native asset graph; do not replace either with a 3.x SkiaSharp package.
 - For Store packaging: a Windows 10/11 SDK with `MakeAppx.exe`, `signtool.exe` and the Windows App Certification Kit.
 - A display for manual smoke tests. The build and packaging steps are headless, but launching the app is not. Linux smoke tests need X11/Wayland or Xvfb.
@@ -110,7 +110,7 @@ THIRD-PARTY-NOTICES.md
 
 The archive has `AirGlance.exe` at its root. It does not include `README.md`, but the MIT
 license and third-party notices travel with the binary. `airglance_avif.dll` is present in
-the `win-x64` archive; `win-arm64` does not build the AVIF decoder yet and hides `.avif`.
+both the `win-x64` and `win-arm64` archives; the arm64 decoder is cross-built without x86 SIMD.
 The macOS bundle carries the notices in `Contents/Resources`; the Linux tar.gz places them
 at the archive root.
 
@@ -261,8 +261,8 @@ The MSIX packages are only for the Microsoft Store submission:
 
 - `AirGlance_1.0.0.0_x64.msix`
 
-The Microsoft Store package version is independent from the GitHub tag: the Store starts at `1.0.0.0` while the source tag is `v0.5.0`. The Store package is x64-only for the first submission. ARM64 is deferred until
-all native payloads support Windows ARM64. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
+The Microsoft Store package version is independent from the GitHub tag: the Store starts at `1.0.0.0` while the source tag is `v0.5.0`. The Store package is x64-only for the first submission. The arm64 MSIX can be built
+locally now that the AVIF decoder exists, but it is not part of the first submission. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
 
 ### Package identity and publisher
 

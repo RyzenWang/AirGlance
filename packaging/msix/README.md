@@ -56,7 +56,7 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only because the AVIF native decoder is built for win-x64; other architectures hide `.avif` until their decoder is added.
+example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only for the first submission; the arm64 MSIX can be built and now includes the ARM64 AVIF decoder, but it is not part of that submission.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.

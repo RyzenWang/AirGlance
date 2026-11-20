@@ -46,12 +46,18 @@ jobs:
         shell: pwsh
         run: |
           choco install nasm -y --no-progress
+          choco install llvm -y --no-progress
           python -m pip install --user meson==1.7.2
 
-      - name: Build AVIF decoder (Windows)
+      - name: Build AVIF decoder (Windows x64)
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./native/avif/build.ps1 -NasmDirectory "C:\Program Files\NASM"
+
+      - name: Build AVIF decoder (Windows arm64)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./native/avif/build-win-arm64.ps1
 
       - name: Install AVIF build dependencies (macOS)
         if: runner.os == 'macOS'

@@ -5,14 +5,15 @@ This directory builds the native bridge used by `LibAvifDecoder`:
 | RID | Output |
 | --- | --- |
 | `win-x64` | `airglance_avif.dll` |
+| `win-arm64` | `airglance_avif.dll` (cross-built from x64 with LLVM) |
 | `osx-x64`, `osx-arm64` | `libairglance_avif.dylib` |
 | `linux-x64`, `linux-arm64` | `libairglance_avif.so` |
 
 It statically links [libavif](https://github.com/AOMediaCodec/libavif) 1.4.2 and
-[dav1d](https://code.videolan.org/videolan/dav1d) 1.5.5. On Windows the static
-MSVC CRT is used, so the portable zip and MSIX do not need a VC++ redistributable.
-On macOS and Linux the static libraries are built with PIC and linked into one
-shared library.
+[dav1d](https://code.videolan.org/videolan/dav1d) 1.5.5. On Windows x64 the static
+MSVC CRT is used; Windows arm64 links the UCRT import library plus `ucrt.c` and
+does not need a VC++ redistributable. On macOS and Linux the static libraries are
+built with PIC and linked into one shared library.
 
 The shim exposes a tiny C ABI:
 
@@ -40,6 +41,22 @@ powershell -ExecutionPolicy Bypass -File native/avif/build.ps1
 The script downloads the pinned source archives into `native/avif/.cache`,
 verifies their SHA-256, builds dav1d and libavif as static libraries, and writes
 `native/avif/bin/win-x64/airglance_avif.dll` plus `build-info.txt`.
+
+## Windows arm64
+
+Windows arm64 is cross-built on an x64 Windows host with LLVM and the Windows SDK
+ARM64 UCRT/import libraries:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File native/avif/build-win-arm64.ps1 `
+  -LlvmDirectory "C:\Program Files\LLVM\bin"
+```
+
+The script builds dav1d without ARM64 assembly, builds libavif as a static
+library, and links the shim `/NOENTRY /NODEFAULTLIB` against `ucrt.lib`,
+`kernel32.lib` and the small routines in `ucrt.c`. It checks that the output is
+an `AA64` PE image. There is no Windows arm64 hardware run in this repository;
+treat runtime behavior as verified only after opening an AVIF on that platform.
 
 ## macOS and Linux
 
@@ -76,8 +93,7 @@ non-default host architecture, set `AIRGLANCE_AVIF_RID` (for example
 
 ## Scope
 
-- Windows x64, macOS x64/arm64 and Linux x64/arm64. Windows arm64 has no ARM64
-  native toolchain in this repository yet and hides `.avif`.
+- Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64.
 - Still images and the first frame of an AVIF sequence. No animation playback.
 - No AVIF encoding.
 - ICC/EXIF are exposed as metadata; ICC-to-sRGB pixel conversion is not applied.

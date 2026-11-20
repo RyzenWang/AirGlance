@@ -5,7 +5,7 @@
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.
-2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff, SVG uses Svg.Skia, and AVIF uses a bundled libavif + dav1d decoder on Windows x64, macOS and Linux. A supported extension with unreadable content is reported as corrupt, not unsupported.
+2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff, SVG uses Svg.Skia, and AVIF uses a bundled libavif + dav1d decoder on Windows x64/arm64, macOS and Linux. A supported extension with unreadable content is reported as corrupt, not unsupported.
 
 A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension. `SupportedFormats` hides `.avif` when the native AVIF decoder is not present, so a build without it never advertises a format it cannot open.
 
@@ -39,7 +39,7 @@ The info panel reads the profile separately from the file header:
 
 ### AVIF
 
-The Windows x64, macOS and Linux builds bundle libavif 1.4.2 and dav1d 1.5.5 as `airglance_avif.dll`, `libairglance_avif.dylib` or `libairglance_avif.so`. `LibAvifDecoder` parses the container, decodes the first frame, and asks libavif for 8-bit premultiplied BGRA. The pixels then go through the same orientation and bitmap path as the other formats.
+The Windows x64/arm64, macOS and Linux builds bundle libavif 1.4.2 and dav1d 1.5.5 as `airglance_avif.dll`, `libairglance_avif.dylib` or `libairglance_avif.so`. `LibAvifDecoder` parses the container, decodes the first frame, and asks libavif for 8-bit premultiplied BGRA. The pixels then go through the same orientation and bitmap path as the other formats.
 
 - `irot` and `imir` are applied from libavif's transform properties; if neither is present, the EXIF orientation is used. The mapping is the same eight-way composition libavif documents (irot before imir).
 - A `clap` clean aperture is cropped before orientation.
@@ -50,7 +50,7 @@ The Windows x64, macOS and Linux builds bundle libavif 1.4.2 and dav1d 1.5.5 as 
 - `avifDecoder.imageSizeLimit` and `imageDimensionLimit` bound the decoded pixel count. The app rejects files above its own limit instead of attempting a huge allocation.
 - AVIF output is not supported. Save copy still writes JPEG, PNG or WebP.
 
-The native library is built by `native/avif/build.ps1` (Windows) or `native/avif/build.sh` (macOS/Linux) and is not committed. Windows arm64 does not contain it yet, so `SupportedFormats` hides `.avif` there. The MSIX manifest declares the `.avif` file association for the x64 Windows package.
+The native library is built by `native/avif/build.ps1` (Windows x64), `build-win-arm64.ps1` (Windows arm64, LLVM cross build) or `build.sh` (macOS/Linux) and is not committed. The MSIX manifest declares the `.avif` file association for the x64 Windows package.
 
 ## Not supported
 
@@ -62,7 +62,7 @@ The native library is built by `native/avif/build.ps1` (Windows) or `native/avif
 | Animated WebP / APNG | First frame is shown as a still image; no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 
-HEIC, HEIF and RAW are deliberately absent, not pending work. HEIC needs a native HEVC decoder that is not bundled; AVIF uses AV1 and is now bundled for Windows x64, macOS and Linux. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
+HEIC, HEIF and RAW are deliberately absent, not pending work. HEIC needs a native HEVC decoder that is not bundled; AVIF uses AV1 and is now bundled for Windows x64/arm64, macOS and Linux. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
 
 ## Exact behavior
 
@@ -161,7 +161,7 @@ The matrix is a description of tested behavior, not a claim that every supported
 
 - BMP and ICO have no fixture and no test. Their support is the `SKCodec` path and the extension gate.
 - AVIF has no valid clean-aperture-only fixture; the `clap` crop path is implemented but not exercised end to end. `irot` is fixture-tested; `imir` and combined `irot`/`imir` follow libavif's documented mapping but are not fixture-tested. ICC is read for the info panel but not converted to sRGB for AVIF pixels. HDR/gain maps and AVIF encoding are not supported.
-- AVIF tests and fixtures only run where the native decoder is present; Windows arm64 hides `.avif` until its toolchain is added. macOS and Linux CI builds the decoder for the matching architecture.
+- AVIF tests and fixtures only run where the native decoder is present. Windows CI builds both x64 and arm64 decoders; macOS and Linux CI build the decoder for the matching architecture. The Windows arm64 DLL is cross-built and PE-checked, but no Windows arm64 hardware run is recorded.
 - PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
 - WebP ICC and WebP EXIF are not covered by fixtures.
 - ICO alpha, GIF transparency and BMP alpha are not covered by dedicated fixtures.

@@ -5,7 +5,7 @@
 AirGlance 在图像显示到屏幕之前会做两项检查：
 
 1. 文件扩展名必须位于受支持列表中（`SupportedFormats`）。这决定了该文件是否会出现在文件夹列表中，以及命令行或拖放处理程序是否接受它。
-2. 普通位图格式由 SkiaSharp 的 `SKCodec` 解码；TIFF 走 LibTiff，SVG 由 Svg.Skia 光栅化，AVIF 在 Windows x64、macOS 和 Linux 构建中由随包分发的 libavif + dav1d 解码。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
+2. 普通位图格式由 SkiaSharp 的 `SKCodec` 解码；TIFF 走 LibTiff，SVG 由 Svg.Skia 光栅化，AVIF 在 Windows x64/arm64、macOS 和 Linux 构建中由随包分发的 libavif + dav1d 解码。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
 
 即使文件内容恰好是受支持的图像，扩展名不受支持的文件也会被拒绝。信息面板中显示的格式名称优先取自编解码器，无法获取时回退到扩展名。没有原生 AVIF 解码器时，`SupportedFormats` 会隐藏 `.avif`，不会宣称支持一个打不开的格式。
 
@@ -39,7 +39,7 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 
 ### AVIF
 
-Windows x64、macOS 和 Linux 构建把 libavif 1.4.2 和 dav1d 1.5.5 打成 `airglance_avif.dll`、`libairglance_avif.dylib` 或 `libairglance_avif.so`。`LibAvifDecoder` 解析容器、解第一帧，并要求 libavif 输出 8 位预乘 BGRA；像素之后走与其他格式相同的方向和位图路径。
+Windows x64/arm64、macOS 和 Linux 构建把 libavif 1.4.2 和 dav1d 1.5.5 打成 `airglance_avif.dll`、`libairglance_avif.dylib` 或 `libairglance_avif.so`。`LibAvifDecoder` 解析容器、解第一帧，并要求 libavif 输出 8 位预乘 BGRA；像素之后走与其他格式相同的方向和位图路径。
 
 - `irot`/`imir` 由 libavif 的 transform 属性驱动；两者都没有时使用 EXIF 方向。映射使用 libavif 文档中的八种组合（irot 先于 imir）。
 - `clap` clean aperture 在方向之前裁剪。
@@ -50,7 +50,7 @@ Windows x64、macOS 和 Linux 构建把 libavif 1.4.2 和 dav1d 1.5.5 打成 `ai
 - `avifDecoder.imageSizeLimit` 和 `imageDimensionLimit` 限制解码像素量；超过应用上限的文件会被拒绝，而不是先分配巨量内存。
 - 不支持 AVIF 输出。另存副本仍写 JPEG、PNG 或 WebP。
 
-原生库由 `native/avif/build.ps1`（Windows）或 `native/avif/build.sh`（macOS/Linux）构建，不提交到 git。Windows arm64 暂未包含它，因此 `SupportedFormats` 会在该平台隐藏 `.avif`。MSIX 清单为 x64 Windows 包声明 `.avif` 文件关联。
+原生库由 `native/avif/build.ps1`（Windows x64）、`build-win-arm64.ps1`（Windows arm64，LLVM 交叉构建）或 `build.sh`（macOS/Linux）构建，不提交到 git。MSIX 清单为 x64 Windows 包声明 `.avif` 文件关联。
 
 ## 不支持的格式
 
@@ -62,7 +62,7 @@ Windows x64、macOS 和 Linux 构建把 libavif 1.4.2 和 dav1d 1.5.5 打成 `ai
 | 动画 WebP / APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 视频（MP4、MOV、WebM、MKV 等） | 不列出，也不打开 |
 
-HEIC、HEIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。HEIC 需要未随包分发的原生 HEVC 解码器；AVIF 使用 AV1，Windows x64、macOS 和 Linux 构建已经随包支持。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
+HEIC、HEIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。HEIC 需要未随包分发的原生 HEVC 解码器；AVIF 使用 AV1，Windows x64/arm64、macOS 和 Linux 构建已经随包支持。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
 
 ## 确切行为
 
@@ -161,7 +161,7 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 
 - BMP 和 ICO 没有测试夹具，也没有测试。它们的支持仅依靠 `SKCodec` 路径和扩展名校验。
 - AVIF 没有仅包含 clean aperture 的有效测试夹具；`clap` 裁剪路径已实现但没有端到端覆盖。`irot` 有夹具测试；`imir` 及 `irot`/`imir` 组合按 libavif 文档映射，但没有夹具测试。ICC 只为信息面板读取，AVIF 像素暂不转换到 sRGB。HDR/gain map 和 AVIF 编码不支持。
-- AVIF 测试和夹具只在原生解码器存在的平台运行；Windows arm64 会隐藏 `.avif`，直到补上对应工具链。macOS 和 Linux CI 会为当前架构构建解码器。
+- AVIF 测试和夹具只在原生解码器存在的平台运行。Windows CI 构建 x64 和 arm64 解码器；macOS 和 Linux CI 为当前架构构建。Windows arm64 DLL 是交叉构建并做了 PE 校验，但没有记录 Windows arm64 硬件运行结果。
 - PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
 - WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。
 - ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。
