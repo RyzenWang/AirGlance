@@ -355,6 +355,35 @@ public sealed class TiffPreviewDecoderTests
         Assert.Equal("blue", Classify(Pixel(bitmap, 50, 37)));
     }
 
+    [Fact]
+    public void Preview_uses_16bit_scanlines_for_a_single_strip_tiff()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            // 4200 x 4000 x RGBA is above the 64 MiB strip-raster cap, so the
+            // RGBA strip path cannot be used; this must go through scanlines.
+            CreateSixteenBitTiff(path, 4200, 4000);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 105, 100);
+
+            Assert.Equal(105, bitmap.Width);
+            Assert.Equal(100, bitmap.Height);
+            Assert.Equal(4200, bitmap.SourceWidth);
+            Assert.Equal(4000, bitmap.SourceHeight);
+            Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+            Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+            Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+            Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+
+            var metadata = TiffPreviewDecoder.ReadMetadata(path);
+            Assert.Equal(16, metadata.BitDepth);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
@@ -535,6 +564,63 @@ public sealed class TiffPreviewDecoderTests
         {
             tiff.WriteScanline(row, y);
         }
+    }
+
+    private static void CreateSixteenBitTiff(string path, int width, int height)
+    {
+        using var tiff = Tiff.Open(path, "w");
+        Assert.NotNull(tiff);
+        tiff.SetField(TiffTag.IMAGEWIDTH, width);
+        tiff.SetField(TiffTag.IMAGELENGTH, height);
+        tiff.SetField(TiffTag.SAMPLESPERPIXEL, 3);
+        tiff.SetField(TiffTag.BITSPERSAMPLE, 16);
+        tiff.SetField(TiffTag.SAMPLEFORMAT, SampleFormat.UINT);
+        tiff.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+        tiff.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
+        tiff.SetField(TiffTag.PHOTOMETRIC, Photometric.RGB);
+        tiff.SetField(TiffTag.COMPRESSION, Compression.LZW);
+        tiff.SetField(TiffTag.ROWSPERSTRIP, height);
+        var row = new byte[width * 3 * 2];
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var (red, green, blue) = Pattern16(x, y, width, height);
+                var offset = x * 6;
+                WriteUInt16Native(row, offset, red);
+                WriteUInt16Native(row, offset + 2, green);
+                WriteUInt16Native(row, offset + 4, blue);
+            }
+
+            tiff.WriteScanline(row, y);
+        }
+    }
+
+    private static void WriteUInt16Native(byte[] buffer, int offset, ushort value)
+    {
+        if (BitConverter.IsLittleEndian)
+        {
+            buffer[offset] = (byte)value;
+            buffer[offset + 1] = (byte)(value >> 8);
+        }
+        else
+        {
+            buffer[offset] = (byte)(value >> 8);
+            buffer[offset + 1] = (byte)value;
+        }
+    }
+
+    private static (ushort Red, ushort Green, ushort Blue) Pattern16(int x, int y, int width, int height)
+    {
+        var left = x < width / 2;
+        var top = y < height / 2;
+        return (left, top) switch
+        {
+            (true, true) => ((ushort)65535, (ushort)0, (ushort)0),
+            (false, true) => ((ushort)0, (ushort)40000, (ushort)10000),
+            (true, false) => ((ushort)0, (ushort)20000, (ushort)65535),
+            _ => ((ushort)65535, (ushort)50000, (ushort)0)
+        };
     }
 
     private static void CreateAlphaTiff(string path)

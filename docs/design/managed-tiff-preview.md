@@ -19,6 +19,7 @@
   - 其他情况（16-bit、palette、CMYK、YCbCr、JPEG-in-TIFF、planar）走 `ReadRGBATile` 的 RGBA 转换路径。
 - **stripped 预览**：
   - 8-bit RGB/gray 走 `ReadScanline` 逐行快速路径：内存只有一行，**单 strip 大图也能预览**；
+  - 16-bit RGB/gray（contig、uint、None/LZW/Deflate/PackBits）在单 strip 或条带光栅超过 64 MiB 时也走 `ReadScanline`，按 sample 取高字节转 8-bit；这覆盖了此前会回退 libvips 的 16-bit 单 strip；
   - 其他情况走 `ReadRGBAStrip`，单条带光栅上限 64 MiB。
 - **采样**：每个目标像素在每个轴上约 2 个采样点（`step ≈ 0.5 / scale`），最近邻写入；目标缓冲零初始化，所有目标像素都有采样覆盖。不是 Lanczos/box 平均，代理在细密纹理上会比 libvips 略硬。
 - **方向**：在内存目录中把 orientation 改成 `TOPLEFT`，返回原始存储方向；和区域 tile、`DecodeFullRaw` 一致。源文件不重写。
@@ -32,7 +33,7 @@
 
 ### 单元测试
 
-新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，16 个测试：
+新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，17 个测试：
 
 1. tiled TIFF 缩放到 80 × 50，四角颜色和 alpha 正确；
 2. stripped TIFF 同上；
@@ -49,9 +50,10 @@
 13. 2048 × 1536 reduced 目录超过并行阈值时，worker 仍然打开该目录（绿色），不是 dir 0（红色）；
 14. 2048 reduced 目录被放大到 2100 目标时没有空像素，且仍选中 reduced 目录；
 15. 三层目录里 dir 1 是 page（绿色）、dir 2 是 reduced（蓝色），预览选蓝色而不是 page；
-16. classic TIFF（IFD type 13）的 `subifd-levels.tif` fixture 选中 100 × 75 的蓝色 subIFD。
+16. classic TIFF（IFD type 13）的 `subifd-levels.tif` fixture 选中 100 × 75 的蓝色 subIFD；
+17. 4200 × 4000 的 16-bit 单 strip TIFF（RGBA 光栅 > 64 MiB）走 scanline，四角颜色正确。
 
-完整套件：Core **130 passed**，App **35 passed**。
+完整套件：Core **131 passed**，App **35 passed**。
 
 ### 直接预览基准（256 MP，`TiffPreviewDecoder.DecodePreview`）
 
@@ -97,7 +99,7 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 - **并行输出的最后写入者**：行带边界可能有两个 worker 对同一目标像素采样，32 位原子写保证不会撕裂，但具体取哪个样本取决于调度；对代理无影响，但不是逐次完全一致。
 - **并行内存**：stripped 4K 预览的峰值增量约 113 MB（8 个 worker 的条带光栅 + 目标缓冲）。
 - **质量**：代理是 2× 过采样的最近邻，不是 Lanczos/box；细密网格和纹理可能比 libvips 硬。30% 以上由区域 tile 接管。
-- **格式长尾**：16-bit、palette、CMYK、YCbCr、JPEG-in-TIFF 仍走 `ReadRGBA*`；单 strip 的 16-bit 等超出 64 MiB 条带上限时，Windows 回退 libvips，其他平台返回错误。
+- **格式长尾**：16-bit tiled、16-bit multi-strip（条带光栅 ≤ 64 MiB）、palette、CMYK、YCbCr、JPEG-in-TIFF 仍走 `ReadRGBA*`。16-bit 单 strip 的 RGB/gray 已走 scanline；CMYK/YCbCr/JPEG/非 uint 的 16-bit 仍可能回退 libvips（Windows）或报错。
 - **pyramid level 选择**：允许 level 比目标小最多 5%，用最近邻块上采样（8000 → 8192 约 2.4%）；细节会比全图略软。低于 95% 的 level 不选，8192 目标下仍可能回退全图。
 - **pyramid 枚举范围**：递归 `SUBIFD` 树，但只跟随 SubIFD tag；不跟随 SubIFD 之间的 NextIFD 链，也不处理多页文档的页缩略图。`SUBFILETYPE` 的 page/mask 位会跳过；tag 缺失或为 0 时仍用尺寸和 1% 宽高比启发式，同比例的小页理论上可能被误选。
 - **ICC**：元数据会显示 ICC 描述，但预览像素没有做 ICC→sRGB 转换，和旧的大 TIFF 路径一致。
@@ -106,6 +108,6 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 ## 下一步
 
 1. **更多金字塔布局**：SubIFD NextIFD 链、更多 `SUBFILETYPE` 组合、多页文档的页缩略图。
-2. **16-bit / 长尾快速路径**：`ReadScanline` + 16-bit 转换，覆盖天文/扫描类 TIFF 的单 strip；之后可以移除 libvips 回退。
+2. **更多 16-bit 路径**：16-bit tiled raw、CMYK/YCbCr 转换；之后可以移除 libvips 回退。
 3. **单 strip 并行**：需要能按行带解码的 LZW 流式实现，或者先接受顺序路径。
 4. 用真实 Cosmic（tiled）和 Trifid（single strip）验证预览和区域浏览。

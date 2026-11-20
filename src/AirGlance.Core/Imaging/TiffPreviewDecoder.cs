@@ -241,6 +241,33 @@ public static class TiffPreviewDecoder
             return;
         }
 
+        var rowsPerStrip = TagLong(image, TiffTag.ROWSPERSTRIP);
+        if (rowsPerStrip <= 0 || rowsPerStrip > decodeHeight)
+        {
+            rowsPerStrip = decodeHeight;
+        }
+
+        var stripRasterBytes = (long)decodeWidth * rowsPerStrip * sizeof(int);
+        if (rowsPerStrip >= decodeHeight || stripRasterBytes > MaximumRasterBytes)
+        {
+            var scanlineLayout = GetScanline16Layout(image);
+            if (scanlineLayout != Scanline16Layout.None)
+            {
+                DecodeStrippedScanline16(
+                    image,
+                    path,
+                    decodeWidth,
+                    decodeHeight,
+                    targetWidth,
+                    targetHeight,
+                    sampleScale,
+                    scanlineLayout,
+                    pixels,
+                    cancellationToken);
+                return;
+            }
+        }
+
         if (allowParallel &&
             TryDecodeStrippedParallel(
                 image,
@@ -1472,6 +1499,141 @@ public static class TiffPreviewDecoder
                 }
             }
         }
+    }
+
+    private static void DecodeStrippedScanline16(
+        Tiff image,
+        string path,
+        int width,
+        int height,
+        int targetWidth,
+        int targetHeight,
+        double scale,
+        Scanline16Layout layout,
+        byte[] pixels,
+        CancellationToken cancellationToken)
+    {
+        var samples = layout == Scanline16Layout.Rgb ? 3 : 1;
+        var row = new byte[checked(width * samples * 2)];
+        var step = SampleStep(scale);
+        for (var sourceY = 0; sourceY < height; sourceY++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!image.ReadScanline(row, sourceY))
+            {
+                throw Corrupt(path, "The TIFF scanline could not be decoded.");
+            }
+
+            if (sourceY % step != 0)
+            {
+                continue;
+            }
+
+            for (var sourceX = 0; sourceX < width; sourceX += step)
+            {
+                var offset = sourceX * samples * 2;
+                if (layout == Scanline16Layout.Rgb)
+                {
+                    WriteScaledOpaque(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        (byte)(ReadUInt16Native(row, offset) >> 8),
+                        (byte)(ReadUInt16Native(row, offset + 2) >> 8),
+                        (byte)(ReadUInt16Native(row, offset + 4) >> 8));
+                }
+                else
+                {
+                    var gray = (byte)(ReadUInt16Native(row, offset) >> 8);
+                    if (layout == Scanline16Layout.GrayInverted)
+                    {
+                        gray = (byte)(255 - gray);
+                    }
+
+                    WriteScaledOpaque(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        gray,
+                        gray,
+                        gray);
+                }
+            }
+        }
+    }
+
+    private static Scanline16Layout GetScanline16Layout(Tiff image)
+    {
+        if (TagInt(image, TiffTag.BITSPERSAMPLE) != 16)
+        {
+            return Scanline16Layout.None;
+        }
+
+        var samples = TagInt(image, TiffTag.SAMPLESPERPIXEL);
+        if (samples == 0)
+        {
+            samples = 1;
+        }
+
+        var planar = TagInt(image, TiffTag.PLANARCONFIG);
+        if (planar is not (0 or 1))
+        {
+            return Scanline16Layout.None;
+        }
+
+        var compression = TagInt(image, TiffTag.COMPRESSION);
+        if (compression is not (1 or 5 or 8 or 32946 or 32773))
+        {
+            return Scanline16Layout.None;
+        }
+
+        var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
+        if (sampleFormat is not (0 or 1))
+        {
+            return Scanline16Layout.None;
+        }
+
+        var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (samples == 3 && photometric == 2)
+        {
+            return Scanline16Layout.Rgb;
+        }
+
+        if (samples == 1 && photometric == 1)
+        {
+            return Scanline16Layout.Gray;
+        }
+
+        if (samples == 1 && photometric == 0)
+        {
+            return Scanline16Layout.GrayInverted;
+        }
+
+        return Scanline16Layout.None;
+    }
+
+    private static ushort ReadUInt16Native(byte[] row, int offset)
+    {
+        // LibTiff returns 16-bit scanline samples in the machine byte order.
+        return BitConverter.IsLittleEndian
+            ? (ushort)(row[offset] | (row[offset + 1] << 8))
+            : (ushort)((row[offset] << 8) | row[offset + 1]);
+    }
+
+    private enum Scanline16Layout
+    {
+        None,
+        Rgb,
+        Gray,
+        GrayInverted
     }
 
     private static void WriteScaledOpaque(
