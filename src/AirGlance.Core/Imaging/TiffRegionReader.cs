@@ -27,8 +27,14 @@ public sealed class TiffRegionReader : IDisposable
     private readonly int _rowsPerStrip;
     private readonly Dictionary<int, int[]> _stripCache = [];
     private readonly LinkedList<int> _stripOrder = [];
+    private readonly Dictionary<int, byte[]> _rawStripCache = [];
+    private readonly LinkedList<int> _rawStripOrder = [];
+    private readonly RegionRawLayout _rawLayout;
+    private readonly int _rawPixelBytes;
     private int[] _tileRaster = [];
+    private byte[] _rawTile = [];
     private long _stripCacheBytes;
+    private long _rawStripCacheBytes;
     private bool _disposed;
 
     private TiffRegionReader(Tiff image, string path, int width, int height)
@@ -56,6 +62,9 @@ public sealed class TiffRegionReader : IDisposable
             var rows = TagLong(image, TiffTag.ROWSPERSTRIP);
             _rowsPerStrip = rows <= 0 || rows > height ? height : (int)rows;
         }
+
+        _rawLayout = GetRawLayout(image);
+        _rawPixelBytes = RawPixelBytes(_rawLayout);
     }
 
     public int PixelWidth { get; }
@@ -191,12 +200,21 @@ public sealed class TiffRegionReader : IDisposable
             _image.Dispose();
             _stripCache.Clear();
             _stripOrder.Clear();
+            _rawStripCache.Clear();
+            _rawStripOrder.Clear();
             _stripCacheBytes = 0;
+            _rawStripCacheBytes = 0;
         }
     }
 
     private void ReadTiled(int x, int y, int width, int height, byte[] destination)
     {
+        if (_rawLayout != RegionRawLayout.None)
+        {
+            ReadTiledRaw(x, y, width, height, destination);
+            return;
+        }
+
         var rasterLength = (long)_tileWidth * _tileHeight;
         if (rasterLength > int.MaxValue)
         {
@@ -253,6 +271,12 @@ public sealed class TiffRegionReader : IDisposable
 
     private void ReadStripped(int x, int y, int width, int height, byte[] destination)
     {
+        if (_rawLayout != RegionRawLayout.None)
+        {
+            ReadStrippedRaw(x, y, width, height, destination);
+            return;
+        }
+
         var rasterLength = (long)PixelWidth * _rowsPerStrip;
         var maximumRasterLength = MaximumStripRasterBytes / sizeof(int);
         if (rasterLength > maximumRasterLength)
@@ -324,6 +348,269 @@ public sealed class TiffRegionReader : IDisposable
         _stripCache[strip] = raster;
         _stripOrder.AddLast(strip);
         _stripCacheBytes += bytes;
+    }
+
+    private void ReadTiledRaw(int x, int y, int width, int height, byte[] destination)
+    {
+        var tileSize = _image.TileSize();
+        if (tileSize <= 0 || tileSize > MaximumStripRasterBytes)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.TooLarge,
+                "The TIFF tile is too large for region reading.",
+                _path,
+                Path.GetExtension(_path));
+        }
+
+        if (_rawTile.Length < tileSize)
+        {
+            _rawTile = new byte[tileSize];
+        }
+
+        var raw = _rawTile;
+        var tilesAcross = (PixelWidth + _tileWidth - 1) / _tileWidth;
+        var endX = x + width;
+        var endY = y + height;
+        var firstTileX = x / _tileWidth * _tileWidth;
+        var firstTileY = y / _tileHeight * _tileHeight;
+        for (var tileY = firstTileY; tileY < endY; tileY += _tileHeight)
+        {
+            for (var tileX = firstTileX; tileX < endX; tileX += _tileWidth)
+            {
+                var tileIndex = (tileY / _tileHeight) * tilesAcross + (tileX / _tileWidth);
+                var read = _image.ReadEncodedTile(tileIndex, raw, 0, tileSize);
+                if (read <= 0)
+                {
+                    throw new ImageLoadException(
+                        ImageLoadFailure.Corrupt,
+                        "The TIFF tile could not be decoded.",
+                        _path,
+                        Path.GetExtension(_path));
+                }
+
+                var left = Math.Max(x, tileX);
+                var top = Math.Max(y, tileY);
+                var right = Math.Min(endX, tileX + _tileWidth);
+                var bottom = Math.Min(endY, tileY + _tileHeight);
+                for (var pixelY = top; pixelY < bottom; pixelY++)
+                {
+                    var sourceRow = pixelY - tileY;
+                    for (var pixelX = left; pixelX < right; pixelX++)
+                    {
+                        var offset = (sourceRow * _tileWidth + pixelX - tileX) * _rawPixelBytes;
+                        if (offset + _rawPixelBytes > read)
+                        {
+                            continue;
+                        }
+
+                        ReadRawPixel(raw, offset, out var red, out var green, out var blue);
+                        var target = ((pixelY - y) * width + pixelX - x) * 4;
+                        destination[target] = blue;
+                        destination[target + 1] = green;
+                        destination[target + 2] = red;
+                        destination[target + 3] = 255;
+                    }
+                }
+            }
+        }
+    }
+
+    private void ReadStrippedRaw(int x, int y, int width, int height, byte[] destination)
+    {
+        var stripSize = _image.StripSize();
+        if (stripSize <= 0 || stripSize > MaximumStripRasterBytes)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.TooLarge,
+                "The TIFF strip is too large for region reading.",
+                _path,
+                Path.GetExtension(_path));
+        }
+
+        var firstStrip = y / _rowsPerStrip;
+        var lastStrip = (y + height - 1) / _rowsPerStrip;
+        for (var strip = firstStrip; strip <= lastStrip; strip++)
+        {
+            var stripRow = strip * _rowsPerStrip;
+            var actualRows = Math.Min(_rowsPerStrip, PixelHeight - stripRow);
+            int read;
+            if (!_rawStripCache.TryGetValue(strip, out var raw))
+            {
+                raw = new byte[stripSize];
+                read = _image.ReadEncodedStrip(strip, raw, 0, stripSize);
+                if (read <= 0)
+                {
+                    throw new ImageLoadException(
+                        ImageLoadFailure.Corrupt,
+                        "The TIFF strip could not be decoded.",
+                        _path,
+                        Path.GetExtension(_path));
+                }
+
+                CacheRawStrip(strip, raw);
+            }
+            else
+            {
+                read = PixelWidth * actualRows * _rawPixelBytes;
+            }
+
+            var top = Math.Max(y, stripRow);
+            var bottom = Math.Min(y + height, stripRow + actualRows);
+            for (var pixelY = top; pixelY < bottom; pixelY++)
+            {
+                var sourceRow = pixelY - stripRow;
+                for (var pixelX = x; pixelX < x + width; pixelX++)
+                {
+                    var offset = (sourceRow * PixelWidth + pixelX) * _rawPixelBytes;
+                    if (offset + _rawPixelBytes > read)
+                    {
+                        continue;
+                    }
+
+                    ReadRawPixel(raw, offset, out var red, out var green, out var blue);
+                    var target = ((pixelY - y) * width + pixelX - x) * 4;
+                    destination[target] = blue;
+                    destination[target + 1] = green;
+                    destination[target + 2] = red;
+                    destination[target + 3] = 255;
+                }
+            }
+        }
+    }
+
+    private void CacheRawStrip(int strip, byte[] raw)
+    {
+        var bytes = (long)raw.Length;
+        if (bytes > MaximumStripCacheBytes)
+        {
+            return;
+        }
+
+        while (_rawStripCacheBytes + bytes > MaximumStripCacheBytes &&
+               _rawStripOrder.First is { } first)
+        {
+            _rawStripOrder.RemoveFirst();
+            if (_rawStripCache.Remove(first.Value, out var evicted))
+            {
+                _rawStripCacheBytes -= evicted.Length;
+            }
+        }
+
+        _rawStripCache[strip] = raw;
+        _rawStripOrder.AddLast(strip);
+        _rawStripCacheBytes += bytes;
+    }
+
+    private void ReadRawPixel(byte[] source, int offset, out byte red, out byte green, out byte blue)
+    {
+        switch (_rawLayout)
+        {
+            case RegionRawLayout.Rgb8:
+                red = source[offset];
+                green = source[offset + 1];
+                blue = source[offset + 2];
+                return;
+            case RegionRawLayout.Rgb16:
+                red = (byte)(ReadUInt16Native(source, offset) >> 8);
+                green = (byte)(ReadUInt16Native(source, offset + 2) >> 8);
+                blue = (byte)(ReadUInt16Native(source, offset + 4) >> 8);
+                return;
+            case RegionRawLayout.Gray8:
+                red = green = blue = source[offset];
+                return;
+            case RegionRawLayout.Gray16:
+                red = green = blue = (byte)(ReadUInt16Native(source, offset) >> 8);
+                return;
+            case RegionRawLayout.Gray8Inverted:
+                red = green = blue = (byte)(255 - source[offset]);
+                return;
+            case RegionRawLayout.Gray16Inverted:
+                red = green = blue = (byte)(255 - (ReadUInt16Native(source, offset) >> 8));
+                return;
+            default:
+                red = green = blue = 0;
+                return;
+        }
+    }
+
+    private static RegionRawLayout GetRawLayout(Tiff image)
+    {
+        var bits = TagInt(image, TiffTag.BITSPERSAMPLE);
+        if (bits is not (8 or 16))
+        {
+            return RegionRawLayout.None;
+        }
+
+        var samples = TagInt(image, TiffTag.SAMPLESPERPIXEL);
+        if (samples == 0)
+        {
+            samples = 1;
+        }
+
+        var planar = TagInt(image, TiffTag.PLANARCONFIG);
+        if (planar is not (0 or 1))
+        {
+            return RegionRawLayout.None;
+        }
+
+        var compression = TagInt(image, TiffTag.COMPRESSION);
+        if (compression is not (1 or 5 or 8 or 32946 or 32773))
+        {
+            return RegionRawLayout.None;
+        }
+
+        if (bits == 16)
+        {
+            var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
+            if (sampleFormat is not (0 or 1))
+            {
+                return RegionRawLayout.None;
+            }
+        }
+
+        var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (samples == 3 && photometric == 2)
+        {
+            return bits == 16 ? RegionRawLayout.Rgb16 : RegionRawLayout.Rgb8;
+        }
+
+        if (samples == 1 && photometric == 1)
+        {
+            return bits == 16 ? RegionRawLayout.Gray16 : RegionRawLayout.Gray8;
+        }
+
+        if (samples == 1 && photometric == 0)
+        {
+            return bits == 16 ? RegionRawLayout.Gray16Inverted : RegionRawLayout.Gray8Inverted;
+        }
+
+        return RegionRawLayout.None;
+    }
+
+    private static int RawPixelBytes(RegionRawLayout layout) =>
+        layout switch
+        {
+            RegionRawLayout.None => 0,
+            RegionRawLayout.Rgb8 => 3,
+            RegionRawLayout.Rgb16 => 6,
+            RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted => 1,
+            _ => 2
+        };
+
+    private static ushort ReadUInt16Native(byte[] source, int offset) =>
+        BitConverter.IsLittleEndian
+            ? (ushort)(source[offset] | (source[offset + 1] << 8))
+            : (ushort)((source[offset] << 8) | source[offset + 1]);
+
+    private enum RegionRawLayout
+    {
+        None,
+        Rgb8,
+        Rgb16,
+        Gray8,
+        Gray16,
+        Gray8Inverted,
+        Gray16Inverted
     }
 
     private static void CopyRgbaRow(

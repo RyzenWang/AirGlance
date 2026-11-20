@@ -139,7 +139,177 @@ public sealed class TiffRegionReaderTests
         reader.Dispose();
     }
 
+    private static void AssertSixteenBitCorners(string path)
+    {
+        using var reader = TiffRegionReader.Open(path);
+        Assert.Equal(320, reader.PixelWidth);
+        Assert.Equal(200, reader.PixelHeight);
+
+        var top = reader.ReadTile(0, 0, 4, 4);
+        for (var index = 0; index < 4 * 4; index++)
+        {
+            Assert.Equal(255, top[index * 4 + 3]);
+            Assert.True(top[index * 4 + 2] > 200, "red channel");
+            Assert.True(top[index * 4 + 1] < 60, "green channel");
+            Assert.True(top[index * 4] < 60, "blue channel");
+        }
+
+        var bottom = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        for (var index = 0; index < 4 * 4; index++)
+        {
+            Assert.Equal(255, bottom[index * 4 + 3]);
+            Assert.True(bottom[index * 4] > 200, "blue channel");
+            Assert.True(bottom[index * 4 + 2] < 60, "red channel");
+        }
+    }
+
+    private static void CreateSixteenBitTiff(
+        string path,
+        bool tiled,
+        int width,
+        int height,
+        int tileSize,
+        int rowsPerStrip)
+    {
+        using var tiff = Tiff.Open(path, "w");
+        Assert.NotNull(tiff);
+        tiff.SetField(TiffTag.IMAGEWIDTH, width);
+        tiff.SetField(TiffTag.IMAGELENGTH, height);
+        tiff.SetField(TiffTag.SAMPLESPERPIXEL, 3);
+        tiff.SetField(TiffTag.BITSPERSAMPLE, 16);
+        tiff.SetField(TiffTag.SAMPLEFORMAT, SampleFormat.UINT);
+        tiff.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+        tiff.SetField(TiffTag.PLANARCONFIG, PlanarConfig.CONTIG);
+        tiff.SetField(TiffTag.PHOTOMETRIC, Photometric.RGB);
+        tiff.SetField(TiffTag.COMPRESSION, Compression.LZW);
+        if (tiled)
+        {
+            tiff.SetField(TiffTag.TILEWIDTH, tileSize);
+            tiff.SetField(TiffTag.TILELENGTH, tileSize);
+            var tile = new byte[tileSize * tileSize * 6];
+            var tilesAcross = (width + tileSize - 1) / tileSize;
+            var tilesDown = (height + tileSize - 1) / tileSize;
+            for (var tileY = 0; tileY < tilesDown; tileY++)
+            {
+                for (var tileX = 0; tileX < tilesAcross; tileX++)
+                {
+                    Array.Clear(tile);
+                    for (var y = 0; y < tileSize; y++)
+                    {
+                        for (var x = 0; x < tileSize; x++)
+                        {
+                            var imageX = tileX * tileSize + x;
+                            var imageY = tileY * tileSize + y;
+                            if (imageX >= width || imageY >= height)
+                            {
+                                continue;
+                            }
+
+                            var (red, green, blue) = Pattern16(imageX, imageY, width, height);
+                            var offset = (y * tileSize + x) * 6;
+                            WriteUInt16Native(tile, offset, red);
+                            WriteUInt16Native(tile, offset + 2, green);
+                            WriteUInt16Native(tile, offset + 4, blue);
+                        }
+                    }
+
+                    tiff.WriteEncodedTile(tileY * tilesAcross + tileX, tile, 0, tile.Length);
+                }
+            }
+
+            return;
+        }
+
+        tiff.SetField(TiffTag.ROWSPERSTRIP, rowsPerStrip > 0 ? rowsPerStrip : height);
+        var row = new byte[width * 6];
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var (red, green, blue) = Pattern16(x, y, width, height);
+                var offset = x * 6;
+                WriteUInt16Native(row, offset, red);
+                WriteUInt16Native(row, offset + 2, green);
+                WriteUInt16Native(row, offset + 4, blue);
+            }
+
+            tiff.WriteScanline(row, y);
+        }
+    }
+
+    private static void WriteUInt16Native(byte[] buffer, int offset, ushort value)
+    {
+        if (BitConverter.IsLittleEndian)
+        {
+            buffer[offset] = (byte)value;
+            buffer[offset + 1] = (byte)(value >> 8);
+        }
+        else
+        {
+            buffer[offset] = (byte)(value >> 8);
+            buffer[offset + 1] = (byte)value;
+        }
+    }
+
+    private static (ushort Red, ushort Green, ushort Blue) Pattern16(int x, int y, int width, int height)
+    {
+        var left = x < width / 2;
+        var top = y < height / 2;
+        return (left, top) switch
+        {
+            (true, true) => ((ushort)65535, (ushort)0, (ushort)0),
+            (false, true) => ((ushort)0, (ushort)40000, (ushort)10000),
+            (true, false) => ((ushort)0, (ushort)20000, (ushort)65535),
+            _ => ((ushort)65535, (ushort)50000, (ushort)0)
+        };
+    }
+
     private static string Asset(string name) => Path.Combine(AppContext.BaseDirectory, "Assets", name);
+
+    [Fact]
+    public void Region_reader_reads_16bit_tiles()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateSixteenBitTiff(path, tiled: true, width: 320, height: 200, tileSize: 64, rowsPerStrip: 0);
+            AssertSixteenBitCorners(path);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Region_reader_reads_16bit_strips()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateSixteenBitTiff(path, tiled: false, width: 320, height: 200, tileSize: 0, rowsPerStrip: 32);
+            AssertSixteenBitCorners(path);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Region_reader_reads_a_16bit_single_strip()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateSixteenBitTiff(path, tiled: false, width: 320, height: 200, tileSize: 0, rowsPerStrip: 200);
+            AssertSixteenBitCorners(path);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-region-" + Guid.NewGuid().ToString("N") + ".tif");
