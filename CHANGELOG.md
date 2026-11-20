@@ -5,6 +5,16 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- README, shipping, architecture, formats and performance notes now report 0.5.0:
+  current download names, the verified Windows x64 release artifact, managed TIFF
+  and edit coverage, and the 20.76 MiB package. Startup performance stays labelled
+  as the last full 0.3.0 run because it has not been re-benchmarked.
+- Removed the unused NetVips package pins from `Directory.Packages.props`.
+
 ## [0.5.0] - 2026-11-20
 
 ### Changed

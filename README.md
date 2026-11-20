@@ -4,7 +4,7 @@
 
 **Whole folders, one glance.** · 「一个文件夹，一眼看完。」
 
-AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.4.1 is the current build; 0.3.0 is the latest public binary release. It is deliberately small.
+AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.5.0 is the current build and the latest public binary release. It is deliberately small.
 
 - [Download](#install) · [Image formats](#image-formats) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
 
@@ -18,7 +18,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - The dual filmstrip is split 50/50: A's folder list on the left, B's folder list on the right, each scrolling and selecting independently. An empty half shows only its A/B badge, with no text or button; if both sides are empty the filmstrip is disabled. The information drawer has A/B tabs.
 - Fit window, fit width and 100% views with animated zoom transitions; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit.
 - Applies the EXIF orientation before the first pixel is shown, and converts embedded ICC profiles (Display P3, Adobe RGB) to sRGB for display.
-- Rotates and flips for display only. Save a copy as JPEG, PNG or WebP, or copy the image; the original file is never written.
+- Rotates, flips and crops non-destructively in the Edit drawer (`Ctrl+E`); Cancel restores the previous view and the original file is never written. Export a copy as JPEG, PNG or WebP with quality and resize options, or copy the image to the clipboard.
 - Fullscreen, a 3 / 5 / 10 second slideshow, and an information panel with file, image, ICC and EXIF fields.
 - English and Chinese switch at runtime. Light, dark and follow-system themes; the system high-contrast setting is honoured.
 - Settings and thumbnails stay on your machine. There is no account, no telemetry, and no network code.
@@ -75,24 +75,24 @@ The formats above are deliberately absent; there is no platform-codec fallback. 
 
 ## Install
 
-0.3.0 is the latest packaged binary release; download it from the [v0.3.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0). The `v0.4.1` tag contains the current source build with large-TIFF support.
+0.5.0 is the current packaged release; download it from the [v0.5.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0). It replaces the libvips TIFF path with the managed LibTiff decoder and adds the non-destructive edit and export tools.
 
 ### Windows
 
-1. Download `AirGlance-0.3.0-win-x64.zip` (or `win-arm64`).
+1. Download `AirGlance-0.5.0-win-x64.zip` (or `win-arm64`).
 2. Unzip it anywhere and run `AirGlance.exe`.
 
-The 0.1 portable build is not code-signed, so SmartScreen warns the first time. Choose **More info → Run anyway**. The executable is a NativeAOT build; it does not need a .NET runtime installed.
+The Windows portable build is not code-signed, so SmartScreen warns the first time. Choose **More info → Run anyway**. The executable is a NativeAOT build; it does not need a .NET runtime installed.
 
 ### macOS
 
-1. Download `AirGlance-0.3.0-osx-arm64.zip` or `-osx-x64.zip`.
-2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.1 is not.
+1. Download `AirGlance-0.5.0-osx-arm64.zip` or `-osx-x64.zip`.
+2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.5 is not.
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.5.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -104,14 +104,14 @@ The release publishes six archives. Runtime verification is narrower than that:
 
 | Platform | Archive | NativeAOT binary actually run |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **Verified** on the reference machine (0.3.0) |
-| Linux x64 | `linux-x64.tar.gz` | **Verified** by the maintainer |
+| Windows x64 | `win-x64.zip` | **Verified** — the released 0.5.0 AOT binary launched and displayed an image |
+| Linux x64 | `linux-x64.tar.gz` | **Verified** by the maintainer against 0.1.1 |
 | Windows arm64 | `win-arm64.zip` | Unverified |
 | macOS arm64 | `osx-arm64.zip` | Unverified |
 | macOS x64 | `osx-x64.zip` | Unverified |
 | Linux arm64 | `linux-arm64.tar.gz` | Unverified |
 
-"Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to 0.3.0; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
+"Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to the published 0.5.0 archive, which was smoke-tested with JPEG, TIFF, SVG and GIF files; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
 
 ## Keyboard
 
@@ -147,6 +147,7 @@ Mouse and trackpad:
 | `Ctrl+C` | Copy the image (active preview in dual view) |
 | `Ctrl+Shift+C` | Copy the active image path (single view) |
 | `Ctrl+Shift+S` | Save a copy (single view; deferred in dual view) |
+| `Ctrl+E` | Open or close the Edit drawer |
 | `Ctrl+Shift+L` | Switch English / Chinese |
 | `F1` | The full shortcut list |
 
@@ -156,13 +157,15 @@ Right-click the image for open, copy, show-in-folder, open-with and settings. In
 
 Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`. Ten fresh processes per row, median from `tools/bench.ps1`; the full method and raw values are in [docs/performance.md](docs/performance.md).
 
-| Metric | Target | 0.3.0 |
+| Metric | Target | 0.3.0 (last full run) |
 | --- | --- | --- |
 | Cold start to first window | ≤ 500 ms | 222.0 ms |
 | 24 MP JPEG first frame | ≤ 500 ms | 424.7 ms |
 | 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 327.0 ms |
 | 24 MP fit-window peak working set | ≤ 250 MB | 84.5 MB |
 | Windows x64 portable zip | ≤ 30 MB | 20.51 MB |
+
+0.5.0 removed the libvips payload and added the edit/export tools. Startup has not been re-benchmarked since 0.3.0, so the rows above stay labelled with the version they were measured on; the published 0.5.0 win-x64 archive is 20.76 MiB.
 
 The 0.3.0 build meets the startup and first-frame targets on the reference machine: the window is up in about 222 ms and a 24 MP image is on screen in about 425 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
@@ -172,14 +175,14 @@ These are limitations, not a promise list.
 
 - No HEIC, AVIF or RAW. SkiaSharp cannot decode them and AirGlance does not ship platform codecs.
 - Animated GIFs play; animated WebP and APNG remain still images. Video is not supported.
-- TIFF shows the first page only. CMYK, multi-page and some exotic compression variants are not part of the initial support contract.
+- TIFF shows the first page only. BigTIFF and some exotic compression variants remain outside the support contract; the managed LibTiff path covers stripped, tiled, pyramidal and planar files, including 8/16-bit RGB, CMYK, RGBA, float and palette data.
 - No gallery, database, tags, ratings, search, batch conversion or rename, filters, layers, text, stitching, cloud sync or accounts.
 - No tabs. Dual view is one window with two explicit A/B canvases, not a tab strip. No tray icon and no single-instance forwarding.
 - Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.
-- No cropping and no lossless JPEG rotation. Rotate and flip only change what is on screen.
+- Crop, rotate and flip are session edits. There is no lossless JPEG rotation, and the original file is never rewritten. Editing is disabled in dual view and for proxy-only or tiled images.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
 - 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **458 MB**, settling to about **88 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
-- The 0.1 Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
+- The Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
 
 ## Build from source
 

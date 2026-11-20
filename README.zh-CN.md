@@ -4,7 +4,7 @@
 
 **一个文件夹，一眼看完。**
 
-AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.4.1，0.3.0 是最新公开二进制版本。它刻意保持小巧。
+AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.5.0，也是最新公开二进制版本。它刻意保持小巧。
 
 - [下载](#安装) · [图片格式](#图片格式) · [键盘](#键盘) · [性能](#性能) · [已知限制](#已知限制) · [从源码构建](#从源码构建)
 
@@ -18,7 +18,7 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 - 双画布胶片条固定 50/50：左半区是 A 的文件夹列表，右半区是 B 的文件夹列表，各自独立滚动和选中。空半区只保留 A/B 徽标，不显示文字或按钮；两侧都为空时胶片条不可用。信息面板保留 A/B 标签。
 - 适应窗口、适应宽度和 100% 三种视图，并带有平滑缩放动画；滚轮以指针为中心缩放，Shift + 滚轮横向平移，拖动平移，双击在 100% 和适应窗口之间切换。
 - 在显示第一个像素前应用 EXIF 方向，并把内嵌 ICC 配置文件（Display P3、Adobe RGB）转换为 sRGB 显示。
-- 旋转和翻转只影响显示。可以另存为 JPEG、PNG 或 WebP，也可以复制图片；原文件永远不会被写入。
+- 在编辑抽屉（`Ctrl+E`）中非破坏性地旋转、翻转和裁剪；Cancel 会恢复之前的视图，原文件永远不会被写入。可以按质量和缩放选项另存为 JPEG、PNG 或 WebP，也可以复制图片到剪贴板。
 - 全屏、3 / 5 / 10 秒幻灯片，以及包含文件、图片、ICC 和 EXIF 字段的信息面板。
 - 中英文运行时切换。浅色、深色和跟随系统主题；尊重系统高对比度设置。
 - 设置和缩略图只保存在本机。没有账号、没有遥测，也没有网络代码。
@@ -75,24 +75,24 @@ AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia �
 
 ## 安装
 
-0.3.0 是最新的已打包二进制版本，请从 [v0.3.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0) 下载。`v0.4.1` tag 包含当前源码构建，支持大 TIFF。
+0.5.0 是当前已打包版本，请从 [v0.5.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0) 下载。该版本用托管 LibTiff 解码器替换了 libvips TIFF 路径，并新增非破坏性编辑和导出工具。
 
 ### Windows
 
-1. 下载 `AirGlance-0.3.0-win-x64.zip`（或 `win-arm64`）。
+1. 下载 `AirGlance-0.5.0-win-x64.zip`（或 `win-arm64`）。
 2. 解压到任意位置，运行 `AirGlance.exe`。
 
-0.1 便携版没有代码签名，首次运行会出现 SmartScreen 警告。选择 **更多信息 → 仍要运行**。可执行文件是 NativeAOT 构建，不需要安装 .NET 运行时。
+Windows 便携版没有代码签名，首次运行会出现 SmartScreen 警告。选择 **更多信息 → 仍要运行**。可执行文件是 NativeAOT 构建，不需要安装 .NET 运行时。
 
 ### macOS
 
-1. 下载 `AirGlance-0.3.0-osx-arm64.zip` 或 `-osx-x64.zip`。
-2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.1 尚未公证。
+1. 下载 `AirGlance-0.5.0-osx-arm64.zip` 或 `-osx-x64.zip`。
+2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.5 尚未公证。
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.5.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -104,14 +104,14 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 
 | 平台 | 压缩包 | 实际运行过 NativeAOT 二进制 |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **已验证**（参考机器，0.3.0） |
-| Linux x64 | `linux-x64.tar.gz` | **已验证**（维护者） |
+| Windows x64 | `win-x64.zip` | **已验证** — 已启动发布的 0.5.0 AOT 二进制并显示图片 |
+| Linux x64 | `linux-x64.tar.gz` | **已验证**（维护者，0.1.1） |
 | Windows arm64 | `win-arm64.zip` | 未验证 |
 | macOS arm64 | `osx-arm64.zip` | 未验证 |
 | macOS x64 | `osx-x64.zip` | 未验证 |
 | Linux arm64 | `linux-arm64.tar.gz` | 未验证 |
 
-“已验证”是指实际启动过 AOT 二进制并显示过图片。Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
+“已验证”是指实际启动过 AOT 二进制并显示过图片。Windows x64 条目对应已发布的 0.5.0 压缩包，已用 JPEG、TIFF、SVG 和 GIF 冒烟测试；Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
 
 ## 键盘
 
@@ -147,6 +147,7 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 | `Ctrl+C` | 复制图片（双画布下复制当前预览） |
 | `Ctrl+Shift+C` | 复制当前图片路径（单图模式） |
 | `Ctrl+Shift+S` | 另存副本（单图；双画布暂缓） |
+| `Ctrl+E` | 打开或关闭编辑抽屉 |
 | `Ctrl+Shift+L` | 切换英文 / 中文 |
 | `F1` | 完整快捷键列表 |
 
@@ -156,13 +157,15 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 
 在 Windows 10 Pro 22H2 (19045)、Intel Xeon E5-2697 v4、32 GB 内存、.NET 10.0.14、NativeAOT `win-x64` 上测量。每行十个全新进程，取 `tools/bench.ps1` 的中位数；完整方法和原始数据见 [docs/performance.md](docs/performance.md)。
 
-| 指标 | 目标 | 0.3.0 |
+| 指标 | 目标 | 0.3.0（最近一次完整测量） |
 | --- | --- | --- |
 | 冷启动到首窗 | ≤ 500 ms | 222.0 ms |
 | 24 MP JPEG 首帧 | ≤ 500 ms | 424.7 ms |
 | 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 327.0 ms |
 | 24 MP 适应窗口内存峰值 | ≤ 250 MB | 84.5 MB |
 | Windows x64 便携 zip | ≤ 30 MB | 20.51 MB |
+
+0.5.0 移除了 libvips 原生负载并新增编辑/导出工具，但启动性能尚未重新测量，因此上表仍标注测量版本；已发布的 0.5.0 win-x64 包为 20.76 MiB。
 
 0.3.0 在参考机器上达到启动和首帧目标：窗口约 222 ms 出现，24 MP 图片约 425 ms 上屏。窗口外壳用 C# 构建而不是 XAML，移除了最大的一项首帧开销；解码与建窗重叠。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
 
@@ -172,14 +175,14 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 
 - 不支持 HEIC、AVIF 或 RAW。SkiaSharp 无法解码这些格式，AirGlance 也不内置系统编解码器。
 - 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
-- TIFF 只显示第一页。CMYK、多页和部分特殊压缩变体不在首版支持范围内。
+- TIFF 只显示第一页。BigTIFF 和部分特殊压缩变体不在支持范围内；托管 LibTiff 路径覆盖 stripped、tiled、pyramidal 和 planar 文件，包括 8/16 位 RGB、CMYK、RGBA、浮点和调色板数据。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。
 - 没有标签页。双画布是一个窗口内明确的 A/B 两块画布，不是标签栏。没有托盘图标，也没有单实例转发。
 - 双画布两侧都加载有界预览；逐画布旋转/翻转、另存副本和幻灯片暂缓。不支持两张 100 MP 图片同时 100%，也不包含成对前进（左 N / 右 N+1）。
-- 没有裁剪，也没有无损 JPEG 旋转。旋转和翻转只改变屏幕显示。
+- 裁剪、旋转和翻转都是会话内编辑，没有无损 JPEG 旋转，原文件永远不会被重写。双画布以及仅代理/分块图片下编辑不可用。
 - 16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。
 - 100 MP 图片在 100% 时使用基于文件的分块缓存：10000 × 10000 JPEG 的实测工作集峰值约 **458 MB**，分块写完后稳定在约 **88 MB**。图片打开期间临时分块文件约 400 MB。48 MP PNG 仍可能峰值接近 300 MB，因为 PNG 预览解码无法由编解码器缩放；内存较小的机器查看超大 PNG 时建议使用适应窗口。
-- 0.1 Windows 便携版未签名，macOS 版未公证。MSIX 包尚未发布。
+- Windows 便携版未签名，macOS 版未公证。MSIX 包尚未发布。
 
 ## 从源码构建
 

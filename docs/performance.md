@@ -5,6 +5,12 @@
 All numbers here were measured on the machine below with the commands shown. If a
 number is not here, it was not measured; nothing in this file is projected.
 
+> **Version note (2026-11-20):** the timings below are the last full campaign and
+> were measured on v0.3.0. v0.4.x added dual view and animated zoom; v0.5.0
+> replaced the libvips TIFF payload with managed LibTiff and added the edit and
+> export tools. Startup has not been re-benchmarked since. The v0.5.0 win-x64
+> archive is 20.76 MiB.
+
 ## Machine and build
 
 | | |
@@ -149,11 +155,12 @@ The target is ≤ 1 s for enumeration plus the first screen of thumbnails.
 | Artifact | Size | SHA256 |
 | --- | --- | --- |
 | `AirGlance-0.3.0-win-x64.zip` | **20.51 MB** | `b27ac3914ea69dc92e4dcbc3133c85f353ca67abeb90f77d32b80867f68b0d04` |
+| `AirGlance-0.5.0-win-x64.zip` | **20.76 MiB** | `a659778644ca9a2927391c2b70b081606950f07d3c9ed180faefb8496907558c` |
 
-The zip contains six files (the four runtime files, LICENSE and THIRD-PARTY-NOTICES.md)
-and unpacks to about 37 MB. The 30 MB target applies to the zip, not the unpacked
-directory. The release also contains the Linux and macOS archives and
-`SHA256SUMS.txt`; all six are under 16 MB.
+The 0.5.0 zip contains six files (the four runtime files, LICENSE and
+THIRD-PARTY-NOTICES.md) and unpacks to about 50 MB. The 30 MB target applies to
+the zip, not the unpacked directory. The 0.5.0 release also contains the Linux
+and macOS archives and `SHA256SUMS.txt`; all six are under 23 MB.
 
 ## Where the startup time goes
 
