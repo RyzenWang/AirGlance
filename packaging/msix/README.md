@@ -1,7 +1,7 @@
 # AirGlance MSIX packaging
 
 This directory contains the Desktop Bridge (full-trust) MSIX manifest and the
-`Build-Msix.ps1` helper for AirGlance 0.5.0. The package uses the Windows desktop
+`Build-Msix.ps1` helper for AirGlance 0.6.0. The package uses the Windows desktop
 application model: it executes the normal `AirGlance.exe` with the
 `Windows.FullTrustApplication` entry point and declares the `runFullTrust`
 restricted capability.
@@ -27,7 +27,7 @@ Prerequisites:
   ```powershell
   dotnet publish src/AirGlance.App/AirGlance.App.csproj `
     -c Release -r win-x64 `
-    -p:PublishAot=true -p:StripSymbols=true -p:Version=0.5.0 `
+    -p:PublishAot=true -p:StripSymbols=true -p:Version=0.6.0 `
     -o publish/win-x64
   ```
 

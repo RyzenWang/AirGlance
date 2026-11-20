@@ -14,7 +14,7 @@
   <a href="https://github.com/RyzenWang/AirGlance/releases/latest">Latest releases</a>
 </p>
 
-AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.5.0 is the current build and the latest public binary release. It is deliberately small.
+AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.6.0 is the current build and the latest public binary release. It is deliberately small.
 
 > **Windows:** the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) build is the recommended install and updates through the Store. The Store listing can trail the GitHub release; portable archives for Windows, macOS and Linux remain on [GitHub Releases](https://github.com/RyzenWang/AirGlance/releases/latest).
 
@@ -85,7 +85,7 @@ AirGlance uses SkiaSharp for ordinary raster formats, LibTiff for TIFF, Svg.Skia
 
 ## Install
 
-Windows users should install from the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); portable archives for all platforms are on the [v0.5.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0). The Store listing can trail the GitHub release.
+Windows users should install from the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); portable archives for all platforms are on the [v0.6.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.6.0). The Store listing can trail the GitHub release.
 
 ### Microsoft Store (Windows)
 
@@ -94,20 +94,20 @@ Windows users should install from the [Microsoft Store](https://apps.microsoft.c
 
 ### Windows portable
 
-1. Download `AirGlance-0.5.0-win-x64.zip` (or `win-arm64`).
+1. Download `AirGlance-0.6.0-win-x64.zip` (or `win-arm64`).
 2. Unzip it anywhere and run `AirGlance.exe`.
 
 The Windows portable build is not code-signed, so SmartScreen warns the first time. Choose **More info → Run anyway**. The executable is a NativeAOT build; it does not need a .NET runtime installed.
 
 ### macOS
 
-1. Download `AirGlance-0.5.0-osx-arm64.zip` or `-osx-x64.zip`.
+1. Download `AirGlance-0.6.0-osx-arm64.zip` or `-osx-x64.zip`.
 2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.5 is not.
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.5.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.6.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -119,14 +119,14 @@ The release publishes six archives. Runtime verification is narrower than that:
 
 | Platform | Archive | NativeAOT binary actually run |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **Verified** — the released 0.5.0 AOT binary launched and displayed an image |
+| Windows x64 | `win-x64.zip` | **Verified** — the 0.6.0 local AOT build launched and displayed an image |
 | Linux x64 | `linux-x64.tar.gz` | **Verified** by the maintainer against 0.1.1 |
 | Windows arm64 | `win-arm64.zip` | Unverified |
 | macOS arm64 | `osx-arm64.zip` | Unverified |
 | macOS x64 | `osx-x64.zip` | Unverified |
 | Linux arm64 | `linux-arm64.tar.gz` | Unverified |
 
-"Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to the published 0.5.0 archive, which was smoke-tested with JPEG, TIFF, SVG and GIF files; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
+"Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to the 0.6.0 local AOT build; the previously published 0.5.0 archive was smoke-tested with JPEG, TIFF, SVG and GIF files; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
 
 The Windows x64 build is also distributed through the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); the Store listing can trail the GitHub release, and Store updates are handled by Windows.
 
@@ -182,7 +182,7 @@ Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 
 | 24 MP fit-window peak working set | ≤ 250 MB | 84.5 MB |
 | Windows x64 portable zip | ≤ 30 MB | 20.51 MB |
 
-0.5.0 removed the libvips payload and added the edit/export tools. Startup has not been re-benchmarked since 0.3.0, so the rows above stay labelled with the version they were measured on; the published 0.5.0 win-x64 archive is 20.76 MiB.
+0.6.0 restores AVIF and adds the dark-mode interaction pass. Startup has not been re-benchmarked since 0.3.0, so the rows above stay labelled with the version they were measured on; the 0.6.0 local win-x64 AOT package is 20.85 MiB (0.5.0 was 20.76 MiB).
 
 The 0.3.0 build meets the startup and first-frame targets on the reference machine: the window is up in about 222 ms and a 24 MP image is on screen in about 425 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 

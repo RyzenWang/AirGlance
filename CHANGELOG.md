@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-20
+
 ### Added
 
 - AVIF still-image decoding on Windows x64/arm64, macOS x64/arm64 and Linux
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an unopenable format.
 - AVIF fixtures and tests for still images, alpha, 10-bit/`irot`, ICC/EXIF,
   animation first-frame behavior, one-pixel images and corrupt input.
+- Dark-mode interaction pass for the edit drawer, crop mode and export dialog.
+  Selected chips use a warm accent-soft surface, primary hover/pressed states
+  use explicit accent colors, and the export dialog now follows the dark theme
+  instead of its former static light palette.
 
 ### Changed
 
@@ -27,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on every test OS before the test pass and in all release jobs. The Windows
   arm64 decoder is cross-built with LLVM from the x64 host, has no x86 SIMD and
   no hardware run is recorded.
+- Code-built edit, crop and slider controls resolve their brushes from the
+  current theme; the crop overlay redraws when the theme changes.
+
+### Fixed
+
+- Cancelling the export dialog no longer drops the crop state; the crop canvas,
+  region, aspect and toolbar remain until an export completes.
+- The Linux AVIF build locates `libdav1d.a` and `libavif.a` in multiarch
+  `lib/<arch>` directories instead of assuming `lib/`.
 
 ### Documentation
 
@@ -36,10 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README now links the live Microsoft Store listing at the top and in Install;
   the Windows x64 section recommends the Store build and keeps the portable
   archive for offline and arm64 use. Shipping notes record the live listing.
-- README, shipping, architecture, formats and performance notes now report 0.5.0:
-  current download names, the verified Windows x64 release artifact, managed TIFF
-  and edit coverage, and the 20.76 MiB package. Startup performance stays labelled
-  as the last full 0.3.0 run because it has not been re-benchmarked.
+- README and shipping notes report 0.6.0: current download names, AVIF support,
+  dark-mode coverage and the 20.85 MiB local AOT package. Startup performance
+  stays labelled as the last full 0.3.0 run because it has not been
+  re-benchmarked.
+- Added the dark-mode interaction design board and specification under
+  `docs/design/`.
 - Removed the unused NetVips package pins from `Directory.Packages.props`.
 
 ## [0.5.0] - 2026-11-20
@@ -352,6 +369,7 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
+[0.6.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.6.0
 [0.5.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0
 [0.4.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.1
 [0.4.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.0

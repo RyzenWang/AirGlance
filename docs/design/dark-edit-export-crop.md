@@ -1,7 +1,7 @@
 # AirGlance 深色模式交互设计稿
 
 > 范围：编辑抽屉、裁剪模式、导出副本模态  
-> 状态：**已实现（2026-11-20，0.6.2）**  
+> 状态：**已实现（2026-11-20，0.6.0）**
 > 日期：2026-11-20  
 > 基线：现有 `Colors.axaml` 深色 token + 0.6.x 布局尺寸
 
@@ -361,7 +361,7 @@
 
 ## 11. 实现结果
 
-本稿已落地到 0.6.2：
+本稿已落地到 0.6.0：
 
 - `Colors.axaml` 新增 `SurfaceRaised`、`SurfaceSunken`、`SurfacePressed`、`SurfaceOverlay`、`AccentHover`、`AccentPressed`、`AccentSoft`、`AccentSoftText`、`SegmentActive`、`BorderEmphasis`、`BorderHover`、`InkMuted`、`DialogScrim`、`FocusRing` 等 token。
 - `Controls.axaml` 更新编辑工具卡、裁剪入口、`edit-chip.active`、`crop-bar-chip`、`crop-bar-action/primary`、`export-segment` 和导出输入框的默认/hover/pressed 状态。

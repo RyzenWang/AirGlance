@@ -1,35 +1,35 @@
-# 发布 AirGlance 0.5.0
+# 发布 AirGlance 0.6.0
 
 [English](shipping.md) · **简体中文**
 
-本文档是 AirGlance 0.5.0（2026-11-20）的发布流程。它涵盖打包脚本、NativeAOT 构建、签名方面的限制，以及用于 Microsoft Store 提交、WACK 和上架信息的 MSIX 包。
+本文档是 AirGlance 0.6.0（2026-11-20）的发布流程。它涵盖打包脚本、NativeAOT 构建、签名方面的限制，以及用于 Microsoft Store 提交、WACK 和上架信息的 MSIX 包。
 
-0.5.0 版本是一个便携、未签名的桌面版本。它没有安装程序、更新程序、托盘图标或单实例转发。Windows x64 版本也已上架 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6)；仓库中不保存任何签名证书。
+0.6.0 版本是一个便携、未签名的桌面版本。它没有安装程序、更新程序、托盘图标或单实例转发。Windows x64 版本也已上架 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6)；仓库中不保存任何签名证书。
 
 ## 发布矩阵
 
 | 目标平台 | 公开产物 | 签名 | 构建者 | 分发渠道 |
 | --- | --- | --- | --- | --- |
-| Windows x64 | `AirGlance-0.5.0-win-x64.zip` | 无 | `packaging/scripts/pack.ps1` | GitHub release |
-| Windows arm64 | `AirGlance-0.5.0-win-arm64.zip` | 无 | `windows-latest` 上的 `packaging/scripts/pack.ps1` | GitHub release |
-| macOS arm64 | `AirGlance-0.5.0-osx-arm64.zip`（包含 `AirGlance.app`） | 无 | `macos-15` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| macOS x64 | `AirGlance-0.5.0-osx-x64.zip`（包含 `AirGlance.app`） | 无 | `macos-15-intel` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| Linux x64 | `AirGlance-0.5.0-linux-x64.tar.gz` | 无 | `ubuntu-22.04` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| Linux arm64 | `AirGlance-0.5.0-linux-arm64.tar.gz` | 无 | `ubuntu-24.04-arm` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| Windows x64 | `AirGlance-0.6.0-win-x64.zip` | 无 | `packaging/scripts/pack.ps1` | GitHub release |
+| Windows arm64 | `AirGlance-0.6.0-win-arm64.zip` | 无 | `windows-latest` 上的 `packaging/scripts/pack.ps1` | GitHub release |
+| macOS arm64 | `AirGlance-0.6.0-osx-arm64.zip`（包含 `AirGlance.app`） | 无 | `macos-15` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| macOS x64 | `AirGlance-0.6.0-osx-x64.zip`（包含 `AirGlance.app`） | 无 | `macos-15-intel` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| Linux x64 | `AirGlance-0.6.0-linux-x64.tar.gz` | 无 | `ubuntu-22.04` 上的 `packaging/scripts/pack.sh` | GitHub release |
+| Linux arm64 | `AirGlance-0.6.0-linux-arm64.tar.gz` | 无 | `ubuntu-24.04-arm` 上的 `packaging/scripts/pack.sh` | GitHub release |
 | Windows x64 MSIX | `AirGlance_1.0.0.0_x64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
 | Windows arm64 MSIX | `AirGlance_1.0.0.0_arm64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
 
-归档文件名使用三段式产品版本 `0.5.0`。MSIX 文件名使用四段式包版本 `1.0.0.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
+归档文件名使用三段式产品版本 `0.6.0`。MSIX 文件名使用四段式包版本 `1.0.0.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
 
 发布工作流只发布六个便携归档：Windows 的 x64/arm64 zip、macOS 的 x64/arm64 zip 和 Linux 的 x64/arm64 tar.gz。它会拒绝 MSIX 文件，因此 Store 包绝不会出现在公开的 GitHub 发布中。MSIX 文件由 `store.yml` 构建，用于 Store 审核和 Partner Center。
 
 ## 运行时验证状态
 
-发布矩阵关注的是产物，而非运行时覆盖情况。v0.5.0 的状态如下：
+发布矩阵关注的是产物，而非运行时覆盖情况。v0.6.0 的状态如下：
 
 | 目标平台 | 产物已构建 | AOT 二进制已运行 |
 | --- | --- | --- |
-| Windows x64 | 是 | **是** — 已启动发布的 0.5.0 AOT 二进制；已用 JPEG、TIFF、SVG 和 GIF 冒烟测试 |
+| Windows x64 | 是 | **是** — 已启动 0.6.0 本地 AOT 构建；已用 JPEG、TIFF、SVG 和 GIF 冒烟测试 |
 | Linux x64 | 是 | **是** — 由维护者在本仓库 CI 之外对照 0.1.1 验证 |
 | Windows arm64 | 是 | 未验证 |
 | macOS arm64 | 是 | 未验证 |
@@ -79,17 +79,17 @@ NativeAOT 无法在操作系统族之间交叉编译。`pack.sh` 在非 Darwin �
 Windows x64 或 arm64：
 
 ```powershell
-./packaging/scripts/pack.ps1 -Version 0.5.0 -Runtime win-x64 -Aot
-./packaging/scripts/pack.ps1 -Version 0.5.0 -Runtime win-x64 -Aot -Msix
+./packaging/scripts/pack.ps1 -Version 0.6.0 -Runtime win-x64 -Aot
+./packaging/scripts/pack.ps1 -Version 0.6.0 -Runtime win-x64 -Aot -Msix
 ```
 
 macOS 或 Linux，在匹配的主机上：
 
 ```sh
-./packaging/scripts/pack.sh 0.5.0 osx-arm64
-./packaging/scripts/pack.sh 0.5.0 osx-x64
-./packaging/scripts/pack.sh 0.5.0 linux-x64
-./packaging/scripts/pack.sh 0.5.0 linux-arm64
+./packaging/scripts/pack.sh 0.6.0 osx-arm64
+./packaging/scripts/pack.sh 0.6.0 osx-x64
+./packaging/scripts/pack.sh 0.6.0 linux-x64
+./packaging/scripts/pack.sh 0.6.0 linux-arm64
 ```
 
 这些脚本会调用 `dotnet publish -c Release -r <rid> -p:PublishAot=true -p:StripSymbols=true -p:Version=<version>`。`pack.ps1` 还会移除所有残留的 PDB，并强制执行 30 MB 的 zip 大小上限。`pack.sh` 会在打包前移除 PDB、DBG 和 MDB 文件。
@@ -130,7 +130,7 @@ AirGlance.app/Contents/
 - `CFBundleExecutable` = `AirGlance`；
 - `CFBundleIdentifier` = `dev.airworks.AirGlance`；
 - `CFBundleName` 和 `CFBundleDisplayName` = `AirGlance`；
-- `CFBundleShortVersionString` = `0.5.0`，由 `pack.sh` 根据版本参数写入；
+- `CFBundleShortVersionString` = `0.6.0`，由 `pack.sh` 根据版本参数写入；
 - `CFBundleVersion` = `1`，不按每次构建写入；
 - `CFBundleIconFile` = `airglance.icns`；
 - `LSMinimumSystemVersion` = `12.0`；
@@ -159,7 +159,7 @@ icons/airglance-512.png
 
 ```powershell
 ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.5.0 `
+  -Version 0.6.0 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
@@ -183,7 +183,7 @@ icons/airglance-512.png
 
 发布前还应在每个操作系统上打开文件夹、用方向键导航；按 `D` 检查双画布（同文件夹下一张、`Tab`、`X`、分隔条、固定 50/50 胶片条、右键画布菜单的“打开文件夹”、信息、复制和 `Esc` 顺序）；切换全屏、切换语言并保存副本。这些检查是手动进行的。CI 工作流会运行测试套件并打包二进制，但不会启动打包后的应用，也不会运行 `--bench`；仓库中没有记录任何打包产物的冒烟测试结果。
 
-## Windows 0.5.0：未签名便携版本
+## Windows 0.6.0：未签名便携版本
 
 Windows zip 未做 Authenticode 签名。对于新的未签名二进制，Windows 会显示“Windows 已保护你的电脑”（Windows protected your PC）/“未知发布者”（Unknown publisher）。
 
@@ -198,9 +198,9 @@ Windows zip 未做 Authenticode 签名。对于新的未签名二进制，Window
 
 没有 Windows 安装程序。zip 不会注册文件关联、添加卸载条目或创建开始菜单快捷方式。MSIX 是 Store 包，不是为未签名公开发布提供的变通方案。
 
-真正的 Authenticode 证书和时间戳可以消除未知发布者警告。0.5.0 未使用任何证书。
+真正的 Authenticode 证书和时间戳可以消除未知发布者警告。0.6.0 未使用任何证书。
 
-## macOS 0.5.0：未签名版本
+## macOS 0.6.0：未签名版本
 
 macOS 发布归档包含未签名的 `AirGlance.app`。它未做 ad-hoc 签名、未启用强化运行时、也未公证。Gatekeeper 可能显示“无法打开 AirGlance，因为无法验证开发者”（AirGlance cannot be opened because the developer cannot be verified）。
 
@@ -220,14 +220,14 @@ codesign --force --deep --sign - AirGlance.app
 codesign --verify --deep --strict --verbose=2 AirGlance.app
 ```
 
-ad-hoc 签名无法满足 Gatekeeper 或公证要求。0.5.0 中没有 Developer ID 证书、强化运行时、公证或装订票据（stapled ticket）。macOS x64 和 arm64 是分开的构建；不生成通用二进制。
+ad-hoc 签名无法满足 Gatekeeper 或公证要求。0.6.0 中没有 Developer ID 证书、强化运行时、公证或装订票据（stapled ticket）。macOS x64 和 arm64 是分开的构建；不生成通用二进制。
 
-## Linux 0.5.0：tar.gz 安装
+## Linux 0.6.0：tar.gz 安装
 
 解压归档并运行二进制：
 
 ```sh
-tar -xzf AirGlance-0.5.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.6.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -253,7 +253,7 @@ update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 ```
 
-若要全系统安装，请使用 `/usr/local/bin/AirGlance`、`/usr/share/applications/airglance.desktop` 和 `/usr/share/icons/hicolor`。桌面入口只是声明支持的 MIME 类型，并不会让 AirGlance 成为默认查看器。0.5.0 没有 `.deb`、`.rpm`、Flatpak 或 AppImage。Linux 产物在 Ubuntu 22.04/24.04 运行器上针对相应架构构建；musl/Alpine 未测试。
+若要全系统安装，请使用 `/usr/local/bin/AirGlance`、`/usr/share/applications/airglance.desktop` 和 `/usr/share/icons/hicolor`。桌面入口只是声明支持的 MIME 类型，并不会让 AirGlance 成为默认查看器。0.6.0 没有 `.deb`、`.rpm`、Flatpak 或 AppImage。Linux 产物在 Ubuntu 22.04/24.04 运行器上针对相应架构构建；musl/Alpine 未测试。
 
 ## 用于 Microsoft Store 的 MSIX
 
@@ -261,7 +261,7 @@ MSIX 包仅用于 Microsoft Store 提交：
 
 - `AirGlance_1.0.0.0_x64.msix`
 
-Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，源码 tag 仍为 `v0.5.0`。首个 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在首次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
+Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，源码 tag 仍为 `v0.6.0`。首个 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在首次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
 
 ### 包标识和发布者
 
@@ -320,7 +320,7 @@ $appcert = Get-ChildItem `
 4. 查看 `wack-x64.xml` 和 WACK 日志。修复所有会阻止 Store 认证的失败或警告。
 
 
-`store.yml` 会对未签名包运行 WACK 作为信息性预检，并上传报告。对于未签名包，与签名相关的失败是预期之中的。有意义的 WACK 通过需要受信任的已签名包，而 0.5.0 没有记录到任何已签名包或通过的 WACK 报告。
+`store.yml` 会对未签名包运行 WACK 作为信息性预检，并上传报告。对于未签名包，与签名相关的失败是预期之中的。有意义的 WACK 通过需要受信任的已签名包，而 0.6.0 没有记录到任何已签名包或通过的 WACK 报告。
 
 ## Store 上架信息
 
@@ -361,12 +361,12 @@ AirGlance 不包含任何 HTTP 客户端、套接字、分析 SDK、崩溃上传
 发布工作流会写入名为 `SHA256SUMS.txt` 的校验和文件。它以标准 `sha256sum` 格式包含全部六个公开归档，并按文件名排序。它有意排除 MSIX 包。
 
 ```text
-<64 lowercase hex characters>  AirGlance-0.5.0-linux-arm64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.5.0-linux-x64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.5.0-osx-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.5.0-osx-x64.zip
-<64 lowercase hex characters>  AirGlance-0.5.0-win-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.5.0-win-x64.zip
+<64 lowercase hex characters>  AirGlance-0.6.0-linux-arm64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.6.0-linux-x64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.6.0-osx-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.6.0-osx-x64.zip
+<64 lowercase hex characters>  AirGlance-0.6.0-win-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.6.0-win-x64.zip
 ```
 
 已签入的工作流使用 `.txt` 后缀；它就是该发布所用的 SHA256SUMS 文件。当前工作流不会生成不带后缀的约定名称 `SHA256SUMS`。
@@ -376,11 +376,11 @@ AirGlance 不包含任何 HTTP 客户端、套接字、分析 SDK、崩溃上传
 验证下载内容：
 
 ```powershell
-Get-FileHash .\AirGlance-0.5.0-win-x64.zip -Algorithm SHA256
+Get-FileHash .\AirGlance-0.6.0-win-x64.zip -Algorithm SHA256
 ```
 
 ```sh
-shasum -a 256 AirGlance-0.5.0-osx-arm64.zip
+shasum -a 256 AirGlance-0.6.0-osx-arm64.zip
 sha256sum -c SHA256SUMS.txt
 ```
 
@@ -403,7 +403,7 @@ sha256sum -c SHA256SUMS.txt
 3. 下载恰好六个归档，并拒绝发布集合中的任何 MSIX。
 4. 对归档名称排序并写入 `SHA256SUMS.txt`。
 5. 根据 `CHANGELOG.md` 为标签版本生成发布说明，若不可用则回退到标签消息。
-6. 使用六个归档和 `SHA256SUMS.txt` 创建或更新 GitHub release `v0.5.0`。
+6. 使用六个归档和 `SHA256SUMS.txt` 创建或更新 GitHub release `v0.6.0`。
 
 `store.yml` 不向 Partner Center 提交任何内容。它构建 MSIX 文件，在存在该工具包时运行 WACK，并上传包和报告以供人工审核。在发布者被替换且包完成签名后，向 Partner Center 提交仍然是手动操作。
 
