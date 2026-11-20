@@ -1,0 +1,25 @@
+<Project>
+  <!--
+    Copies the per-RID AVIF decoder next to the executable. The native library is
+    produced by native/avif/build.ps1; it is not committed.
+  -->
+  <PropertyGroup>
+    <AirGlanceAvifRid Condition="'$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</AirGlanceAvifRid>
+    <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</AirGlanceAvifRid>
+    <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-arm64</AirGlanceAvifRid>
+    <AirGlanceAvifRid Condition="'$(AirGlanceAvifRid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</AirGlanceAvifRid>
+
+    <AirGlanceAvifNativeName Condition="$([MSBuild]::IsOSPlatform('Windows'))">airglance_avif.dll</AirGlanceAvifNativeName>
+    <AirGlanceAvifNativeName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libairglance_avif.dylib</AirGlanceAvifNativeName>
+    <AirGlanceAvifNativeName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libairglance_avif.so</AirGlanceAvifNativeName>
+    <AirGlanceAvifNativePath>$(MSBuildThisFileDirectory)native/avif/bin/$(AirGlanceAvifRid)/$(AirGlanceAvifNativeName)</AirGlanceAvifNativePath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="Exists('$(AirGlanceAvifNativePath)') and ('$(AssemblyName)' == 'AirGlance' or '$(AssemblyName)' == 'AirGlance.Core.Tests' or '$(AssemblyName)' == 'AirGlance.App.Tests')">
+    <None Include="$(AirGlanceAvifNativePath)"
+          Link="$(AirGlanceAvifNativeName)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest"
+          Visible="false" />
+  </ItemGroup>
+</Project>

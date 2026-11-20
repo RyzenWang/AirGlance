@@ -38,6 +38,39 @@ public static class ImageDecoder
 
         try
         {
+            if (SupportedFormats.IsAvif(path))
+            {
+                var avif = LibAvifDecoder.Decode(path);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (maxWidth <= 0 || maxHeight <= 0)
+                {
+                    return avif;
+                }
+
+                var avifScale = Math.Min(
+                    1.0,
+                    Math.Min((double)maxWidth / avif.SourceWidth, (double)maxHeight / avif.SourceHeight));
+                if (avifScale >= 0.99)
+                {
+                    return avif;
+                }
+
+                var avifWidth = Math.Max(1, (int)Math.Round(avif.SourceWidth * avifScale));
+                var avifHeight = Math.Max(1, (int)Math.Round(avif.SourceHeight * avifScale));
+                var avifPixels = Downscale(avif.Pixels, avif.Width, avif.Height, avifWidth, avifHeight);
+                return new DecodedBitmap(
+                    avifWidth,
+                    avifHeight,
+                    avifPixels,
+                    avif.SourceWidth,
+                    avif.SourceHeight,
+                    avifWidth / (double)avif.SourceWidth)
+                {
+                    HasAlpha = avif.HasAlpha
+                };
+            }
+
             using var stream = OpenRead(path);
             using var codec = SKCodec.Create(stream)
                 ?? throw new ImageLoadException(
@@ -209,6 +242,11 @@ public static class ImageDecoder
         IntPtr pixels = IntPtr.Zero;
         try
         {
+            if (SupportedFormats.IsAvif(path))
+            {
+                return LibAvifDecoder.DecodeRaw(path);
+            }
+
             using var stream = OpenRead(path);
             using var codec = SKCodec.Create(stream)
                 ?? throw new ImageLoadException(
@@ -327,6 +365,11 @@ public static class ImageDecoder
 
         try
         {
+            if (SupportedFormats.IsAvif(path))
+            {
+                return LibAvifDecoder.ReadMetadata(path);
+            }
+
             var file = new FileInfo(path);
             using var stream = OpenRead(path);
             using var codec = SKCodec.Create(stream)

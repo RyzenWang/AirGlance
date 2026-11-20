@@ -404,4 +404,198 @@ public sealed class ImageDecoderTests
         Assert.Equal(metadata.DisplayHeight, bitmap.Height);
         Assert.Equal(metadata.FileSizeBytes, new FileInfo(Asset("display-p3.jpg")).Length);
     }
+
+    [Fact]
+    public void Avif_is_listed_as_supported()
+    {
+        Assert.Equal(SupportedFormats.SupportsAvif, SupportedFormats.Extensions.Contains(".avif"));
+
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        Assert.True(SupportedFormats.IsSupported("image.avif"));
+        Assert.True(SupportedFormats.IsAvif("image.avif"));
+        Assert.Equal("AVIF", SupportedFormats.Describe("image.avif"));
+    }
+
+    [Fact]
+    public void Avif_native_decoder_is_available_on_windows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        Assert.True(
+            SupportedFormats.SupportsAvif,
+            "Build the Windows x64 AVIF decoder with native/avif/build.ps1 before running the tests.");
+    }
+
+    [Fact]
+    public void Avif_decodes_a_still_image()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("sample.avif"));
+        Assert.Equal(1440, metadata.RawWidth);
+        Assert.Equal(900, metadata.RawHeight);
+        Assert.Equal(1440, metadata.DisplayWidth);
+        Assert.Equal(900, metadata.DisplayHeight);
+        Assert.Equal("AVIF", metadata.FormatName);
+        Assert.Equal(8, metadata.BitDepth);
+        Assert.Equal(1, metadata.FrameCount);
+
+        var bitmap = ImageDecoder.DecodeFull(Asset("sample.avif"));
+        Assert.Equal(1440, bitmap.Width);
+        Assert.Equal(900, bitmap.Height);
+        Assert.False(bitmap.HasAlpha);
+        Assert.False(bitmap.IsProxy);
+
+        var center = Pixel(bitmap, bitmap.Width / 2, bitmap.Height / 2);
+        Assert.InRange(center.B, 133, 143);
+        Assert.InRange(center.G, 135, 145);
+        Assert.InRange(center.R, 134, 144);
+        Assert.Equal(255, center.A);
+    }
+
+    [Fact]
+    public void Avif_preview_respects_the_requested_box()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var preview = ImageDecoder.Decode(Asset("sample.avif"), 800, 600);
+
+        Assert.Equal(800, preview.Width);
+        Assert.Equal(500, preview.Height);
+        Assert.Equal(1440, preview.SourceWidth);
+        Assert.Equal(900, preview.SourceHeight);
+        Assert.Equal(800.0 / 1440.0, preview.Scale, 3);
+    }
+
+    [Fact]
+    public void Avif_alpha_is_preserved()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var bitmap = ImageDecoder.DecodeFull(Asset("alpha.avif"));
+
+        Assert.Equal(80, bitmap.Width);
+        Assert.Equal(80, bitmap.Height);
+        Assert.True(bitmap.HasAlpha);
+        Assert.Equal(0, Pixel(bitmap, 0, 0).A);
+        Assert.Equal(0, Pixel(bitmap, bitmap.Width - 1, bitmap.Height - 1).A);
+
+        var center = Pixel(bitmap, bitmap.Width / 2, bitmap.Height / 2);
+        Assert.Equal(255, center.A);
+        Assert.InRange(center.B, 245, 255);
+        Assert.InRange(center.G, 245, 255);
+        Assert.InRange(center.R, 245, 255);
+    }
+
+    [Fact]
+    public void Avif_irot_is_applied_and_bit_depth_is_reported()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("irot.avif"));
+        Assert.Equal(12, metadata.RawWidth);
+        Assert.Equal(34, metadata.RawHeight);
+        Assert.Equal(34, metadata.DisplayWidth);
+        Assert.Equal(12, metadata.DisplayHeight);
+        Assert.Equal(ImageOrientation.LeftBottom, metadata.Orientation);
+        Assert.Equal(10, metadata.BitDepth);
+
+        var bitmap = ImageDecoder.DecodeFull(Asset("irot.avif"));
+        Assert.Equal(34, bitmap.Width);
+        Assert.Equal(12, bitmap.Height);
+        Assert.True(bitmap.HasAlpha);
+
+        using var raw = ImageDecoder.DecodeFullRaw(Asset("irot.avif"));
+        Assert.Equal(12, raw.Width);
+        Assert.Equal(34, raw.Height);
+        Assert.Equal(34, raw.SourceWidth);
+        Assert.Equal(12, raw.SourceHeight);
+        Assert.Equal(ImageOrientation.LeftBottom, raw.Orientation);
+        Assert.True(raw.HasAlpha);
+        Assert.False(raw.IsDisposed);
+    }
+
+    [Fact]
+    public void Avif_icc_and_exif_are_read()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("icc-exif.avif"));
+
+        Assert.NotNull(metadata.IccDescription);
+        Assert.Contains("sRGB", metadata.IccDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.False(metadata.IccAppliedToPixels);
+        Assert.DoesNotContain("→", metadata.ColorSpaceDisplay);
+        Assert.Equal("Google Pixel 4a", metadata.Exif.Camera);
+        Assert.Equal(1, metadata.Exif.Orientation);
+    }
+
+    [Fact]
+    public void Avif_animation_uses_the_first_frame()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("animated.avif"));
+        Assert.Equal(150, metadata.DisplayWidth);
+        Assert.Equal(150, metadata.DisplayHeight);
+        Assert.Equal(1, metadata.FrameCount);
+        Assert.False(metadata.IsAnimated);
+
+        var bitmap = ImageDecoder.DecodeFull(Asset("animated.avif"));
+        Assert.Equal(150, bitmap.Width);
+        Assert.Equal(150, bitmap.Height);
+    }
+
+    [Fact]
+    public void Avif_one_pixel_image_decodes()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var bitmap = ImageDecoder.DecodeFull(Asset("white-1x1.avif"));
+        Assert.Equal(1, bitmap.Width);
+        Assert.Equal(1, bitmap.Height);
+        Assert.InRange(Pixel(bitmap, 0, 0).B, 245, 255);
+    }
+
+    [Fact]
+    public void Avif_corrupt_file_reports_corrupt()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var exception = Assert.Throws<ImageLoadException>(
+            () => ImageDecoder.DecodeFull(Asset("corrupt.avif")));
+
+        Assert.Equal(ImageLoadFailure.Corrupt, exception.Failure);
+    }
 }

@@ -25,3 +25,8 @@ TestResults/
 
 # Logs
 *.log
+
+# Native AVIF build output (build with native/avif/build.ps1)
+native/avif/bin/
+native/avif/.cache/
+native/avif/tools/

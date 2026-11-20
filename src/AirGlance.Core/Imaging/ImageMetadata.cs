@@ -35,6 +35,12 @@ public sealed class ImageMetadata
     /// <summary>Description of the embedded ICC profile, or null when the file has none.</summary>
     public string? IccDescription { get; init; }
 
+    /// <summary>
+    /// False when the decoded pixels stay in the source colour space. The profile is
+    /// still shown, but the viewer must not claim a conversion it did not perform.
+    /// </summary>
+    public bool IccAppliedToPixels { get; init; } = true;
+
     public ExifDetails Exif { get; init; } = ExifDetails.Empty;
 
     public bool HasIccProfile => !string.IsNullOrWhiteSpace(IccDescription);
@@ -43,7 +49,9 @@ public sealed class ImageMetadata
     public string ColorSpaceDisplay =>
         !HasIccProfile || IccDescription!.Contains("sRGB", StringComparison.OrdinalIgnoreCase)
             ? "sRGB"
-            : $"{IccDescription} → sRGB";
+            : IccAppliedToPixels
+                ? $"{IccDescription} → sRGB"
+                : IccDescription!;
 
     public double Megapixels => DisplayWidth * (double)DisplayHeight / 1_000_000d;
 }

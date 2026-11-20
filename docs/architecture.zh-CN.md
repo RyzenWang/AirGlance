@@ -14,6 +14,7 @@ AirGlance 0.5.0 是一款桌面图像查看器。它一次打开一个文件夹�
 | SkiaSharp | 4.150.1 | 图像解码与编码 |
 | Svg.Skia | 5.2.3 | SVG 解析与光栅化 |
 | BitMiracle.LibTiff.NET | 2.4.660 | TIFF 第一页解码 |
+| libavif + dav1d | 1.4.2 / 1.5.5 | Windows x64 上通过随包原生 shim 解码 AVIF |
 | NativeAOT | .NET 10 | 在 Windows、macOS 和 Linux 上的发布 |
 
 SkiaSharp 3.x 系列已被取代。4.150.1 是能够在 Windows、macOS 和 Linux 上与 Avalonia 11.3.22 的原生资产图统一的版本。所有项目都使用 `Directory.Packages.props` 中的版本；不要把 3.x 的 SkiaSharp 包混入该依赖图。
@@ -46,7 +47,7 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 `src/AirGlance.Core/Files`
 
-- `SupportedFormats` 是扩展名的准入门槛：`.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.svg`、`.tif`、`.tiff`。扩展名检查不区分大小写。当无法询问编解码器时，`Describe` 会提供一个格式标签。
+- `SupportedFormats` 是扩展名的准入门槛：`.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.avif`、`.bmp`、`.gif`、`.ico`、`.svg`、`.tif`、`.tiff`。扩展名检查不区分大小写。当无法询问编解码器时，`Describe` 会提供一个格式标签。只有对应 RID 的原生解码器存在时（`SupportsAvif`）才会列出 `.avif`；没有原生库的构建会隐藏该格式，而不是宣称支持一个打不开的扩展名。
 - `NaturalStringComparer` 按数值比较连续数字，因此 `img2.jpg` 排在 `img10.jpg` 之前。数值相同但前导零更少的排在前面；其余并列项用序数比较打破平局。`NaturalPathComparer` 按文件名对完整路径排序。
 - `FolderScanner.EnumerateImages` 只列出一个文件夹，不递归。隐藏文件和系统文件会被跳过，无法访问的条目会被忽略，只保留受支持的扩展名，结果按自然顺序排序。降序会反转该列表。
 - `ImageSourceResolver` 将路径转换为一个文件夹、一个文件列表和一个索引。文件会在其所在文件夹中选中自身；文件夹从它的第一张图像开始。直接打开的隐藏文件即使被扫描跳过，仍会单独打开。对于直接打开的文件，如果文件夹扫描失败，则回退到该单个文件。
@@ -57,13 +58,14 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 `src/AirGlance.Core/Imaging`
 
-- `ImageDecoder` 是位图解码路径。它使用 `FileShare.ReadWrite | FileShare.Delete` 打开文件，创建 `SKCodec`，读取 `SKCodec.EncodedOrigin`，并将报告的 EXIF 方向（1–8）应用到解码后的像素。对于预览，它向 `SKCodec.GetScaledDimensions` 请求一个屏幕尺寸的解码，然后如果最近的编解码器档位看起来会发虚，就把缩放提高一档或更多。像素被解码到一个 8 位 BGRA、预乘、使用 sRGB `SKImageInfo` 的缓冲区中；Skia 在该解码过程中会把内嵌的 ICC 配置文件转换为 sRGB。结果是带有源尺寸、解码缩放和 alpha 能力的 `DecodedBitmap`。
+- `ImageDecoder` 是位图解码路径。它使用 `FileShare.ReadWrite | FileShare.Delete` 打开文件，创建 `SKCodec`，读取 `SKCodec.EncodedOrigin`，并将报告的 EXIF 方向（1–8）应用到解码后的像素。对于预览，它向 `SKCodec.GetScaledDimensions` 请求一个屏幕尺寸的解码，然后如果最近的编解码器档位看起来会发虚，就把缩放提高一档或更多。像素被解码到一个 8 位 BGRA、预乘、使用 sRGB `SKImageInfo` 的缓冲区中；Skia 在该解码过程中会把内嵌的 ICC 配置文件转换为 sRGB。结果是带有源尺寸、解码缩放和 alpha 能力的 `DecodedBitmap`。AVIF 绕过 `SKCodec` 走 `LibAvifDecoder`：解第一帧为预乘 BGRA，应用 `irot`/`imir` 或 EXIF 方向，然后复用 PNG 忽略缩放时的同一套预览降采样。
 - SVG 文件使用单独的分支，把 `SKSvg` 图片渲染成相同形状的 `DecodedBitmap`。
 - TIFF 通过 LibTiff.NET 读取第一页，把 RGBA 光栅转换为 BGRA，应用 TIFF 方向标签，并把原始方向传给瓦片写入器。
 - `ImageDecoder.DecodeAnimation` 逐帧解码 GIF，按帧处置和混合规则合成到同一画布，并返回带每帧延迟的 `DecodedAnimation`。播放由查看器负责；解码器把总帧内存限制在 2400 万像素。
 - `DecodedBitmap` 携带像素缓冲区、stride、方向应用后的源宽/高、解码缩放和 `HasAlpha`。当缩放至少为 0.999 时，`IsFullResolution` 为 true。
 
 - `ImageDecoder.DecodeFullRaw` 是瓦片缓存的解码路径。它解码到非托管内存（`NativeMemory.Alloc`），而不是托管的 `byte[]`，因此 100 MP 的缓冲区可以在瓦片文件写入后立即释放。它返回带有原始尺寸、方向应用后的源尺寸、EXIF 方向和 alpha 能力的 `DecodedImageBuffer`；它不执行方向拷贝。
+- `LibAvifDecoder`（Windows x64）是 AVIF 桥接层。它通过 `LibraryImport` 调用 `airglance_avif.dll`，用 libavif 解析元数据，把第一帧解成调用方内存中的预乘 BGRA，应用 `clap` 裁剪，把 `irot`/`imir` 映射到现有的 `ImageOrientation`（缺失时回退 EXIF 方向），并限制解码像素量。原生 shim 用静态 CRT 静态链接 libavif 和 dav1d；DLL 由 `Directory.Build.targets` 复制到可执行文件旁，不提交到 git。
 - `TiledImageSource`（App）将 512 px 的瓦片写入一个以临时文件为后端的缓存。每个瓦片是 512 × 512 的 BGRA，补齐到固定大小；最后一行/列是部分瓦片。方向和显示编辑在拷贝进瓦片时应用，因此不存在完整的已定向或已编辑中间缓冲区。瓦片文件在释放时删除；超过一天的文件会在启动时清理。只缓存 32 个瓦片位图，查看器绘制与视口相交的瓦片。
 - 对于忽略所请求预览缩放的编解码器（尤其是 PNG），`ImageDecoder.Decode` 会在软件中对解码后的缓冲区降采样，以免适配预览保留整张图像。降采样采用最近邻，且仅在编解码器返回其完整尺寸时使用。
 - `ImageTransform` 包含 EXIF 方向像素映射和显示编辑。`EditTransform` 存储一个规范状态：先镜像，再进行若干次顺时针四分之一圈旋转。任意顺序的旋转和翻转命令都会归约为八种状态。旋转或翻转会分配新的像素缓冲区，并在轴交换时更新源尺寸。

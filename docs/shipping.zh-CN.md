@@ -53,6 +53,7 @@ macOS 和 arm64 归档仍然会发布，因为它们在测试中有用；但在�
   - Windows：Visual Studio 2022 的 C++ 桌面工作负载和一个 Windows SDK。
   - macOS：Xcode 命令行工具。`pack.sh` 还会使用 `/usr/libexec/PlistBuddy` 和 `ditto`。
   - Linux：clang、zlib，以及目标发行版上 .NET NativeAOT 所需的本机依赖。除非将全球化设置为固定区域性（invariant），否则需要 ICU；AirGlance 尚未改为固定区域性全球化。
+- Windows x64 的 AVIF 解码器：CMake 和 Ninja（来自 Visual Studio）、Python 3 + Meson 1.7.2（`python -m pip install --user meson==1.7.2`）以及 NASM。`native/avif/build.ps1` 会下载并校验 libavif 1.4.2 / dav1d 1.5.5，构建 `airglance_avif.dll`。`pack.ps1` 为 `win-x64` 自动调用它；没有 NASM 时 dav1d 不带 x86 SIMD。
 - `Directory.Packages.props` 中的包版本。SkiaSharp 4.150.1 和 Avalonia 11.3.22 共用一套本机资产依赖图；不要把其中任何一个替换为 3.x 的 SkiaSharp 包。
 - 用于 Store 打包：带有 `MakeAppx.exe`、`signtool.exe` 和 Windows App Certification Kit 的 Windows 10/11 SDK。
 - 用于手动冒烟测试的显示器。构建和打包步骤是无头的，但启动应用不是。Linux 冒烟测试需要 X11/Wayland 或 Xvfb。
@@ -96,12 +97,15 @@ macOS 或 Linux，在匹配的主机上：
 
 ```text
 AirGlance.exe
+airglance_avif.dll
 av_libglesv2.dll
 libHarfBuzzSharp.dll
 libSkiaSharp.dll
 LICENSE
 THIRD-PARTY-NOTICES.md
 ```
+
+`win-x64` 包含 `airglance_avif.dll`；`win-arm64` 尚未构建 AVIF 解码器，会隐藏 `.avif`。
 
 归档根目录下是 `AirGlance.exe`。它不包含 `README.md`，但 MIT 许可证和第三方声明随二进制一同提供。
 macOS 应用包将它们放在 `Contents/Resources` 中；
@@ -276,7 +280,7 @@ Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，�
 - `TargetDeviceFamily` 为 `Windows.Desktop`，`MinVersion="10.0.19041.0"`，`MaxVersionTested="10.0.26100.0"`；
 - `Application`，其 `Executable="AirGlance.exe"`，`EntryPoint="Windows.FullTrustApplication"`；
 - `runFullTrust` 受限功能；
-- 对 `.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.bmp`、`.gif`、`.ico`、`.tif`、`.tiff` 和 `.svg` 的文件关联；
+- 对 `.jpg`、`.jpeg`、`.jfif`、`.png`、`.webp`、`.avif`、`.bmp`、`.gif`、`.ico`、`.tif`、`.tiff` 和 `.svg` 的文件关联；
 - 来自 `packaging/msix/Assets` 的包、磁贴和 Store 徽标。
 
 清单不请求网络功能。它也没有遥测组件。
