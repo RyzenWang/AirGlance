@@ -249,6 +249,13 @@ public sealed class TiffRegionReader : IDisposable
 
     private void ReadTiled(int x, int y, int width, int height, byte[] destination)
     {
+        if (_rawLayout is RegionRawLayout.RgbPlanar8 or RegionRawLayout.RgbPlanar16 or
+            RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or RegionRawLayout.RgbaPlanar16)
+        {
+            ReadSingleStripStreaming(x, y, width, height, destination);
+            return;
+        }
+
         if (_rawLayout != RegionRawLayout.None)
         {
             ReadTiledRaw(x, y, width, height, destination);
@@ -564,6 +571,116 @@ public sealed class TiffRegionReader : IDisposable
         }
     }
 
+    private void WritePlanarTiledCache(FileStream cache, CancellationToken cancellationToken)
+    {
+        var tileWidth = TagInt(_image, TiffTag.TILEWIDTH);
+        var tileHeight = TagInt(_image, TiffTag.TILELENGTH);
+        var tileSize = _image.TileSize();
+        if (tileWidth <= 0 || tileHeight <= 0 || tileSize <= 0 || tileSize > MaximumStripRasterBytes)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.TooLarge,
+                "The planar TIFF tile is too large for region reading.",
+                _path,
+                Path.GetExtension(_path));
+        }
+
+        var wide = _rawLayout is RegionRawLayout.RgbPlanar16 or RegionRawLayout.RgbaPlanar16;
+        var bytesPerSample = wide ? 2 : 1;
+        var planeCount = _rawLayout is RegionRawLayout.CmykPlanar8 or RegionRawLayout.RgbaPlanar8 or
+            RegionRawLayout.RgbaPlanar16
+            ? 4
+            : 3;
+        var planes = new byte[planeCount][];
+        for (var plane = 0; plane < planeCount; plane++)
+        {
+            planes[plane] = new byte[tileSize];
+        }
+
+        var across = (PixelWidth + tileWidth - 1) / tileWidth;
+        var tilesPerPlane = across * ((PixelHeight + tileHeight - 1) / tileHeight);
+        var band = new byte[tileHeight * PixelWidth * 4];
+        var reportEvery = Math.Max(1, PixelHeight / 100);
+        var rowsWritten = 0;
+        for (var tileY = 0; tileY < PixelHeight; tileY += tileHeight)
+        {
+            Array.Clear(band);
+            var rows = Math.Min(tileHeight, PixelHeight - tileY);
+            for (var tileX = 0; tileX < PixelWidth; tileX += tileWidth)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var tileIndex = (tileY / tileHeight) * across + tileX / tileWidth;
+                for (var plane = 0; plane < planeCount; plane++)
+                {
+                    if (_image.ReadEncodedTile(plane * tilesPerPlane + tileIndex, planes[plane], 0, tileSize) <= 0)
+                    {
+                        throw new ImageLoadException(
+                            ImageLoadFailure.Corrupt,
+                            "The planar TIFF tile could not be decoded.",
+                            _path,
+                            Path.GetExtension(_path));
+                    }
+                }
+
+                var columns = Math.Min(tileWidth, PixelWidth - tileX);
+                for (var localY = 0; localY < rows; localY++)
+                {
+                    for (var localX = 0; localX < columns; localX++)
+                    {
+                        var sampleOffset = (localY * tileWidth + localX) * bytesPerSample;
+                        byte red;
+                        byte green;
+                        byte blue;
+                        byte alpha = 255;
+                        if (wide)
+                        {
+                            red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                            green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                            blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                            if (_rawLayout == RegionRawLayout.RgbaPlanar16)
+                            {
+                                alpha = (byte)(ReadUInt16Native(planes[3], sampleOffset) >> 8);
+                            }
+                        }
+                        else if (_rawLayout == RegionRawLayout.CmykPlanar8)
+                        {
+                            red = (byte)(255 - Math.Min(255, planes[0][sampleOffset] + planes[3][sampleOffset]));
+                            green = (byte)(255 - Math.Min(255, planes[1][sampleOffset] + planes[3][sampleOffset]));
+                            blue = (byte)(255 - Math.Min(255, planes[2][sampleOffset] + planes[3][sampleOffset]));
+                        }
+                        else if (_rawLayout == RegionRawLayout.RgbaPlanar8)
+                        {
+                            alpha = planes[3][sampleOffset];
+                            red = planes[0][sampleOffset];
+                            green = planes[1][sampleOffset];
+                            blue = planes[2][sampleOffset];
+                        }
+                        else
+                        {
+                            red = planes[0][sampleOffset];
+                            green = planes[1][sampleOffset];
+                            blue = planes[2][sampleOffset];
+                        }
+
+                        WriteBgra(
+                            band,
+                            (localY * PixelWidth + tileX + localX) * 4,
+                            alpha == 255
+                                ? Opaque(red, green, blue)
+                                : PremultipliedBgra(red, green, blue, alpha));
+                    }
+                }
+            }
+
+            cache.Write(band, 0, rows * PixelWidth * 4);
+            rowsWritten += rows;
+            if (rowsWritten % reportEvery == 0 || rowsWritten == PixelHeight)
+            {
+                CacheProgressChanged?.Invoke(rowsWritten / (double)PixelHeight);
+            }
+        }
+    }
+
     private FileStream EnsurePlanarCache(CancellationToken cancellationToken = default)
     {
         if (_streamCache is not null)
@@ -583,6 +700,15 @@ public sealed class TiffRegionReader : IDisposable
             FileOptions.RandomAccess | FileOptions.DeleteOnClose);
         try
         {
+            if (_image.IsTiled())
+            {
+                WritePlanarTiledCache(cache, cancellationToken);
+                cache.Flush();
+                CacheProgressChanged?.Invoke(1);
+                _streamCache = cache;
+                return cache;
+            }
+
             var rowsPerStrip = TagLong(_image, TiffTag.ROWSPERSTRIP);
             if (rowsPerStrip <= 0 || rowsPerStrip > PixelHeight)
             {
@@ -1313,7 +1439,7 @@ public sealed class TiffRegionReader : IDisposable
         {
             var planarCompression = TagInt(image, TiffTag.COMPRESSION);
             var planarPhoto = TagInt(image, TiffTag.PHOTOMETRIC);
-            if (planarCompression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
+            if (planarCompression is 1 or 5 or 8 or 32946 or 32773)
             {
                 if (bits == 8 && samples == 3 && planarPhoto == 2)
                 {

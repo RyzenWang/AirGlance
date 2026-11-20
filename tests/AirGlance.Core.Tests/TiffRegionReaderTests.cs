@@ -479,6 +479,23 @@ public sealed class TiffRegionReaderTests
         Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
     }
 
+    [Fact]
+    public void Region_reader_streams_tiled_planar_rgb()
+    {
+        using var reader = TiffRegionReader.Open(Asset("planar-tiled-rgb.tif"));
+        Assert.True(reader.RequiresStreamingCache);
+        reader.Prepare();
+
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+    }
+
     [Theory]
     [InlineData("planar16-rgb.tif")]
     [InlineData("planar-cmyk.tif")]

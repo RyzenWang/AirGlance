@@ -64,9 +64,11 @@
 29. planar 8-bit CMYK 四象限颜色正确；
 30. planar 16-bit RGBA alpha（255/156）正确；
 31. float16 RGB 四象限颜色正确；
-32. signed 16-bit RGB 四象限颜色正确。
+32. signed 16-bit RGB 四象限颜色正确；
+33. tiled planar 8-bit RGB 四象限颜色正确；
+34. planar 16-bit RGBA alpha（255/156）正确。
 
-结果：Core 177 passed，App 35 passed。
+结果：Core 179 passed，App 35 passed。
 
 ### 大文件基准
 
