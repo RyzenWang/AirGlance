@@ -403,6 +403,51 @@ public sealed class TiffRegionReaderTests
     }
 
     [Fact]
+    public void Region_reader_decodes_16bit_palette_quadrants()
+    {
+        using var reader = TiffRegionReader.Open(Asset("palette16-quadrants.tif"));
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+    }
+
+    [Fact]
+    public void Region_reader_decodes_float32_quadrants()
+    {
+        using var reader = TiffRegionReader.Open(Asset("float32-quadrants.tif"));
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+    }
+
+    [Fact]
+    public void Region_reader_streams_planar_rgb()
+    {
+        using var reader = TiffRegionReader.Open(Asset("planar-rgb.tif"));
+        Assert.True(reader.RequiresStreamingCache);
+        reader.Prepare();
+
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+    }
+
+    [Fact]
     public void Region_reader_preserves_alpha_for_16bit_rgba_quadrants()
     {
         using var reader = TiffRegionReader.Open(Asset("rgba16-quadrants.tif"));

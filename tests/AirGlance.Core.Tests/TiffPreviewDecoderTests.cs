@@ -460,6 +460,42 @@ public sealed class TiffPreviewDecoderTests
     }
 
     [Fact]
+    public void Preview_decodes_16bit_palette_quadrants()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "palette16-quadrants.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
+    [Fact]
+    public void Preview_decodes_float32_quadrants()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "float32-quadrants.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
+    [Fact]
+    public void Preview_decodes_planar_rgb_quadrants()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "planar-rgb.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
+    [Fact]
     public void Preview_preserves_alpha_for_16bit_rgba_quadrants()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Assets", "rgba16-quadrants.tif");

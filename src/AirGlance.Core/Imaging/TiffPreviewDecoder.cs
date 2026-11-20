@@ -207,6 +207,21 @@ public static class TiffPreviewDecoder
         CancellationToken cancellationToken)
     {
         var format = GetRawFormat(image);
+        if (!image.IsTiled() && format.Layout == RawLayout.RgbPlanar8)
+        {
+            DecodeStrippedPlanar(
+                image,
+                path,
+                decodeWidth,
+                decodeHeight,
+                targetWidth,
+                targetHeight,
+                sampleScale,
+                pixels,
+                cancellationToken);
+            return;
+        }
+
         if (!image.IsTiled() && format.Layout == RawLayout.YCbCrSub8)
         {
             DecodeStrippedYCbCrSubsampled(
@@ -1492,6 +1507,75 @@ public static class TiffPreviewDecoder
         return [];
     }
 
+    private static void DecodeStrippedPlanar(
+        Tiff image,
+        string path,
+        int width,
+        int height,
+        int targetWidth,
+        int targetHeight,
+        double scale,
+        byte[] pixels,
+        CancellationToken cancellationToken)
+    {
+        var rowsPerStrip = TagLong(image, TiffTag.ROWSPERSTRIP);
+        if (rowsPerStrip <= 0 || rowsPerStrip > height)
+        {
+            rowsPerStrip = height;
+        }
+
+        var stripsPerPlane = (height + (int)rowsPerStrip - 1) / (int)rowsPerStrip;
+        var planeSize = checked(width * (int)rowsPerStrip);
+        if (planeSize > MaximumRasterBytes)
+        {
+            throw Corrupt(path, "The planar TIFF strip is too large.");
+        }
+
+        var redPlane = new byte[planeSize];
+        var greenPlane = new byte[planeSize];
+        var bluePlane = new byte[planeSize];
+        var step = SampleStep(scale);
+        for (var strip = 0; strip < stripsPerPlane; strip++)
+        {
+            var stripRow = strip * (int)rowsPerStrip;
+            var rows = Math.Min((int)rowsPerStrip, height - stripRow);
+            var read = image.ReadEncodedStrip(strip, redPlane, 0, planeSize);
+            var greenRead = image.ReadEncodedStrip(stripsPerPlane + strip, greenPlane, 0, planeSize);
+            var blueRead = image.ReadEncodedStrip(2 * stripsPerPlane + strip, bluePlane, 0, planeSize);
+            if (read <= 0 || greenRead <= 0 || blueRead <= 0)
+            {
+                throw Corrupt(path, "The planar TIFF strip could not be decoded.");
+            }
+
+            for (var localRow = 0; localRow < rows; localRow++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var sourceY = stripRow + localRow;
+                if (sourceY % step != 0)
+                {
+                    continue;
+                }
+
+                var rowOffset = localRow * width;
+                for (var sourceX = 0; sourceX < width; sourceX += step)
+                {
+                    WriteScaled(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        Opaque(
+                            redPlane[rowOffset + sourceX],
+                            greenPlane[rowOffset + sourceX],
+                            bluePlane[rowOffset + sourceX]));
+                }
+            }
+        }
+    }
+
     private static void DecodeStrippedYCbCrSubsampled(
         Tiff image,
         string path,
@@ -1687,6 +1771,17 @@ public static class TiffPreviewDecoder
         }
     }
 
+    private static float ReadSingleNative(byte[] source, int offset)
+    {
+        var bits = BitConverter.IsLittleEndian
+            ? BinaryPrimitives.ReadInt32LittleEndian(source.AsSpan(offset, 4))
+            : BinaryPrimitives.ReadInt32BigEndian(source.AsSpan(offset, 4));
+        return BitConverter.Int32BitsToSingle(bits);
+    }
+
+    private static byte FromFloat(float value) =>
+        (byte)Math.Clamp((int)MathF.Round(value * 255f), 0, 255);
+
     private static ushort ReadUInt16Native(byte[] row, int offset)
     {
         // LibTiff returns 16-bit scanline samples in the machine byte order.
@@ -1701,8 +1796,12 @@ public static class TiffPreviewDecoder
             RawLayout.None => 0,
             RawLayout.Rgb => 3,
             RawLayout.Rgb16 => 6,
+            RawLayout.RgbPlanar8 => 3,
             RawLayout.Cmyk8 or RawLayout.Rgba8 => 4,
             RawLayout.Rgba16 => 8,
+            RawLayout.Float32Gray or RawLayout.Float32GrayInverted => 4,
+            RawLayout.Float32Rgb => 12,
+            RawLayout.Palette16 => 2,
             RawLayout.Rgb or RawLayout.YCbCr8 => 3,
             RawLayout.Gray or RawLayout.GrayInverted or RawLayout.Palette8 => 1,
             _ => 2
@@ -1740,6 +1839,17 @@ public static class TiffPreviewDecoder
                     (byte)(ReadUInt16Native(source, offset + 2) >> 8),
                     (byte)(ReadUInt16Native(source, offset + 4) >> 8),
                     (byte)(ReadUInt16Native(source, offset + 6) >> 8));
+            case RawLayout.Float32Gray:
+                var grayFloat = FromFloat(ReadSingleNative(source, offset));
+                return Opaque(grayFloat, grayFloat, grayFloat);
+            case RawLayout.Float32GrayInverted:
+                var invertedFloat = (byte)(255 - FromFloat(ReadSingleNative(source, offset)));
+                return Opaque(invertedFloat, invertedFloat, invertedFloat);
+            case RawLayout.Float32Rgb:
+                return Opaque(
+                    FromFloat(ReadSingleNative(source, offset)),
+                    FromFloat(ReadSingleNative(source, offset + 4)),
+                    FromFloat(ReadSingleNative(source, offset + 8)));
             case RawLayout.Palette8:
                 var palette = format.Palette!;
                 var index = source[offset];
@@ -1747,6 +1857,13 @@ public static class TiffPreviewDecoder
                     (byte)(palette[index] >> 8),
                     (byte)(palette[256 + index] >> 8),
                     (byte)(palette[512 + index] >> 8));
+            case RawLayout.Palette16:
+                var palette16 = format.Palette!;
+                var index16 = ReadUInt16Native(source, offset);
+                return Opaque(
+                    (byte)(palette16[index16] >> 8),
+                    (byte)(palette16[65536 + index16] >> 8),
+                    (byte)(palette16[131072 + index16] >> 8));
             case RawLayout.YCbCr8:
                 return FromYCbCr(source[offset], source[offset + 1], source[offset + 2]);
             case RawLayout.Gray:
@@ -1869,7 +1986,7 @@ public static class TiffPreviewDecoder
     private static RawFormat GetRawFormat(Tiff image)
     {
         var bits = TagInt(image, TiffTag.BITSPERSAMPLE);
-        if (bits is not (8 or 16))
+        if (bits is not (8 or 16 or 32))
         {
             return default;
         }
@@ -1881,6 +1998,18 @@ public static class TiffPreviewDecoder
         }
 
         var planar = TagInt(image, TiffTag.PLANARCONFIG);
+        if (planar == 2)
+        {
+            var planarCompression = TagInt(image, TiffTag.COMPRESSION);
+            if (bits == 8 && samples == 3 && TagInt(image, TiffTag.PHOTOMETRIC) == 2 &&
+                planarCompression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
+            {
+                return new RawFormat(RawLayout.RgbPlanar8, null);
+            }
+
+            return default;
+        }
+
         if (planar is not (0 or 1))
         {
             return default;
@@ -1902,6 +2031,24 @@ public static class TiffPreviewDecoder
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 32 && TagInt(image, TiffTag.SAMPLEFORMAT) == 3 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return new RawFormat(RawLayout.Float32Rgb, null);
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return new RawFormat(RawLayout.Float32Gray, null);
+            }
+
+            if (samples == 1 && photometric == 0)
+            {
+                return new RawFormat(RawLayout.Float32GrayInverted, null);
+            }
+        }
+
         if (bits == 8 && samples == 3 && photometric == 6 &&
             compression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
         {
@@ -1935,6 +2082,17 @@ public static class TiffPreviewDecoder
             if (palette is { Length: >= 768 })
             {
                 return new RawFormat(RawLayout.Palette8, palette);
+            }
+
+            return default;
+        }
+
+        if (bits == 16 && samples == 1 && photometric == 3 && compression != 7)
+        {
+            var palette = ReadColorMap(image);
+            if (palette is { Length: >= 3 * 65536 })
+            {
+                return new RawFormat(RawLayout.Palette16, palette);
             }
 
             return default;
@@ -1977,13 +2135,26 @@ public static class TiffPreviewDecoder
             return null;
         }
 
+        var parts = new List<ushort[]>();
         foreach (var value in field)
         {
             switch (value.Value)
             {
-                case ushort[] map when map.Length >= 768:
-                    return map;
-                case int[] ints when ints.Length >= 768:
+                case ushort[] bytes:
+                    parts.Add(bytes);
+                    break;
+                case short[] shorts:
+                {
+                    var map = new ushort[shorts.Length];
+                    for (var index = 0; index < shorts.Length; index++)
+                    {
+                        map[index] = unchecked((ushort)shorts[index]);
+                    }
+
+                    parts.Add(map);
+                    break;
+                }
+                case int[] ints:
                 {
                     var map = new ushort[ints.Length];
                     for (var index = 0; index < ints.Length; index++)
@@ -1991,12 +2162,25 @@ public static class TiffPreviewDecoder
                         map[index] = (ushort)Math.Clamp(ints[index], 0, ushort.MaxValue);
                     }
 
-                    return map;
+                    parts.Add(map);
+                    break;
                 }
             }
         }
 
-        return null;
+        if (parts.Count >= 3)
+        {
+            var length = Math.Min(parts[0].Length, Math.Min(parts[1].Length, parts[2].Length));
+            var combined = new ushort[3 * length];
+            for (var channel = 0; channel < 3; channel++)
+            {
+                Array.Copy(parts[channel], 0, combined, channel * length, length);
+            }
+
+            return combined;
+        }
+
+        return parts.Count == 1 ? parts[0] : null;
     }
 
     private readonly record struct RawFormat(
@@ -2010,10 +2194,15 @@ public static class TiffPreviewDecoder
         None,
         Rgb,
         Rgb16,
+        RgbPlanar8,
         Cmyk8,
         Rgba8,
         Rgba16,
+        Float32Gray,
+        Float32GrayInverted,
+        Float32Rgb,
         Palette8,
+        Palette16,
         YCbCr8,
         YCbCrSub8,
         Gray,
