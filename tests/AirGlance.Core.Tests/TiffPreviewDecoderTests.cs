@@ -483,6 +483,20 @@ public sealed class TiffPreviewDecoderTests
         Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
     }
 
+    [Theory]
+    [InlineData("planar16-rgb.tif")]
+    [InlineData("planar-cmyk.tif")]
+    public void Preview_decodes_planar_16bit_and_cmyk(string name)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
     [Fact]
     public void Preview_decodes_planar_rgb_quadrants()
     {

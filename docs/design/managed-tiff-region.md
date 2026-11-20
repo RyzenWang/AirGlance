@@ -59,9 +59,11 @@
 24. 16-bit RGBA 四象限颜色和 alpha（255/156）正确；
 25. planar 8-bit RGB 四象限颜色正确；
 26. float32 RGB 四象限颜色正确；
-27. 16-bit palette 四象限颜色正确。
+27. 16-bit palette 四象限颜色正确；
+28. planar 16-bit RGB 四象限颜色正确；
+29. planar 8-bit CMYK 四象限颜色正确。
 
-结果：Core 167 passed，App 35 passed。
+结果：Core 171 passed，App 35 passed。
 
 ### 大文件基准
 
@@ -106,7 +108,7 @@ tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-stri
 - LZW + predictor；
 - 8-bit RGB、RGBA alpha；
 - 16-bit RGB/gray 的 raw tile/strip；
-- 8-bit CMYK（含 CMYK JPEG）、8/16-bit RGBA、palette（8/16-bit）、RGB/YCbCr JPEG、非 JPEG 1×1 YCbCr、未压缩及 LZW/Deflate 压缩的 subsampled YCbCr、planar 8-bit RGB、float32 RGB/gray 的 raw tile/strip；
+- 8-bit CMYK（含 CMYK JPEG）、8/16-bit RGBA、palette（8/16-bit）、RGB/YCbCr JPEG、非 JPEG 1×1 YCbCr、未压缩及 LZW/Deflate 压缩的 subsampled YCbCr、planar RGB 8/16-bit、planar CMYK 8-bit、float32 RGB/gray 的 raw tile/strip；
 - orientation tag（按原始存储方向输出）；
 - 边缘 tile / 不完整末条；
 - BigTIFF 容器（LibTiff.NET 2.4.660 支持）。

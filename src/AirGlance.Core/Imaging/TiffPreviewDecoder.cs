@@ -207,7 +207,8 @@ public static class TiffPreviewDecoder
         CancellationToken cancellationToken)
     {
         var format = GetRawFormat(image);
-        if (!image.IsTiled() && format.Layout == RawLayout.RgbPlanar8)
+        if (!image.IsTiled() && format.Layout is RawLayout.RgbPlanar8 or RawLayout.RgbPlanar16 or
+            RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8)
         {
             DecodeStrippedPlanar(
                 image,
@@ -217,6 +218,7 @@ public static class TiffPreviewDecoder
                 targetWidth,
                 targetHeight,
                 sampleScale,
+                format,
                 pixels,
                 cancellationToken);
             return;
@@ -1515,6 +1517,7 @@ public static class TiffPreviewDecoder
         int targetWidth,
         int targetHeight,
         double scale,
+        RawFormat format,
         byte[] pixels,
         CancellationToken cancellationToken)
     {
@@ -1525,26 +1528,32 @@ public static class TiffPreviewDecoder
         }
 
         var stripsPerPlane = (height + (int)rowsPerStrip - 1) / (int)rowsPerStrip;
-        var planeSize = checked(width * (int)rowsPerStrip);
+        var wide = format.Layout == RawLayout.RgbPlanar16;
+        var bytesPerSample = wide ? 2 : 1;
+        var planeSize = checked(width * (int)rowsPerStrip * bytesPerSample);
         if (planeSize > MaximumRasterBytes)
         {
             throw Corrupt(path, "The planar TIFF strip is too large.");
         }
 
-        var redPlane = new byte[planeSize];
-        var greenPlane = new byte[planeSize];
-        var bluePlane = new byte[planeSize];
+        var planeCount = format.Layout is RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 ? 4 : 3;
+        var planes = new byte[planeCount][];
+        for (var plane = 0; plane < planeCount; plane++)
+        {
+            planes[plane] = new byte[planeSize];
+        }
+
         var step = SampleStep(scale);
         for (var strip = 0; strip < stripsPerPlane; strip++)
         {
             var stripRow = strip * (int)rowsPerStrip;
             var rows = Math.Min((int)rowsPerStrip, height - stripRow);
-            var read = image.ReadEncodedStrip(strip, redPlane, 0, planeSize);
-            var greenRead = image.ReadEncodedStrip(stripsPerPlane + strip, greenPlane, 0, planeSize);
-            var blueRead = image.ReadEncodedStrip(2 * stripsPerPlane + strip, bluePlane, 0, planeSize);
-            if (read <= 0 || greenRead <= 0 || blueRead <= 0)
+            for (var plane = 0; plane < planeCount; plane++)
             {
-                throw Corrupt(path, "The planar TIFF strip could not be decoded.");
+                if (image.ReadEncodedStrip(plane * stripsPerPlane + strip, planes[plane], 0, planeSize) <= 0)
+                {
+                    throw Corrupt(path, "The planar TIFF strip could not be decoded.");
+                }
             }
 
             for (var localRow = 0; localRow < rows; localRow++)
@@ -1556,9 +1565,43 @@ public static class TiffPreviewDecoder
                     continue;
                 }
 
-                var rowOffset = localRow * width;
+                var rowOffset = localRow * width * bytesPerSample;
                 for (var sourceX = 0; sourceX < width; sourceX += step)
                 {
+                    var sampleOffset = rowOffset + sourceX * bytesPerSample;
+                    byte red;
+                    byte green;
+                    byte blue;
+                    byte alpha = 255;
+                    if (wide)
+                    {
+                        red = (byte)(ReadUInt16Native(planes[0], sampleOffset) >> 8);
+                        green = (byte)(ReadUInt16Native(planes[1], sampleOffset) >> 8);
+                        blue = (byte)(ReadUInt16Native(planes[2], sampleOffset) >> 8);
+                    }
+                    else if (format.Layout == RawLayout.CmykPlanar8)
+                    {
+                        red = (byte)(255 - Math.Min(255, planes[0][sampleOffset] + planes[3][sampleOffset]));
+                        green = (byte)(255 - Math.Min(255, planes[1][sampleOffset] + planes[3][sampleOffset]));
+                        blue = (byte)(255 - Math.Min(255, planes[2][sampleOffset] + planes[3][sampleOffset]));
+                    }
+                    else if (format.Layout == RawLayout.RgbaPlanar8)
+                    {
+                        alpha = planes[3][sampleOffset];
+                        red = planes[0][sampleOffset];
+                        green = planes[1][sampleOffset];
+                        blue = planes[2][sampleOffset];
+                    }
+                    else
+                    {
+                        red = planes[0][sampleOffset];
+                        green = planes[1][sampleOffset];
+                        blue = planes[2][sampleOffset];
+                    }
+
+                    var value = alpha == 255
+                        ? Opaque(red, green, blue)
+                        : PremultipliedBgra(red, green, blue, alpha);
                     WriteScaled(
                         pixels,
                         targetWidth,
@@ -1567,10 +1610,7 @@ public static class TiffPreviewDecoder
                         sourceY,
                         width,
                         height,
-                        Opaque(
-                            redPlane[rowOffset + sourceX],
-                            greenPlane[rowOffset + sourceX],
-                            bluePlane[rowOffset + sourceX]));
+                        value);
                 }
             }
         }
@@ -1794,15 +1834,13 @@ public static class TiffPreviewDecoder
         layout switch
         {
             RawLayout.None => 0,
-            RawLayout.Rgb => 3,
-            RawLayout.Rgb16 => 6,
-            RawLayout.RgbPlanar8 => 3,
-            RawLayout.Cmyk8 or RawLayout.Rgba8 => 4,
+            RawLayout.Rgb or RawLayout.RgbPlanar8 or RawLayout.YCbCr8 => 3,
+            RawLayout.Rgb16 or RawLayout.RgbPlanar16 => 6,
+            RawLayout.Cmyk8 or RawLayout.Rgba8 or RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 => 4,
             RawLayout.Rgba16 => 8,
             RawLayout.Float32Gray or RawLayout.Float32GrayInverted => 4,
             RawLayout.Float32Rgb => 12,
             RawLayout.Palette16 => 2,
-            RawLayout.Rgb or RawLayout.YCbCr8 => 3,
             RawLayout.Gray or RawLayout.GrayInverted or RawLayout.Palette8 => 1,
             _ => 2
         };
@@ -2001,10 +2039,29 @@ public static class TiffPreviewDecoder
         if (planar == 2)
         {
             var planarCompression = TagInt(image, TiffTag.COMPRESSION);
-            if (bits == 8 && samples == 3 && TagInt(image, TiffTag.PHOTOMETRIC) == 2 &&
-                planarCompression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
+            var planarPhoto = TagInt(image, TiffTag.PHOTOMETRIC);
+            if (planarCompression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
             {
-                return new RawFormat(RawLayout.RgbPlanar8, null);
+                if (bits == 8 && samples == 3 && planarPhoto == 2)
+                {
+                    return new RawFormat(RawLayout.RgbPlanar8, null);
+                }
+
+                if (bits == 16 && samples == 3 && planarPhoto == 2)
+                {
+                    return new RawFormat(RawLayout.RgbPlanar16, null);
+                }
+
+                if (bits == 8 && samples == 4 && planarPhoto == 5)
+                {
+                    return new RawFormat(RawLayout.CmykPlanar8, null);
+                }
+
+                if (bits == 8 && samples == 4 && planarPhoto == 2 &&
+                    image.GetField(TiffTag.EXTRASAMPLES) is not null)
+                {
+                    return new RawFormat(RawLayout.RgbaPlanar8, null);
+                }
             }
 
             return default;
@@ -2195,6 +2252,9 @@ public static class TiffPreviewDecoder
         Rgb,
         Rgb16,
         RgbPlanar8,
+        RgbPlanar16,
+        CmykPlanar8,
+        RgbaPlanar8,
         Cmyk8,
         Rgba8,
         Rgba16,
