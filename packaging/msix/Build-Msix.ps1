@@ -212,7 +212,7 @@ try {
         Copy-Item -LiteralPath $asset.FullName -Destination $stagingAssets -Recurse -Force
     }
 
-    # Keep the licence and the up-to-date libvips/NetVips notices in the package
+    # Keep the licence and up-to-date third-party notices in the package
     # even when the publish directory was produced before the notices changed.
     foreach ($noticeName in @("LICENSE", "THIRD-PARTY-NOTICES.md")) {
         $noticeSource = Join-Path $repoRoot $noticeName

@@ -43,14 +43,13 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 
 ## 图片格式
 
-文件先按扩展名识别。普通位图格式由 SkiaSharp 解码；TIFF 和 AVIF 走 libvips，SVG 由 Svg.Skia 解析并光栅化。支持以下格式：
+文件先按扩展名识别。普通位图格式由 SkiaSharp 解码；TIFF 由 LibTiff 解码，SVG 由 Svg.Skia 解析并光栅化。支持以下格式：
 
 | 格式 | 扩展名 | 说明 |
 | --- | --- | --- |
 | JPEG | `.jpg`、`.jpeg`、`.jfif` | 应用 EXIF 方向，内嵌 ICC 转为 sRGB。JPEG 副本会把透明区域压平到白色。 |
 | PNG | `.png` | 保留透明通道和内嵌 ICC。16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。 |
 | WebP | `.webp` | 支持带透明通道的静态图片；内嵌 ICC 转为 sRGB。 |
-| AVIF | `.avif` | 通过内置 libvips 原生库解码；仅第一帧。 |
 | BMP | `.bmp` | 通过 SkiaSharp 解码。 |
 | GIF | `.gif` | 动画 GIF 自动播放并循环；静态 GIF 只显示一帧。 |
 | ICO | `.ico` | 由编解码器从图标中选择一张图片。 |
@@ -60,22 +59,23 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 不支持：
 
 - HEIC / HEIF
+- AVIF
 - RAW 相机格式，例如 CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2
 - 视频文件，例如 MP4、MOV、WebM、MKV
 
 不支持的原因：
 
-- **HEIC / HEIF** 需要当前 Windows x64 libvips 包未包含的 HEVC 解码器。AVIF 通过内置 libvips 的 AV1 解码器支持；HEIC 仍不在当前包内。
+- **HEIC / HEIF / AVIF** 需要原生 HEVC 或 AV1 解码器。AirGlance 不再内置 libvips，因此这些格式不在当前包内。
 - **RAW** 不是可直接显示的像素。打开 RAW 需要去马赛克、白平衡、相机色彩矩阵、色调映射，通常还需要镜头校正；这需要一套 LibRaw 级别的引擎，而不是切换一个解码器。
 - **视频** 需要解复用、视频解码、音画同步，以及 FFmpeg 或系统媒体 API 之类的媒体栈。这超出了静态看图工具的范围，编解码授权和包体大小也是显著成本。
 
-AirGlance 使用 SkiaSharp 处理普通位图、LibTiff/NetVips 处理 TIFF、NetVips 处理 AVIF、Svg.Skia 处理 SVG。Windows x64 包内置 libvips；其他平台目前还没有 AVIF/大 TIFF 的原生包。
+AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia 处理 SVG。不再包含 libvips 原生库。
 
 以上格式是刻意不支持的，也不会回退到系统编解码器。把文件改成受支持的扩展名没有用：内容检查仍会失败，文件会按损坏文件报错，而不是被打开。扩展名不受支持的文件也会被拒绝，即使它的内容恰好是受支持的图片。
 
 ## 安装
 
-0.3.0 是最新的已打包二进制版本，请从 [v0.3.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0) 下载。`v0.4.1` tag 包含当前源码构建，包括 AVIF 和大 TIFF 支持。
+0.3.0 是最新的已打包二进制版本，请从 [v0.3.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0) 下载。`v0.4.1` tag 包含当前源码构建，支持大 TIFF。
 
 ### Windows
 
@@ -170,7 +170,7 @@ tar -xzf AirGlance-0.3.0-linux-x64.tar.gz
 
 这些是限制，不是承诺清单。
 
-- 不支持 HEIC 或 RAW；AVIF 在 Windows 上通过 libvips 支持。
+- 不支持 HEIC、AVIF 或 RAW。SkiaSharp 无法解码这些格式，AirGlance 也不内置系统编解码器。
 - 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
 - TIFF 只显示第一页。CMYK、多页和部分特殊压缩变体不在首版支持范围内。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。

@@ -109,7 +109,7 @@ public static class ImageExporter
     }
 
     /// <summary>
-    /// Managed fallback for edit export when libvips cannot open the source. It uses
+    /// Managed export for edit-mode copies. It uses SkiaSharp and writes pixel data;
     /// the same crop and resize rules but cannot retain EXIF/ICC metadata.
     /// </summary>
     public static byte[] EncodeEdited(

@@ -56,7 +56,7 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only until an ARM64 NetVips payload exists.
+example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only until all native payloads support ARM64.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.
@@ -125,7 +125,7 @@ review; it deliberately does not make an unsigned package's WACK result a gate.
   in the Partner Center account must match.
 - Build the x64 package, bump the four-part package version for every submission,
   and upload the unsigned `.msix`. Microsoft Store re-signs approved packages.
-  ARM64 is deferred until the NetVips native payload supports it.
+  ARM64 is deferred until all native payloads support it.
 - A full-trust package uses the restricted `runFullTrust` capability. Be ready
   to explain the functionality that requires full trust if the Store asks.
 - The release workflow publishes portable archives only. It intentionally never

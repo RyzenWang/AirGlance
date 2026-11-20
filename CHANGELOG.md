@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the NetVips/libvips native payload. TIFF decoding uses LibTiff only,
+  edit exports use SkiaSharp, and the AOT package drops from 27.72 MB to
+  20.01 MB. AVIF and the libvips TIFF fallback are no longer available.
+
 ### Added
 
 - Non-destructive Edit drawer for rotate, flip and crop. The original file is
   never modified; Cancel restores the previous view and Reset clears the session.
 - Export copy dialog with JPEG/PNG/WebP, quality, original/long-edge/fit-within
-  resizing, filename and folder selection, and EXIF/ICC preservation through
-  libvips where available. A managed Skia fallback keeps export working for the
-  remaining formats.
+  resizing, filename and folder selection. Exports are written by the managed
+  SkiaSharp exporter.
 - Interactive crop overlay with eight handles, free and fixed aspect ratios,
   rule-of-thirds guides, and normalized source coordinates so the export matches
   the on-screen frame.
