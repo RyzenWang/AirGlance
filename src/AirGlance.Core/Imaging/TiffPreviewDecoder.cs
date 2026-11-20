@@ -21,6 +21,7 @@ public static class TiffPreviewDecoder
     private const long ParallelPixelThreshold = 2_000_000;
     private const long ParallelWorkerMemoryBudget = 256L * 1024 * 1024;
     private const int MaximumParallelWorkers = 8;
+    private const double PyramidUpscaleTolerance = 0.95;
 
     public static ImageMetadata ReadMetadata(string path)
     {
@@ -283,7 +284,8 @@ public static class TiffPreviewDecoder
         void Consider(int width, int height, short directory, long subIfdOffset)
         {
             if (width <= 0 || height <= 0 ||
-                width < targetWidth || height < targetHeight)
+                width < targetWidth * PyramidUpscaleTolerance ||
+                height < targetHeight * PyramidUpscaleTolerance)
             {
                 return;
             }
@@ -525,11 +527,17 @@ public static class TiffPreviewDecoder
                     {
                         var rasterRow = tileHeight - 1 - (sourceY - tileY);
                         var rowStart = rasterRow * tileWidth;
-                        var targetY = (int)((long)sourceY * targetHeight / height);
                         for (var sourceX = firstColumn; sourceX < columnEnd; sourceX += step)
                         {
-                            var targetX = (int)((long)sourceX * targetWidth / width);
-                            WritePixel(pixels, targetWidth, targetX, targetY, raster[rowStart + sourceX - tileX]);
+                            WriteScaledValue(
+                                pixels,
+                                targetWidth,
+                                targetHeight,
+                                sourceX,
+                                sourceY,
+                                width,
+                                height,
+                                raster[rowStart + sourceX - tileX]);
                         }
                     }
                 }
@@ -564,7 +572,6 @@ public static class TiffPreviewDecoder
                 var firstColumn = RoundUp(tileX, step);
                 for (var sourceY = firstRow; sourceY < rowEnd; sourceY += step)
                 {
-                    var targetY = (int)((long)sourceY * targetHeight / height);
                     var rowOffset = (sourceY - tileY) * tileWidth;
                     for (var sourceX = firstColumn; sourceX < columnEnd; sourceX += step)
                     {
@@ -574,10 +581,19 @@ public static class TiffPreviewDecoder
                             continue;
                         }
 
-                        var targetX = (int)((long)sourceX * targetWidth / width);
                         if (layout == RawLayout.Rgb)
                         {
-                            WriteOpaquePixel(pixels, targetWidth, targetX, targetY, raw[offset], raw[offset + 1], raw[offset + 2]);
+                            WriteScaledOpaque(
+                                pixels,
+                                targetWidth,
+                                targetHeight,
+                                sourceX,
+                                sourceY,
+                                width,
+                                height,
+                                raw[offset],
+                                raw[offset + 1],
+                                raw[offset + 2]);
                         }
                         else
                         {
@@ -587,7 +603,17 @@ public static class TiffPreviewDecoder
                                 gray = (byte)(255 - gray);
                             }
 
-                            WriteOpaquePixel(pixels, targetWidth, targetX, targetY, gray, gray, gray);
+                            WriteScaledOpaque(
+                                pixels,
+                                targetWidth,
+                                targetHeight,
+                                sourceX,
+                                sourceY,
+                                width,
+                                height,
+                                gray,
+                                gray,
+                                gray);
                         }
                     }
                 }
@@ -752,7 +778,6 @@ public static class TiffPreviewDecoder
             var firstRow = RoundUp(rowStart, step);
             for (var sourceY = firstRow; sourceY < rowEnd; sourceY += step)
             {
-                var targetY = (int)((long)sourceY * targetHeight / height);
                 var rowOffset = (sourceY - stripRow) * width;
                 for (var sourceX = 0; sourceX < width; sourceX += step)
                 {
@@ -762,10 +787,19 @@ public static class TiffPreviewDecoder
                         continue;
                     }
 
-                    var targetX = (int)((long)sourceX * targetWidth / width);
                     if (layout == RawLayout.Rgb)
                     {
-                        WriteOpaquePixel(pixels, targetWidth, targetX, targetY, raw[offset], raw[offset + 1], raw[offset + 2]);
+                        WriteScaledOpaque(
+                            pixels,
+                            targetWidth,
+                            targetHeight,
+                            sourceX,
+                            sourceY,
+                            width,
+                            height,
+                            raw[offset],
+                            raw[offset + 1],
+                            raw[offset + 2]);
                     }
                     else
                     {
@@ -775,7 +809,17 @@ public static class TiffPreviewDecoder
                             gray = (byte)(255 - gray);
                         }
 
-                        WriteOpaquePixel(pixels, targetWidth, targetX, targetY, gray, gray, gray);
+                        WriteScaledOpaque(
+                            pixels,
+                            targetWidth,
+                            targetHeight,
+                            sourceX,
+                            sourceY,
+                            width,
+                            height,
+                            gray,
+                            gray,
+                            gray);
                     }
                 }
             }
@@ -824,11 +868,17 @@ public static class TiffPreviewDecoder
             {
                 var rasterRow = actualRows - 1 - (sourceY - stripRow);
                 var rowOffset = rasterRow * width;
-                var targetY = (int)((long)sourceY * targetHeight / height);
                 for (var sourceX = 0; sourceX < width; sourceX += step)
                 {
-                    var targetX = (int)((long)sourceX * targetWidth / width);
-                    WritePixel(pixels, targetWidth, targetX, targetY, raster[rowOffset + sourceX]);
+                    WriteScaledValue(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        raster[rowOffset + sourceX]);
                 }
             }
         }
@@ -899,12 +949,18 @@ public static class TiffPreviewDecoder
                 {
                     var rasterRow = tileHeight - 1 - (sourceY - tileY);
                     var rowStart = rasterRow * tileWidth;
-                    var targetY = (int)((long)sourceY * targetHeight / height);
                     var firstColumn = RoundUp(tileX, step);
                     for (var sourceX = firstColumn; sourceX < tileX + columnCount; sourceX += step)
                     {
-                        var targetX = (int)((long)sourceX * targetWidth / width);
-                        WritePixel(pixels, targetWidth, targetX, targetY, raster[rowStart + sourceX - tileX]);
+                        WriteScaledValue(
+                            pixels,
+                            targetWidth,
+                            targetHeight,
+                            sourceX,
+                            sourceY,
+                            width,
+                            height,
+                            raster[rowStart + sourceX - tileX]);
                     }
                 }
             }
@@ -954,11 +1010,17 @@ public static class TiffPreviewDecoder
             {
                 var rasterRow = actualRows - 1 - (sourceY - stripRow);
                 var rowStart = rasterRow * width;
-                var targetY = (int)((long)sourceY * targetHeight / height);
                 for (var sourceX = 0; sourceX < width; sourceX += step)
                 {
-                    var targetX = (int)((long)sourceX * targetWidth / width);
-                    WritePixel(pixels, targetWidth, targetX, targetY, raster[rowStart + sourceX]);
+                    WriteScaledValue(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        raster[rowStart + sourceX]);
                 }
             }
         }
@@ -1014,7 +1076,6 @@ public static class TiffPreviewDecoder
                 var firstRow = RoundUp(tileY, step);
                 for (var sourceY = firstRow; sourceY < tileY + rowCount; sourceY += step)
                 {
-                    var targetY = (int)((long)sourceY * targetHeight / height);
                     var rowOffset = (sourceY - tileY) * tileWidth;
                     var firstColumn = RoundUp(tileX, step);
                     for (var sourceX = firstColumn; sourceX < tileX + columnCount; sourceX += step)
@@ -1025,10 +1086,19 @@ public static class TiffPreviewDecoder
                             continue;
                         }
 
-                        var targetX = (int)((long)sourceX * targetWidth / width);
                         if (layout == RawLayout.Rgb)
                         {
-                            WriteOpaquePixel(pixels, targetWidth, targetX, targetY, raw[offset], raw[offset + 1], raw[offset + 2]);
+                            WriteScaledOpaque(
+                                pixels,
+                                targetWidth,
+                                targetHeight,
+                                sourceX,
+                                sourceY,
+                                width,
+                                height,
+                                raw[offset],
+                                raw[offset + 1],
+                                raw[offset + 2]);
                         }
                         else
                         {
@@ -1038,7 +1108,17 @@ public static class TiffPreviewDecoder
                                 gray = (byte)(255 - gray);
                             }
 
-                            WriteOpaquePixel(pixels, targetWidth, targetX, targetY, gray, gray, gray);
+                            WriteScaledOpaque(
+                                pixels,
+                                targetWidth,
+                                targetHeight,
+                                sourceX,
+                                sourceY,
+                                width,
+                                height,
+                                gray,
+                                gray,
+                                gray);
                         }
                     }
                 }
@@ -1074,14 +1154,22 @@ public static class TiffPreviewDecoder
                 continue;
             }
 
-            var targetY = (int)((long)sourceY * targetHeight / height);
             for (var sourceX = 0; sourceX < width; sourceX += step)
             {
                 var offset = sourceX * bytesPerPixel;
-                var targetX = (int)((long)sourceX * targetWidth / width);
                 if (layout == RawLayout.Rgb)
                 {
-                    WriteOpaquePixel(pixels, targetWidth, targetX, targetY, row[offset], row[offset + 1], row[offset + 2]);
+                    WriteScaledOpaque(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        row[offset],
+                        row[offset + 1],
+                        row[offset + 2]);
                 }
                 else
                 {
@@ -1091,23 +1179,109 @@ public static class TiffPreviewDecoder
                         gray = (byte)(255 - gray);
                     }
 
-                    WriteOpaquePixel(pixels, targetWidth, targetX, targetY, gray, gray, gray);
+                    WriteScaledOpaque(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        gray,
+                        gray,
+                        gray);
                 }
             }
         }
     }
 
-    private static void WriteOpaquePixel(
+    private static void WriteScaledOpaque(
         byte[] pixels,
         int targetWidth,
-        int x,
-        int y,
+        int targetHeight,
+        int sourceX,
+        int sourceY,
+        int sourceWidth,
+        int sourceHeight,
         byte red,
         byte green,
         byte blue)
     {
         var value = 0xFF000000u | ((uint)red << 16) | ((uint)green << 8) | blue;
-        WriteBgra(pixels, (y * targetWidth + x) * 4, value);
+        WriteScaled(pixels, targetWidth, targetHeight, sourceX, sourceY, sourceWidth, sourceHeight, value);
+    }
+
+    private static void WriteScaledValue(
+        byte[] pixels,
+        int targetWidth,
+        int targetHeight,
+        int sourceX,
+        int sourceY,
+        int sourceWidth,
+        int sourceHeight,
+        int value)
+    {
+        var bgra = ((uint)Tiff.GetA(value) << 24) |
+                   ((uint)Tiff.GetR(value) << 16) |
+                   ((uint)Tiff.GetG(value) << 8) |
+                   (uint)Tiff.GetB(value);
+        WriteScaled(pixels, targetWidth, targetHeight, sourceX, sourceY, sourceWidth, sourceHeight, bgra);
+    }
+
+    private static void WriteScaled(
+        byte[] pixels,
+        int targetWidth,
+        int targetHeight,
+        int sourceX,
+        int sourceY,
+        int sourceWidth,
+        int sourceHeight,
+        uint value)
+    {
+        if (sourceWidth >= targetWidth && sourceHeight >= targetHeight)
+        {
+            // Downscale or 1:1: one sample writes one target pixel.
+            var x = (int)((long)sourceX * targetWidth / sourceWidth);
+            var y = (int)((long)sourceY * targetHeight / sourceHeight);
+            WriteBgra(pixels, (y * targetWidth + x) * 4, value);
+            return;
+        }
+
+        WriteScaledBlock(pixels, targetWidth, targetHeight, sourceX, sourceY, sourceWidth, sourceHeight, value);
+    }
+
+    private static void WriteScaledBlock(
+        byte[] pixels,
+        int targetWidth,
+        int targetHeight,
+        int sourceX,
+        int sourceY,
+        int sourceWidth,
+        int sourceHeight,
+        uint value)
+    {
+        var x0 = (int)((long)sourceX * targetWidth / sourceWidth);
+        var x1 = (int)((long)(sourceX + 1) * targetWidth / sourceWidth);
+        var y0 = (int)((long)sourceY * targetHeight / sourceHeight);
+        var y1 = (int)((long)(sourceY + 1) * targetHeight / sourceHeight);
+        if (x1 <= x0)
+        {
+            x1 = x0 + 1;
+        }
+
+        if (y1 <= y0)
+        {
+            y1 = y0 + 1;
+        }
+
+        for (var y = y0; y < y1; y++)
+        {
+            var row = y * targetWidth;
+            for (var x = x0; x < x1; x++)
+            {
+                WriteBgra(pixels, (row + x) * 4, value);
+            }
+        }
     }
 
     private static void WriteBgra(byte[] pixels, int offset, uint value)
@@ -1168,16 +1342,6 @@ public static class TiffPreviewDecoder
         Rgb,
         Gray,
         GrayInverted
-    }
-
-    private static void WritePixel(byte[] pixels, int targetWidth, int x, int y, int value)
-    {
-        // LibTiff's RGBA reader returns premultiplied samples.
-        var bgra = ((uint)Tiff.GetA(value) << 24) |
-                   ((uint)Tiff.GetR(value) << 16) |
-                   ((uint)Tiff.GetG(value) << 8) |
-                   (uint)Tiff.GetB(value);
-        WriteBgra(pixels, (y * targetWidth + x) * 4, bgra);
     }
 
     private static (int Width, int Height, double Scale) ComputeTarget(

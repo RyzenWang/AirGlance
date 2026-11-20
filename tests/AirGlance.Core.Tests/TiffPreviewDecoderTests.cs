@@ -290,6 +290,34 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Fact]
+    public void Preview_upscales_a_slightly_smaller_reduced_directory()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateTwoLevelTiff(path, 4096, 3072, 2048, 1536);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 2100, 1575);
+
+            Assert.Equal(2100, bitmap.Width);
+            Assert.Equal(1575, bitmap.Height);
+            Assert.Equal(4096, bitmap.SourceWidth);
+            Assert.Equal(3072, bitmap.SourceHeight);
+
+            // 2048 is within the 95% tolerance of 2100, so the reduced green
+            // directory is upscaled into the target without holes.
+            Assert.Equal("green", Classify(Pixel(bitmap, 1050, 787)));
+            for (var index = 0; index < bitmap.Width * bitmap.Height; index++)
+            {
+                Assert.Equal(255, bitmap.Pixels[index * 4 + 3]);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
