@@ -737,24 +737,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var transform = _edit;
         var crop = _crop.Clamp();
 
-        try
-        {
-            await Task.Run(
-                () => EditedImageExporter.ExportNative(path, transform, crop, options, target, cancellationToken),
-                cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            // SVG and a few less common containers are not available to libvips on
-            // every platform. Fall back to the managed decoder without metadata.
-            await Task.Run(
-                () => ExportManagedFallback(path, transform, crop, options, target, cancellationToken),
-                cancellationToken);
-        }
+        await Task.Run(
+            () => ExportManagedFallback(path, transform, crop, options, target, cancellationToken),
+            cancellationToken);
 
         ShowMessage(_services.Localization.Format("L.EditExportSucceeded", target));
         return target;

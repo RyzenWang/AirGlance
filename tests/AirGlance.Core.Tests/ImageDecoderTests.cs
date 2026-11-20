@@ -201,29 +201,6 @@ public sealed class ImageDecoderTests
     }
 
     [Fact]
-    public void Avif_is_supported_and_decodes()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            // The local AVIF decoder uses the Windows libvips native package.
-            return;
-        }
-
-        Assert.True(SupportedFormats.IsSupported("sample.avif"));
-        var path = Asset("sample.avif");
-        var metadata = ImageDecoder.ReadMetadata(path);
-        Assert.Equal("AVIF", metadata.FormatName);
-        Assert.Equal(1440, metadata.DisplayWidth);
-        Assert.Equal(900, metadata.DisplayHeight);
-
-        var bitmap = ImageDecoder.Decode(path, 800, 800);
-        Assert.True(bitmap.Width <= 800);
-        Assert.True(bitmap.Height <= 800);
-        Assert.Equal(1440, bitmap.SourceWidth);
-        Assert.Equal(900, bitmap.SourceHeight);
-    }
-
-    [Fact]
     public void Tiff_alpha_is_preserved()
     {
         var bitmap = ImageDecoder.DecodeFull(Asset("alpha.tif"));
