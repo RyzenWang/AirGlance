@@ -202,6 +202,11 @@ echo "Building dav1d (static, PIC)..."
 "${MESON[@]}" compile -C "$DAV1D_BUILD"
 "${MESON[@]}" install -C "$DAV1D_BUILD"
 
+# Debian/Ubuntu Meson installs into lib/<multiarch> when the prefix is
+# configured that way. Find the archive instead of assuming lib/.
+DAV1D_LIBRARY="$(find "$PREFIX_DIR" -name libdav1d.a -print -quit)"
+[[ -n "$DAV1D_LIBRARY" ]] || die "libdav1d.a was not installed under '$PREFIX_DIR'."
+
 echo "Building libavif (static, PIC)..."
 cmake -S "$LIBAVIF_SOURCE" -B "$LIBAVIF_BUILD" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
@@ -213,16 +218,19 @@ cmake -S "$LIBAVIF_SOURCE" -B "$LIBAVIF_BUILD" -G Ninja \
     -DAVIF_BUILD_APPS=OFF \
     -DAVIF_BUILD_TESTS=OFF \
     -DDAV1D_INCLUDE_DIR="$PREFIX_DIR/include" \
-    -DDAV1D_LIBRARY="$PREFIX_DIR/lib/libdav1d.a" \
+    -DDAV1D_LIBRARY="$DAV1D_LIBRARY" \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DCMAKE_INSTALL_PREFIX="$PREFIX_DIR"
 cmake --build "$LIBAVIF_BUILD"
 cmake --install "$LIBAVIF_BUILD"
 
+LIBAVIF_LIBRARY="$(find "$PREFIX_DIR" -name libavif.a -print -quit)"
+[[ -n "$LIBAVIF_LIBRARY" ]] || die "libavif.a was not installed under '$PREFIX_DIR'."
+
 for required in \
     "$PREFIX_DIR/include/avif/avif.h" \
-    "$PREFIX_DIR/lib/libavif.a" \
-    "$PREFIX_DIR/lib/libdav1d.a"; do
+    "$LIBAVIF_LIBRARY" \
+    "$DAV1D_LIBRARY"; do
     [[ -e "$required" ]] || die "expected build output is missing: $required"
 done
 
@@ -242,8 +250,8 @@ fi
     -I"$PREFIX_DIR/include" \
     -I"$SCRIPT_DIR" \
     "$SCRIPT_DIR/airglance_avif.c" \
-    "$PREFIX_DIR/lib/libavif.a" \
-    "$PREFIX_DIR/lib/libdav1d.a" \
+    "$LIBAVIF_LIBRARY" \
+    "$DAV1D_LIBRARY" \
     "${LINK_FLAGS[@]}" \
     -o "$OUTPUT_PATH"
 
