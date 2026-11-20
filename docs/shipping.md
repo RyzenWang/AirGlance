@@ -261,7 +261,7 @@ The MSIX packages are only for the Microsoft Store submission:
 
 - `AirGlance_1.0.1.0_x64.msix`
 
-The Microsoft Store package version is independent from the GitHub tag: the previous Store package was `1.0.0.0` (app 0.5.0), and the 0.6.0 submission uses `1.0.1.0`. The Store package is x64-only for this submission. The arm64 MSIX can be built
+The Microsoft Store package version is independent from the GitHub tag: the previous Store package was `1.0.0.0` (app 0.4.1), and the 0.6.0 submission uses `1.0.1.0`. The Store package is x64-only for this submission. The arm64 MSIX can be built
 locally now that the AVIF decoder exists, but it is not part of this submission. They are not public release assets. `store.yml` builds them on demand and uploads them as workflow artifacts.
 
 ### Package identity and publisher

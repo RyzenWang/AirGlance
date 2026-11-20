@@ -261,7 +261,7 @@ MSIX 包仅用于 Microsoft Store 提交：
 
 - `AirGlance_1.0.1.0_x64.msix`
 
-Microsoft Store 包版本与 GitHub tag 独立：上一个 Store 包为 `1.0.0.0`（应用 0.5.0），0.6.0 提交使用 `1.0.1.0`。本次 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在本次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
+Microsoft Store 包版本与 GitHub tag 独立：上一个 Store 包为 `1.0.0.0`（应用 0.4.1），0.6.0 提交使用 `1.0.1.0`。本次 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在本次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
 
 ### 包标识和发布者
 
