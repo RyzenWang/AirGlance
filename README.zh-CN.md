@@ -1,10 +1,22 @@
-# AirGlance
+<p align="center">
+  <a href="README.md">English</a> &nbsp;·&nbsp; <strong>简体中文</strong>
+</p>
 
-[English](README.md) · **简体中文**
+<h1 align="center">AirGlance</h1>
 
-**一个文件夹，一眼看完。**
+<p align="center">
+  <strong>一个文件夹，一眼看完。</strong>
+</p>
+
+<p align="center">
+  <a href="https://apps.microsoft.com/detail/9p30h2pjg0f6"><strong>Microsoft Store</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/RyzenWang/AirGlance/releases/latest">最新发布</a>
+</p>
 
 AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.5.0，也是最新公开二进制版本。它刻意保持小巧。
+
+> **Windows：** 推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装，更新由商店负责。商店版本可能落后于 GitHub Release；Windows、macOS 和 Linux 的便携包仍可在 [GitHub Releases](https://github.com/RyzenWang/AirGlance/releases/latest) 下载。
 
 - [下载](#安装) · [图片格式](#图片格式) · [键盘](#键盘) · [性能](#性能) · [已知限制](#已知限制) · [从源码构建](#从源码构建)
 
@@ -75,9 +87,14 @@ AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia �
 
 ## 安装
 
-0.5.0 是当前已打包版本，请从 [v0.5.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0) 下载。该版本用托管 LibTiff 解码器替换了 libvips TIFF 路径，并新增非破坏性编辑和导出工具。
+Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装；各平台的便携包在 [v0.5.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0)。商店版本可能落后于 GitHub Release。
 
-### Windows
+### Microsoft Store（Windows）
+
+1. 打开 [Microsoft Store 上的 AirGlance](https://apps.microsoft.com/detail/9p30h2pjg0f6)。
+2. 选择 **获取** 或 **安装**，更新由商店负责。
+
+### Windows 便携版
 
 1. 下载 `AirGlance-0.5.0-win-x64.zip`（或 `win-arm64`）。
 2. 解压到任意位置，运行 `AirGlance.exe`。
@@ -112,6 +129,8 @@ tar -xzf AirGlance-0.5.0-linux-x64.tar.gz
 | Linux arm64 | `linux-arm64.tar.gz` | 未验证 |
 
 “已验证”是指实际启动过 AOT 二进制并显示过图片。Windows x64 条目对应已发布的 0.5.0 压缩包，已用 JPEG、TIFF、SVG 和 GIF 冒烟测试；Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
+
+Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 分发；商店版本可能落后于 GitHub Release，更新由 Windows 负责。
 
 ## 键盘
 
@@ -182,7 +201,7 @@ tar -xzf AirGlance-0.5.0-linux-x64.tar.gz
 - 裁剪、旋转和翻转都是会话内编辑，没有无损 JPEG 旋转，原文件永远不会被重写。双画布以及仅代理/分块图片下编辑不可用。
 - 16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。
 - 100 MP 图片在 100% 时使用基于文件的分块缓存：10000 × 10000 JPEG 的实测工作集峰值约 **458 MB**，分块写完后稳定在约 **88 MB**。图片打开期间临时分块文件约 400 MB。48 MP PNG 仍可能峰值接近 300 MB，因为 PNG 预览解码无法由编解码器缩放；内存较小的机器查看超大 PNG 时建议使用适应窗口。
-- Windows 便携版未签名，macOS 版未公证。MSIX 包尚未发布。
+- Windows 便携版未签名，macOS 版未公证。Microsoft Store 版本已通过商店提供；便携版仍是离线/ARM64 的选择。
 
 ## 从源码构建
 

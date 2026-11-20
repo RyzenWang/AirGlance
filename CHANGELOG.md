@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- README now links the live Microsoft Store listing at the top and in Install;
+  the Windows x64 section recommends the Store build and keeps the portable
+  archive for offline and arm64 use. Shipping notes record the live listing.
 - README, shipping, architecture, formats and performance notes now report 0.5.0:
   current download names, the verified Windows x64 release artifact, managed TIFF
   and edit coverage, and the 20.76 MiB package. Startup performance stays labelled

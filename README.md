@@ -1,10 +1,22 @@
-# AirGlance
+<p align="center">
+  <strong>English</strong> &nbsp;·&nbsp; <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-**English** · [简体中文](README.zh-CN.md)
+<h1 align="center">AirGlance</h1>
 
-**Whole folders, one glance.** · 「一个文件夹，一眼看完。」
+<p align="center">
+  <strong>Whole folders, one glance.</strong> &nbsp;·&nbsp; 「一个文件夹，一眼看完。」
+</p>
+
+<p align="center">
+  <a href="https://apps.microsoft.com/detail/9p30h2pjg0f6"><strong>Microsoft Store</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/RyzenWang/AirGlance/releases/latest">Latest releases</a>
+</p>
 
 AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.5.0 is the current build and the latest public binary release. It is deliberately small.
+
+> **Windows:** the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) build is the recommended install and updates through the Store. The Store listing can trail the GitHub release; portable archives for Windows, macOS and Linux remain on [GitHub Releases](https://github.com/RyzenWang/AirGlance/releases/latest).
 
 - [Download](#install) · [Image formats](#image-formats) · [Keyboard](#keyboard) · [Performance](#performance) · [Known limitations](#known-limitations) · [Build from source](#build-from-source)
 
@@ -75,9 +87,14 @@ The formats above are deliberately absent; there is no platform-codec fallback. 
 
 ## Install
 
-0.5.0 is the current packaged release; download it from the [v0.5.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0). It replaces the libvips TIFF path with the managed LibTiff decoder and adds the non-destructive edit and export tools.
+Windows users should install from the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); portable archives for all platforms are on the [v0.5.0 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0). The Store listing can trail the GitHub release.
 
-### Windows
+### Microsoft Store (Windows)
+
+1. Open [AirGlance on the Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6).
+2. Choose **Get** or **Install**. Updates arrive through the Store.
+
+### Windows portable
 
 1. Download `AirGlance-0.5.0-win-x64.zip` (or `win-arm64`).
 2. Unzip it anywhere and run `AirGlance.exe`.
@@ -112,6 +129,8 @@ The release publishes six archives. Runtime verification is narrower than that:
 | Linux arm64 | `linux-arm64.tar.gz` | Unverified |
 
 "Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to the published 0.5.0 archive, which was smoke-tested with JPEG, TIFF, SVG and GIF files; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
+
+The Windows x64 build is also distributed through the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); the Store listing can trail the GitHub release, and Store updates are handled by Windows.
 
 ## Keyboard
 
@@ -182,7 +201,7 @@ These are limitations, not a promise list.
 - Crop, rotate and flip are session edits. There is no lossless JPEG rotation, and the original file is never rewritten. Editing is disabled in dual view and for proxy-only or tiled images.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
 - 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **458 MB**, settling to about **88 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
-- The Windows portable build is unsigned and the macOS build is not notarised. The MSIX package is not published yet.
+- The Windows portable build is unsigned and the macOS build is not notarised. The Microsoft Store build is available through the Store listing; the portable build remains the offline/arm64 option.
 
 ## Build from source
 

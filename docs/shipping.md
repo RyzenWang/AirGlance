@@ -2,9 +2,9 @@
 
 **English** · [简体中文](shipping.zh-CN.md)
 
-This is the release procedure for AirGlance 0.5.0 (2026-11-20). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used only for Partner Center, WACK and the Store listing.
+This is the release procedure for AirGlance 0.5.0 (2026-11-20). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used for the Microsoft Store submission, WACK and the Store listing.
 
-The 0.5.0 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The packaging scripts and CI workflows exist in the tree, but no signing certificate or Store submission is part of 0.5.0.
+The 0.5.0 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The Windows x64 build is also live in the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); no signing certificate is stored in the repository.
 
 ## Release matrix
 
@@ -16,12 +16,12 @@ The 0.5.0 release is a portable, unsigned desktop release. It has no installer, 
 | macOS x64 | `AirGlance-0.5.0-osx-x64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15-intel` | GitHub release |
 | Linux x64 | `AirGlance-0.5.0-linux-x64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-22.04` | GitHub release |
 | Linux arm64 | `AirGlance-0.5.0-linux-arm64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-24.04-arm` | GitHub release |
-| Windows x64 MSIX | `AirGlance_1.0.0.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
-| Windows arm64 MSIX | `AirGlance_1.0.0.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Partner Center only |
+| Windows x64 MSIX | `AirGlance_1.0.0.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
+| Windows arm64 MSIX | `AirGlance_1.0.0.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
 
 Archive names use the three-part product version `0.5.0`. MSIX names use the four-part package version `1.0.0.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
 
-The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for review and Partner Center.
+The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for Store review and Partner Center.
 
 ## Runtime verification status
 
@@ -40,7 +40,7 @@ Two further gaps are recorded rather than claimed as passing:
 
 - Clipboard image copy was checked on Windows x64 with an unmodified PNG and JPEG. The Windows clipboard contained `image/png` or `image/jpeg` alongside `CF_DIB`, `CF_DIBV5`, `CF_BITMAP` and a bitmap payload. The copy-path action and pasting the original bytes into a second application were not separately exercised.
 - Windows display scaling at 125%, 150% and 200% was not tested. The reference machine runs at 100% (96 DPI); text clipping at higher scaling is unverified.
-- No WACK pass or Store installation has been recorded for 0.5.0. The MSIX package is unsigned and prepared for Store upload.
+- The Microsoft Store listing is live at https://apps.microsoft.com/detail/9p30h2pjg0f6. A WACK report and a local signed-MSIX install are not recorded in this repository; Store certification performs the authoritative checks.
 
 The macOS and arm64 archives remain published because they are useful for testing, but treat them as unverified until someone runs them on that platform.
 
@@ -157,7 +157,7 @@ The archive has no wrapper directory. The desktop entry uses `Exec=AirGlance %f`
   -OutputDir artifacts/msix
 ```
 
-The Store output is `AirGlance_1.0.0.0_x64.msix`; an arm64 package can be built locally but is not submitted until ARM64 native codecs exist. `store.yml` runs this for both architectures. The packages are unsigned.
+The Store output is `AirGlance_1.0.0.0_x64.msix`; an arm64 package can be built locally but is not part of the first Store submission, so the listing is x64-only for now. `store.yml` runs this for both architectures. The packages are unsigned in the repository; the Store signs the delivered package.
 
 ## Smoke test
 
@@ -247,7 +247,7 @@ gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || tr
 
 For a system-wide install, use `/usr/local/bin/AirGlance`, `/usr/share/applications/airglance.desktop` and `/usr/share/icons/hicolor`. The desktop entry only advertises the supported MIME types; it does not make AirGlance the default viewer. There is no `.deb`, `.rpm`, Flatpak or AppImage for 0.5.0. The Linux artifacts are built on Ubuntu 22.04/24.04 runners for the matching architecture; musl/Alpine is not tested.
 
-## MSIX for Partner Center
+## MSIX for the Microsoft Store
 
 The MSIX packages are only for the Microsoft Store submission:
 
@@ -326,7 +326,7 @@ unsigned packages; Store certification performs the authoritative checks.
 
 ## Store listing
 
-Submit through Partner Center as an MSIX desktop package.
+The listing is live at https://apps.microsoft.com/detail/9p30h2pjg0f6. Submit updates through Partner Center as an MSIX desktop package.
 
 | Listing field | Value |
 | --- | --- |
@@ -350,7 +350,7 @@ The listing needs:
 
 The category is selected in Partner Center. Use **照片与视频** for the Chinese listing; the English Store UI shows the corresponding Photos & video category.
 
-The listing, screenshots, privacy policy and submission still need to be completed in Partner Center.
+The Store listing is live; screenshots and the privacy policy can be revised in Partner Center. The Store listing can trail the GitHub release.
 
 ## No network and no telemetry
 
@@ -407,14 +407,14 @@ Three workflows are checked in:
 5. Builds release notes from `CHANGELOG.md` for the tag version, falling back to the tag message.
 6. Creates or updates the GitHub release `v0.5.0` with the six archives and `SHA256SUMS.txt`.
 
-`store.yml` does not submit anything to Partner Center. It builds the MSIX files, runs WACK when the kit is present, and uploads the packages and reports for manual review. Partner Center submission remains a manual action after the publisher is replaced and the packages are signed.
+`store.yml` does not submit anything to Partner Center. It builds the MSIX files, runs WACK when the kit is present, and uploads the packages and reports for manual review. The live listing is managed manually in Partner Center.
 
 ## What is not done yet
 
 - Windows portable archives, macOS app bundles and MSIX packages are unsigned. There is no Authenticode certificate, Developer ID identity, notarization, hardened runtime, MSIX publisher certificate or timestamp.
 - macOS release archives are not ad-hoc signed either. `pack.sh` does not call `codesign`. The optional ad-hoc signing command is documented for local testing only.
-- The MSIX publisher is still the placeholder `CN=AirWorks`, and the package identity `AirWorks.AirGlance` is a placeholder. Both must be replaced before Partner Center submission.
-- No signed MSIX has been installed, no WACK pass has been recorded and no Store submission or listing approval has been completed for 0.5.0.
+- The MSIX publisher is the Partner Center identity `CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B` and the package identity is `RyzenWang.AirGlance`. The live listing is https://apps.microsoft.com/detail/9p30h2pjg0f6.
+- The Store listing is live. No WACK report or local signed-MSIX install is recorded in the repository; Store certification performs the authoritative checks.
 - Windows arm64 is built on the x64 `windows-latest` runner. No Windows arm64 hardware launch test is recorded. Linux arm64 and macOS x64 are built on native runners, but no packaged-artifact smoke test is recorded in CI.
 - No packaged-artifact launch test or `--bench` run is part of the workflows. The release workflow tests the source tree, not the extracted zip, tar.gz or app bundle.
 - The Windows zip, macOS app and Linux tar.gz do not include `LICENSE`, `THIRD-PARTY-NOTICES.md` or `README.md`. The repository contains these files, but the packaging scripts do not copy them into the archives.
@@ -422,7 +422,7 @@ Three workflows are checked in:
 - There is no Windows installer, Linux package format beyond tar.gz, auto-update, crash reporting or telemetry. The absence of telemetry is intentional.
 - There is no single-instance forwarding and no tray icon.
 - The release checksum file is named `SHA256SUMS.txt`, not `SHA256SUMS`. The contents are standard `sha256sum` output.
-- The Store listing, screenshots and privacy policy are not final. The manifest `MinVersion` (Windows 10 build 19041) and macOS `LSMinimumSystemVersion` (12.0) are declarations, not a measured compatibility matrix.
+- The Store listing is live; screenshots and the privacy policy can be revised in Partner Center. The manifest `MinVersion` (Windows 10 build 19041) and macOS `LSMinimumSystemVersion` (12.0) are declarations, not a measured compatibility matrix.
 - There is no universal macOS binary. macOS x64 and arm64 are separate downloads.
 - No workflow contains a signing step, and no signing certificate is stored in the repository.
 
