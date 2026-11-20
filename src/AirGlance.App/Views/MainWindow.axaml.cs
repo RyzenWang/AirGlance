@@ -2114,10 +2114,9 @@ public partial class MainWindow : Window
 
     private void OnCropBarDoneRequested(object? sender, EventArgs e)
     {
-        _cropMode = false;
-        CropControl.IsActive = false;
-        ApplyViewModelState();
-        ShowChrome();
+        // Keep crop mode active while the export dialog is open. If the user
+        // cancels the dialog, the crop canvas and its current region are already
+        // exactly where they were; only a completed export leaves crop mode.
         OnEditExportRequested(this, EventArgs.Empty);
     }
 
@@ -2247,6 +2246,7 @@ public partial class MainWindow : Window
         _cropMode = false;
         CropControl.IsActive = false;
         ApplyViewModelState();
+        ShowChrome();
     }
 
     private WriteableBitmap? CreateCroppedPreviewBitmap(CropRegion crop)
