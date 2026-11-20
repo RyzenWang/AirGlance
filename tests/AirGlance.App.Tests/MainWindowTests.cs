@@ -340,6 +340,7 @@ public sealed class MainWindowTests
         Assert.Equal(2, halves.Count);
         Assert.Single(halves, half => half.Classes.Contains("active"));
 
+        dualView.Focus();
         window.KeyPressQwerty(PhysicalKey.Tab, RawInputModifiers.None);
         await WaitUntilAsync(() => dualView.ActiveIndex == 1);
         window.KeyPressQwerty(PhysicalKey.I, RawInputModifiers.None);
