@@ -56,7 +56,7 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only for the first submission; the arm64 MSIX can be built and now includes the ARM64 AVIF decoder, but it is not part of that submission.
+example `artifacts/msix/AirGlance_1.0.1.0_x64.msix`. The Store submission is x64-only for this update; the arm64 MSIX can be built and now includes the ARM64 AVIF decoder, but it is not part of this upload.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.
@@ -90,7 +90,7 @@ cannot pass until a trusted signing certificate is installed.
 
 A meaningful self-test therefore needs a signed package:
 
-1. Sign a copy of `AirGlance_1.0.0.0_x64.msix` with a local test certificate
+1. Sign a copy of `AirGlance_1.0.1.0_x64.msix` with a local test certificate
    certificate. The certificate subject must match the manifest `Publisher`.
    Do not use an untrusted certificate for a Store submission.
 2. On a clean Windows 10/11 test VM, trust that certificate and install the
@@ -125,7 +125,7 @@ review; it deliberately does not make an unsigned package's WACK result a gate.
   in the Partner Center account must match.
 - Build the x64 package, bump the four-part package version for every submission,
   and upload the unsigned `.msix`. Microsoft Store re-signs approved packages.
-  ARM64 is deferred until all native payloads support it.
+  ARM64 is not part of this Store upload; the portable ARM64 build remains on GitHub releases.
 - A full-trust package uses the restricted `runFullTrust` capability. Be ready
   to explain the functionality that requires full trust if the Store asks.
 - The release workflow publishes portable archives only. It intentionally never

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Prepared the Microsoft Store package `1.0.1.0` (app 0.6.0), replacing the
+  previous `1.0.0.0` (app 0.5.0) submission. It is x64-only and includes the
+  AVIF decoder; see `packaging/msix/STORE-UPDATE-0.6.0.md`.
+
 ## [0.6.0] - 2026-11-20
 
 ### Added
