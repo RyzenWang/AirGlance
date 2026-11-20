@@ -1,7 +1,7 @@
 # AirGlance 深色模式交互设计稿
 
 > 范围：编辑抽屉、裁剪模式、导出副本模态  
-> 状态：**设计稿，先不实现**  
+> 状态：**已实现（2026-11-20，0.6.2）**  
 > 日期：2026-11-20  
 > 基线：现有 `Colors.axaml` 深色 token + 0.6.x 布局尺寸
 
@@ -359,14 +359,19 @@
 
 ---
 
-## 11. 待确认
+## 11. 实现结果
 
-1. 裁剪手柄是否保持 7 px 方形？本稿建议保持几何，只换色 + 光晕，减少回归面。
-2. 裁剪栏 97% 不透明是否可接受？Avalonia 没有稳定的背景模糊，本稿不建议做 backdrop blur。
-3. 是否允许修改 `InkTertiary`？建议**不改全局**，新增 `InkMuted`，避免影响信息面板等其他区域。
-4. 导出格式选中态用中性抬升 `#2E3A47`，还是用 `AccentSoft`？本稿推荐中性，保持“主按钮唯一 Coral 实心”的层级。
-5. 是否需要在主题切换时同步刷新 `CropOverlay` 的自绘 brush？如果需要，必须显式重绘，不能只靠资源字典。
+本稿已落地到 0.6.2：
+
+- `Colors.axaml` 新增 `SurfaceRaised`、`SurfaceSunken`、`SurfacePressed`、`SurfaceOverlay`、`AccentHover`、`AccentPressed`、`AccentSoft`、`AccentSoftText`、`SegmentActive`、`BorderEmphasis`、`BorderHover`、`InkMuted`、`DialogScrim`、`FocusRing` 等 token。
+- `Controls.axaml` 更新编辑工具卡、裁剪入口、`edit-chip.active`、`crop-bar-chip`、`crop-bar-action/primary`、`export-segment` 和导出输入框的默认/hover/pressed 状态。
+- `EditExportDialog` 删除静态浅色 `Res()`，改用当前主题资源；格式轨道、模态、预览框、输入框、滑块和复选框跟随深色。
+- `EditPanelView`、`CropToolbarView`、`CoralSlider` 的代码内颜色改为动态主题资源；`CropOverlay` 在进入裁剪和主题切换时刷新自绘 brush。
+- 裁剪工具栏的 1 px 分隔线在深色下会透出图片底色，已移除；其余布局尺寸不变。
+
+验证：Windows `dotnet test` **Core 187 + App 35** 通过；本地 0.6.2 AOT 包的 `--bench=startup` 退出码 0。
 
 ---
 
-**本稿只定义设计，不包含代码实现。** 实现前建议先确认第 11 节的 5 个问题。
+**实现提交：** `84fd969 feat: apply dark mode theme to edit, crop and export surfaces`  
+**设计提交：** `06ea2a2 docs: add dark mode interaction spec for edit, crop and export`
