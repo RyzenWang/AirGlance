@@ -14,6 +14,10 @@ public sealed class TiffRegionReader : IDisposable
     // A single-strip 40K image needs a streaming decoder, which is a follow-up.
     private const long MaximumStripRasterBytes = 64L * 1024 * 1024;
 
+    // Adjacent 512 px tiles share the same strips. Keeping a few decoded strips
+    // turns a stripped image from one strip decode per tile into one per band.
+    private const long MaximumStripCacheBytes = 96L * 1024 * 1024;
+
     private readonly object _gate = new();
     private readonly string _path;
     private readonly Tiff _image;
@@ -21,8 +25,10 @@ public sealed class TiffRegionReader : IDisposable
     private readonly int _tileWidth;
     private readonly int _tileHeight;
     private readonly int _rowsPerStrip;
+    private readonly Dictionary<int, int[]> _stripCache = [];
+    private readonly LinkedList<int> _stripOrder = [];
     private int[] _tileRaster = [];
-    private int[] _stripRaster = [];
+    private long _stripCacheBytes;
     private bool _disposed;
 
     private TiffRegionReader(Tiff image, string path, int width, int height)
@@ -183,6 +189,9 @@ public sealed class TiffRegionReader : IDisposable
 
             _disposed = true;
             _image.Dispose();
+            _stripCache.Clear();
+            _stripOrder.Clear();
+            _stripCacheBytes = 0;
         }
     }
 
@@ -255,25 +264,26 @@ public sealed class TiffRegionReader : IDisposable
                 Path.GetExtension(_path));
         }
 
-        if (_stripRaster.Length < rasterLength)
-        {
-            _stripRaster = new int[(int)rasterLength];
-        }
-
-        var raster = _stripRaster;
+        var rasterLengthValue = (int)rasterLength;
         var firstStrip = y / _rowsPerStrip;
         var lastStrip = (y + height - 1) / _rowsPerStrip;
         for (var strip = firstStrip; strip <= lastStrip; strip++)
         {
             var stripRow = strip * _rowsPerStrip;
             var actualRows = Math.Min(_rowsPerStrip, PixelHeight - stripRow);
-            if (!_image.ReadRGBAStrip(stripRow, raster))
+            if (!_stripCache.TryGetValue(strip, out var raster))
             {
-                throw new ImageLoadException(
-                    ImageLoadFailure.Corrupt,
-                    "The TIFF strip could not be decoded.",
-                    _path,
-                    Path.GetExtension(_path));
+                raster = GC.AllocateUninitializedArray<int>(rasterLengthValue);
+                if (!_image.ReadRGBAStrip(stripRow, raster))
+                {
+                    throw new ImageLoadException(
+                        ImageLoadFailure.Corrupt,
+                        "The TIFF strip could not be decoded.",
+                        _path,
+                        Path.GetExtension(_path));
+                }
+
+                CacheStrip(strip, raster, rasterLengthValue);
             }
 
             var top = Math.Max(y, stripRow);
@@ -291,6 +301,29 @@ public sealed class TiffRegionReader : IDisposable
                     ((pixelY - y) * width) * 4);
             }
         }
+    }
+
+    private void CacheStrip(int strip, int[] raster, int rasterLength)
+    {
+        var bytes = (long)rasterLength * sizeof(int);
+        if (bytes > MaximumStripCacheBytes)
+        {
+            return;
+        }
+
+        while (_stripCacheBytes + bytes > MaximumStripCacheBytes &&
+               _stripOrder.First is { } first)
+        {
+            _stripOrder.RemoveFirst();
+            if (_stripCache.Remove(first.Value, out var evicted))
+            {
+                _stripCacheBytes -= (long)evicted.Length * sizeof(int);
+            }
+        }
+
+        _stripCache[strip] = raster;
+        _stripOrder.AddLast(strip);
+        _stripCacheBytes += bytes;
     }
 
     private static void CopyRgbaRow(
