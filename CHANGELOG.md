@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   region, aspect and toolbar remain until an export completes.
 - The Linux AVIF build locates `libdav1d.a` and `libavif.a` in multiarch
   `lib/<arch>` directories instead of assuming `lib/`.
+- The Windows libavif build now pins `CMAKE_C_COMPILER=cl`, so release CI uses
+  MSVC even when Strawberry GCC is earlier on `PATH`.
 
 ### Documentation
 

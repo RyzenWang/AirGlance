@@ -324,7 +324,7 @@ Invoke-Batch $dav1dBatch
 Write-Step "Building libavif $libavifVersion (static)"
 $libavifBatch = Join-Path $cacheDirectory "build-libavif.cmd"
 New-BuildBatch $libavifBatch @(
-    "`"$cmakePath`" -S `"$LibavifSource`" -B `"$libavifBuild`" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DAVIF_CODEC_DAV1D=SYSTEM -DAVIF_LIBYUV=OFF -DAVIF_LIBXML2=OFF -DAVIF_BUILD_APPS=OFF -DAVIF_BUILD_TESTS=OFF -DDAV1D_INCLUDE_DIR=`"$prefixInclude`" -DDAV1D_LIBRARY=`"$prefixLib\libdav1d.a`" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_INSTALL_PREFIX=`"$prefixDirectory`"",
+    "`"$cmakePath`" -S `"$LibavifSource`" -B `"$libavifBuild`" -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DAVIF_CODEC_DAV1D=SYSTEM -DAVIF_LIBYUV=OFF -DAVIF_LIBXML2=OFF -DAVIF_BUILD_APPS=OFF -DAVIF_BUILD_TESTS=OFF -DDAV1D_INCLUDE_DIR=`"$prefixInclude`" -DDAV1D_LIBRARY=`"$prefixLib\libdav1d.a`" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded -DCMAKE_INSTALL_PREFIX=`"$prefixDirectory`"",
     "if errorlevel 1 exit /b 1",
     "`"$cmakePath`" --build `"$libavifBuild`" --config Release",
     "if errorlevel 1 exit /b 1",
