@@ -1,7 +1,7 @@
 # AirGlance MSIX packaging
 
 This directory contains the Desktop Bridge (full-trust) MSIX manifest and the
-`Build-Msix.ps1` helper for AirGlance 0.4.1. The package uses the Windows desktop
+`Build-Msix.ps1` helper for AirGlance 0.5.0. The package uses the Windows desktop
 application model: it executes the normal `AirGlance.exe` with the
 `Windows.FullTrustApplication` entry point and declares the `runFullTrust`
 restricted capability.
@@ -27,7 +27,7 @@ Prerequisites:
   ```powershell
   dotnet publish src/AirGlance.App/AirGlance.App.csproj `
     -c Release -r win-x64 `
-    -p:PublishAot=true -p:StripSymbols=true -p:Version=0.3.0 `
+    -p:PublishAot=true -p:StripSymbols=true -p:Version=0.5.0 `
     -o publish/win-x64
   ```
 
@@ -56,7 +56,7 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only until all native payloads support ARM64.
+example `artifacts/msix/AirGlance_1.0.0.0_x64.msix`. The Store submission is x64-only because the AVIF native decoder is built for win-x64; other architectures hide `.avif` until their decoder is added.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.

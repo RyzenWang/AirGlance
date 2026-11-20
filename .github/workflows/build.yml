@@ -41,6 +41,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
+      - name: Install AVIF build dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nasm -y --no-progress
+          python -m pip install --user meson==1.7.2
+
+      - name: Build AVIF decoder (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./native/avif/build.ps1 -NasmDirectory "C:\Program Files\NASM"
+
       - name: Restore
         run: dotnet restore AirGlance.sln
 

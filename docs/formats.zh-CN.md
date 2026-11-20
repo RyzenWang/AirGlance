@@ -5,9 +5,9 @@
 AirGlance 在图像显示到屏幕之前会做两项检查：
 
 1. 文件扩展名必须位于受支持列表中（`SupportedFormats`）。这决定了该文件是否会出现在文件夹列表中，以及命令行或拖放处理程序是否接受它。
-2. 普通位图格式由 SkiaSharp 的 `SKCodec` 解码；TIFF 走 LibTiff，SVG 由 Svg.Skia 光栅化。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
+2. 普通位图格式由 SkiaSharp 的 `SKCodec` 解码；TIFF 走 LibTiff，SVG 由 Svg.Skia 光栅化，AVIF 在 Windows x64 构建中由随包分发的 libavif + dav1d 解码。扩展名受支持但内容无法读取的文件会报告为损坏，而不是不受支持。
 
-即使文件内容恰好是受支持的图像，扩展名不受支持的文件也会被拒绝。信息面板中显示的格式名称优先取自编解码器，无法获取时回退到扩展名。
+即使文件内容恰好是受支持的图像，扩展名不受支持的文件也会被拒绝。信息面板中显示的格式名称优先取自编解码器，无法获取时回退到扩展名。没有原生 AVIF 解码器时，`SupportedFormats` 会隐藏 `.avif`，不会宣称支持一个打不开的格式。
 
 ## 支持的格式
 
@@ -16,6 +16,7 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 | JPEG | `.jpg`、`.jpeg`、`.jfif` | 8 位 BGRA 输出；报告为 8 位 | 1 | 否；保存的 JPEG 副本会被压平为白色 | 已应用，EXIF 1–8 | 从 APP2 读取并转换为 sRGB | `orientation-1..8.jpg`、`display-p3.jpg`、`adobe-rgb.jpg`、`srgb.jpg`、`exif-full.jpg` |
 | PNG | `.png` | BGRA 输出；源位深从 IHDR 报告（测试夹具中为 8 或 16） | 1 | 保留 | 为信息面板从 `eXIf` 读取；不应用到像素 | 从 `iCCP` 读取并转换为 sRGB | `alpha.png`、`display-p3.png`、`gradient-16bit.png` |
 | WebP | `.webp` | 8 位 BGRA 输出 | 1 | 保留 | 为信息面板读取 EXIF；没有显示方向测试夹具 | 从 `ICCP` 读取并转换为 sRGB | `alpha.webp` |
+| AVIF（Windows x64） | `.avif` | libavif + dav1d 输出 8 位 BGRA；报告源位深 8/10/12 | 1（第一帧） | 保留，预乘 | 从 `irot`/`imir` 应用，缺失时回退到 EXIF 方向 | 为信息面板读取 AVIF ICC 项；像素暂不做 ICC 色彩管理 | `sample.avif`、`alpha.avif`、`irot.avif`、`icc-exif.avif`、`animated.avif`、`white-1x1.avif` |
 | BMP | `.bmp` | 由 `SKCodec` 解码 | 1 | 未纳入测试覆盖 | 未读取 | 未读取 | 无测试夹具 |
 | GIF | `.gif` | 8 位 BGRA 输出；按 GIF 处置规则合成每一帧 | 全部帧 | 通过合成输出保留；没有专门的透明度测试夹具 | 未读取 | 未读取 | `animated.gif` |
 | ICO | `.ico` | 由编解码器选择的一幅图像 | 1 | 沿 BGRA 解码路径保留；未做测试夹具验证 | 未读取 | 未读取 | 无测试夹具 |
@@ -36,16 +37,32 @@ AirGlance 在图像显示到屏幕之前会做两项检查：
 
 `IccProfile` 从 `desc`、`text` 或 `mluc` 标签中读取人类可读的描述，并将 `A98C`/`A98` 映射为 “Adobe RGB (1998)”，将 `sP3`/`P3` 映射为 “Display P3”。随后，`ImageMetadata.ColorSpaceDisplay` 在没有配置文件或描述中已提及 sRGB 时报告 `sRGB`，否则报告 `<profile> → sRGB`。
 
+### AVIF（Windows x64）
+
+Windows x64 构建把 libavif 1.4.2 和 dav1d 1.5.5 打进 `airglance_avif.dll`。`LibAvifDecoder` 解析容器、解第一帧，并要求 libavif 输出 8 位预乘 BGRA；像素之后走与其他格式相同的方向和位图路径。
+
+- `irot`/`imir` 由 libavif 的 transform 属性驱动；两者都没有时使用 EXIF 方向。映射使用 libavif 文档中的八种组合（irot 先于 imir）。
+- `clap` clean aperture 在方向之前裁剪。
+- 10/12 位源由 libavif 转成 8 位；信息面板报告源位深。
+- Alpha 保留并预乘。
+- AVIF 序列对查看器仍是静态图：只显示第一帧，`FrameCount` 报告 1。
+- ICC 和 EXIF 会读取用于信息面板；与 JPEG/PNG/WebP 不同，AVIF 像素暂不从 ICC 转换到 sRGB，信息面板里的配置文件只作描述。
+- `avifDecoder.imageSizeLimit` 和 `imageDimensionLimit` 限制解码像素量；超过应用上限的文件会被拒绝，而不是先分配巨量内存。
+- 不支持 AVIF 输出。另存副本仍写 JPEG、PNG 或 WebP。
+
+原生 DLL 由 `native/avif/build.ps1` 构建，不提交到 git。其他 RID（包括 Windows arm64 和 macOS/Linux）暂未包含它，因此 `SupportedFormats` 会在这些平台隐藏 `.avif`。MSIX 清单已经声明 `.avif` 文件关联。
+
 ## 不支持的格式
 
 | 格式 | v0.1 行为 |
 | --- | --- |
 | HEIC / HEIF | 不列出，也不打开 |
 | RAW（CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2 等） | 不列出，也不打开 |
+| 动画 AVIF（AVIF 序列） | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 动画 WebP / APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 视频（MP4、MOV、WebM、MKV 等） | 不列出，也不打开 |
 
-HEIC、AVIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。SkiaSharp 无法解码它们，AirGlance 也不再包含 libvips。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
+HEIC、HEIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。HEIC 需要未随包分发的原生 HEVC 解码器；AVIF 使用 AV1，Windows x64 构建已经随包支持。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
 
 ## 确切行为
 
@@ -124,6 +141,13 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 | `animated.gif` | 40 × 40，3 帧 | `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay`、`MainWindowTests.Animated_gif_is_presented_as_an_animation` | 验证 GIF 的帧、延迟和播放 |
 | `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`、`Svg_scaled_decode_keeps_the_vector_aspect_ratio` | 验证 SVG 在固有尺寸和缩放尺寸下的光栅化 |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | 报告 PNG 源位深为 16 |
+| `sample.avif` | 1440 × 900 | `ImageDecoderTests.Avif_decodes_a_still_image`、`Avif_preview_respects_the_requested_box` | AVIF 静态解码、中心颜色和预览缩放 |
+| `alpha.avif` | 80 × 80 | `ImageDecoderTests.Avif_alpha_is_preserved` | AVIF Alpha 保留并预乘 |
+| `irot.avif` | 存储 12 × 34；显示 34 × 12 | `ImageDecoderTests.Avif_irot_is_applied_and_bit_depth_is_reported` | `irot` 方向和 10 位源报告 |
+| `icc-exif.avif` | 403 × 302 | `ImageDecoderTests.Avif_icc_and_exif_are_read` | AVIF ICC 描述和 EXIF 相机字段 |
+| `animated.avif` | 150 × 150，5 帧 | `ImageDecoderTests.Avif_animation_uses_the_first_frame` | 动画 AVIF 只显示第一帧 |
+| `white-1x1.avif` | 1 × 1 | `ImageDecoderTests.Avif_one_pixel_image_decodes` | 最小 AVIF 尺寸 |
+| `corrupt.avif` | 100 字节（截断） | `ImageDecoderTests.Avif_corrupt_file_reports_corrupt` | 截断 AVIF 报告损坏 |
 | `corrupt.jpg` | 18 字节 | `ImageDecoderTests.Corrupt_file_reports_corrupt` | 受支持的扩展名搭配无效内容时会报告图像损坏 |
 | `exif-full.jpg` | 120 × 80 | `ImageDecoderTests.Exif_fields_are_read` | IFD0/子 IFD 字段、有理数值和 Pillow 风格数对 |
 | `profiles/DisplayP3.icc` | 480 字节 | 测试资产生成以及 `display-p3.*` | Display P3 配置文件测试夹具 |
@@ -136,6 +160,8 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 该矩阵描述的是已测试的行为，并不声称每种受支持的格式都有测试夹具。以下各点未被当前测试套件测量：
 
 - BMP 和 ICO 没有测试夹具，也没有测试。它们的支持仅依靠 `SKCodec` 路径和扩展名校验。
+- AVIF 没有仅包含 clean aperture 的有效测试夹具；`clap` 裁剪路径已实现但没有端到端覆盖。`irot` 有夹具测试；`imir` 及 `irot`/`imir` 组合按 libavif 文档映射，但没有夹具测试。ICC 只为信息面板读取，AVIF 像素暂不转换到 sRGB。HDR/gain map 和 AVIF 编码不支持。
+- AVIF 测试和夹具只在原生解码器存在的平台运行；Windows arm64、macOS 和 Linux 构建会隐藏 `.avif`，直到补上对应工具链。
 - PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
 - WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。
 - ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。

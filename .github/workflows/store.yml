@@ -12,7 +12,7 @@ env:
   # The application/GitHub version and the Microsoft Store package version are
   # independent. Store packages start at 1.0.0.0 and only the Store version is
   # bumped for each submission.
-  APP_VERSION: "0.4.1"
+  APP_VERSION: "0.5.0"
   STORE_VERSION: "1.0.0"
 
 jobs:
@@ -37,14 +37,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Publish and pack both architectures
+      - name: Install and build AVIF decoder
+        shell: pwsh
+        run: |
+          choco install nasm -y --no-progress
+          python -m pip install --user meson==1.7.2
+          ./native/avif/build.ps1 -NasmDirectory "C:\Program Files\NASM"
+
+      - name: Publish and pack x64
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
 
-          # Store submission is x64-only until NetVips ships a Windows ARM64
-          # native payload. The x64 package uses the complete AVIF/large-TIFF
-          # feature set; do not upload an arm64 package with missing codecs.
+          # Store submission is x64-only because the AVIF native decoder is
+          # built for win-x64 in this workflow. ARM64 builds hide AVIF until
+          # that toolchain is added.
           $targets = @(
             [pscustomobject]@{ Architecture = "x64"; Runtime = "win-x64" }
           )

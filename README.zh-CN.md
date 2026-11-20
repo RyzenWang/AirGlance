@@ -55,13 +55,14 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 
 ## 图片格式
 
-文件先按扩展名识别。普通位图格式由 SkiaSharp 解码；TIFF 由 LibTiff 解码，SVG 由 Svg.Skia 解析并光栅化。支持以下格式：
+文件先按扩展名识别。普通位图格式由 SkiaSharp 解码；TIFF 由 LibTiff 解码，SVG 由 Svg.Skia 解析并光栅化，AVIF 在 Windows x64 构建中使用随包分发的 libavif + dav1d 解码。支持以下格式：
 
 | 格式 | 扩展名 | 说明 |
 | --- | --- | --- |
 | JPEG | `.jpg`、`.jpeg`、`.jfif` | 应用 EXIF 方向，内嵌 ICC 转为 sRGB。JPEG 副本会把透明区域压平到白色。 |
 | PNG | `.png` | 保留透明通道和内嵌 ICC。16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。 |
 | WebP | `.webp` | 支持带透明通道的静态图片；内嵌 ICC 转为 sRGB。 |
+| AVIF | `.avif` | 仅 Windows x64。显示第一帧，支持透明通道、10/12 位源、`irot`/`imir`、clean aperture、ICC/EXIF 元数据；不支持 AVIF 导出。 |
 | BMP | `.bmp` | 通过 SkiaSharp 解码。 |
 | GIF | `.gif` | 动画 GIF 自动播放并循环；静态 GIF 只显示一帧。 |
 | ICO | `.ico` | 由编解码器从图标中选择一张图片。 |
@@ -71,19 +72,16 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 不支持：
 
 - HEIC / HEIF
-- AVIF
 - RAW 相机格式，例如 CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2
 - 视频文件，例如 MP4、MOV、WebM、MKV
 
 不支持的原因：
 
-- **HEIC / HEIF / AVIF** 需要原生 HEVC 或 AV1 解码器。AirGlance 不再内置 libvips，因此这些格式不在当前包内。
+- **HEIC / HEIF** 需要原生 HEVC 解码器，AirGlance 不内置，因此不在当前包内。AVIF 使用 AV1 而不是 HEVC，Windows x64 构建已支持。
 - **RAW** 不是可直接显示的像素。打开 RAW 需要去马赛克、白平衡、相机色彩矩阵、色调映射，通常还需要镜头校正；这需要一套 LibRaw 级别的引擎，而不是切换一个解码器。
 - **视频** 需要解复用、视频解码、音画同步，以及 FFmpeg 或系统媒体 API 之类的媒体栈。这超出了静态看图工具的范围，编解码授权和包体大小也是显著成本。
 
-AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia 处理 SVG。不再包含 libvips 原生库。
-
-以上格式是刻意不支持的，也不会回退到系统编解码器。把文件改成受支持的扩展名没有用：内容检查仍会失败，文件会按损坏文件报错，而不是被打开。扩展名不受支持的文件也会被拒绝，即使它的内容恰好是受支持的图片。
+AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia 处理 SVG，并在 Windows x64 构建中随包分发 libavif + dav1d 处理 AVIF。不再包含 libvips 原生库，也不回退到系统编解码器。没有 AVIF 解码器的构建会从文件选择器和文件夹扫描中隐藏 `.avif`，不会宣称支持一个打不开的格式。
 
 ## 安装
 
@@ -192,7 +190,8 @@ Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/
 
 这些是限制，不是承诺清单。
 
-- 不支持 HEIC、AVIF 或 RAW。SkiaSharp 无法解码这些格式，AirGlance 也不内置系统编解码器。
+- HEIC/HEIF 和相机 RAW 不支持。AVIF 由 Windows x64 构建支持；其他平台构建会隐藏 `.avif`，直到补上对应的原生解码器。
+- AVIF 只显示第一帧，动画 AVIF 不播放，另存副本也不能写 AVIF。
 - 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
 - TIFF 只显示第一页。BigTIFF 和部分特殊压缩变体不在支持范围内；托管 LibTiff 路径覆盖 stripped、tiled、pyramidal 和 planar 文件，包括 8/16 位 RGB、CMYK、RGBA、浮点和调色板数据。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。
@@ -206,6 +205,14 @@ Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/
 ## 从源码构建
 
 需要 .NET 10 SDK。解决方案目标为 `net10.0`，并通过 `rollForward: latestFeature` 将 SDK 固定到 10.0.100。
+
+Windows x64 的 AVIF 解码需要随包分发的原生解码器。准备 Visual Studio C++ 工具、CMake/Ninja、Python + Meson 和 NASM，然后构建一次：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File native/avif/build.ps1
+```
+
+打包脚本会为 `win-x64` 自动构建它。没有原生 DLL 时，`.avif` 会从文件选择器和文件夹扫描中隐藏，Windows AVIF 测试会失败并提示构建命令。详见 [native/avif/README.md](native/avif/README.md)。
 
 ```bash
 git clone https://github.com/RyzenWang/AirGlance.git

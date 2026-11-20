@@ -5,9 +5,9 @@
 AirGlance uses two checks before an image reaches the screen:
 
 1. The file extension must be on the supported list (`SupportedFormats`). This decides whether the file appears in a folder listing and whether the command line or drop handler accepts it.
-2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff, and SVG uses Svg.Skia. A supported extension with unreadable content is reported as corrupt, not unsupported.
+2. Ordinary raster formats decode with SkiaSharp's `SKCodec`; TIFF uses LibTiff, SVG uses Svg.Skia, and AVIF uses a bundled libavif + dav1d decoder on Windows x64. A supported extension with unreadable content is reported as corrupt, not unsupported.
 
-A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension.
+A file with an unsupported extension is refused even if its content happens to be a supported image. Format names shown in the info panel come from the codec when available and fall back to the extension. `SupportedFormats` hides `.avif` when the native AVIF decoder is not present, so a build without it never advertises a format it cannot open.
 
 ## Supported formats
 
@@ -16,6 +16,7 @@ A file with an unsupported extension is refused even if its content happens to b
 | JPEG | `.jpg`, `.jpeg`, `.jfif` | 8-bit BGRA output; 8-bit reported | 1 | No; saved JPEG copies are flattened to white | Applied, EXIF 1–8 | Read from APP2 and converted to sRGB | `orientation-1..8.jpg`, `display-p3.jpg`, `adobe-rgb.jpg`, `srgb.jpg`, `exif-full.jpg` |
 | PNG | `.png` | BGRA output; source bit depth reported from IHDR (8 or 16 in the fixtures) | 1 | Preserved | Read from `eXIf` for the info panel; not applied to pixels | Read from `iCCP` and converted to sRGB | `alpha.png`, `display-p3.png`, `gradient-16bit.png` |
 | WebP | `.webp` | 8-bit BGRA output | 1 | Preserved | EXIF read for the info panel; no display-orientation fixture | Read from `ICCP` and converted to sRGB | `alpha.webp` |
+| AVIF (Windows x64) | `.avif` | 8-bit BGRA output from libavif + dav1d; source depth 8/10/12 reported | 1 (first frame) | Preserved, premultiplied | Applied from `irot`/`imir`, falling back to EXIF orientation | Read from the AVIF ICC item for the info panel; pixels are not colour-managed from ICC yet | `sample.avif`, `alpha.avif`, `irot.avif`, `icc-exif.avif`, `animated.avif`, `white-1x1.avif` |
 | BMP | `.bmp` | Decoded by `SKCodec` | 1 | Not test-covered | Not read | Not read | No fixture |
 | GIF | `.gif` | 8-bit BGRA output; every frame composited with GIF disposal rules | All frames | Carried through the composited output; no dedicated transparency fixture | Not read | Not read | `animated.gif` |
 | ICO | `.ico` | One image selected by the codec | 1 | Carried through the BGRA decode path; not fixture-tested | Not read | Not read | No fixture |
@@ -36,16 +37,32 @@ The info panel reads the profile separately from the file header:
 
 `IccProfile` reads a human-readable description from `desc`, `text` or `mluc` tags and maps `A98C`/`A98` to "Adobe RGB (1998)" and `sP3`/`P3` to "Display P3". `ImageMetadata.ColorSpaceDisplay` then reports `sRGB` when there is no profile or the description already mentions sRGB, and `<profile> → sRGB` otherwise.
 
+### AVIF (Windows x64)
+
+The Windows x64 build bundles libavif 1.4.2 and dav1d 1.5.5 in `airglance_avif.dll`. `LibAvifDecoder` parses the container, decodes the first frame, and asks libavif for 8-bit premultiplied BGRA. The pixels then go through the same orientation and bitmap path as the other formats.
+
+- `irot` and `imir` are applied from libavif's transform properties; if neither is present, the EXIF orientation is used. The mapping is the same eight-way composition libavif documents (irot before imir).
+- A `clap` clean aperture is cropped before orientation.
+- 10-bit and 12-bit sources are converted to 8-bit by libavif; the source depth is reported in the info panel.
+- Alpha is preserved and premultiplied.
+- AVIF sequences are still images to the viewer: the first frame is shown and `FrameCount` is reported as 1.
+- ICC and EXIF payloads are read for the info panel. Unlike JPEG/PNG/WebP, AVIF pixels are not colour-managed from ICC to sRGB yet; treat the info panel profile as descriptive.
+- `avifDecoder.imageSizeLimit` and `imageDimensionLimit` bound the decoded pixel count. The app rejects files above its own limit instead of attempting a huge allocation.
+- AVIF output is not supported. Save copy still writes JPEG, PNG or WebP.
+
+The native DLL is built by `native/avif/build.ps1` and is not committed. Builds for other RIDs (including Windows arm64 and macOS/Linux) do not contain it yet, so `SupportedFormats` hides `.avif` there. The MSIX manifest already declares the `.avif` file association for the Windows package.
+
 ## Not supported
 
 | Format | v0.1 behavior |
 | --- | --- |
 | HEIC / HEIF | Not listed and not opened |
 | RAW (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2 and others) | Not listed and not opened |
+| Animated AVIF (AVIF sequences) | First frame is shown as a still image; no animation loop |
 | Animated WebP / APNG | First frame is shown as a still image; no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 
-HEIC, AVIF and RAW are deliberately absent, not pending work. SkiaSharp cannot decode them and AirGlance no longer ships libvips. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
+HEIC, HEIF and RAW are deliberately absent, not pending work. HEIC needs a native HEVC decoder that is not bundled; AVIF uses AV1 and is now bundled for Windows x64. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
 
 ## Exact behavior
 
@@ -124,6 +141,13 @@ All paths are under `tests/Assets` and are copied next to the test binaries.
 | `animated.gif` | 40 × 40, 3 frames | `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay`, `MainWindowTests.Animated_gif_is_presented_as_an_animation` | GIF frames, delays and playback are exercised |
 | `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`, `Svg_scaled_decode_keeps_the_vector_aspect_ratio` | SVG is rasterized at intrinsic and scaled sizes |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | PNG source bit depth 16 is reported |
+| `sample.avif` | 1440 × 900 | `ImageDecoderTests.Avif_decodes_a_still_image`, `Avif_preview_respects_the_requested_box` | AVIF still decode, centre colour and preview scaling |
+| `alpha.avif` | 80 × 80 | `ImageDecoderTests.Avif_alpha_is_preserved` | AVIF alpha is preserved and premultiplied |
+| `irot.avif` | 12 × 34 stored; 34 × 12 displayed | `ImageDecoderTests.Avif_irot_is_applied_and_bit_depth_is_reported` | `irot` orientation and 10-bit source reporting |
+| `icc-exif.avif` | 403 × 302 | `ImageDecoderTests.Avif_icc_and_exif_are_read` | AVIF ICC description and EXIF camera fields |
+| `animated.avif` | 150 × 150, 5 frames | `ImageDecoderTests.Avif_animation_uses_the_first_frame` | Animated AVIF is presented as one still frame |
+| `white-1x1.avif` | 1 × 1 | `ImageDecoderTests.Avif_one_pixel_image_decodes` | Smallest AVIF dimensions |
+| `corrupt.avif` | 100 bytes (truncated) | `ImageDecoderTests.Avif_corrupt_file_reports_corrupt` | Truncated AVIF reports corrupt |
 | `corrupt.jpg` | 18 bytes | `ImageDecoderTests.Corrupt_file_reports_corrupt` | A supported extension with invalid content reports a corrupt image |
 | `exif-full.jpg` | 120 × 80 | `ImageDecoderTests.Exif_fields_are_read` | IFD0/sub-IFD fields, rational values and Pillow-style pairs |
 | `profiles/DisplayP3.icc` | 480 bytes | Test asset generation and `display-p3.*` | Display P3 profile fixture |
@@ -136,6 +160,8 @@ The two ICC files come from saucecontrol/Compact-ICC-Profiles and are CC0. They 
 The matrix is a description of tested behavior, not a claim that every supported format has a fixture. These points are not measured by the current suite:
 
 - BMP and ICO have no fixture and no test. Their support is the `SKCodec` path and the extension gate.
+- AVIF has no valid clean-aperture-only fixture; the `clap` crop path is implemented but not exercised end to end. `irot` is fixture-tested; `imir` and combined `irot`/`imir` follow libavif's documented mapping but are not fixture-tested. ICC is read for the info panel but not converted to sRGB for AVIF pixels. HDR/gain maps and AVIF encoding are not supported.
+- AVIF tests and fixtures only run where the native decoder is present; Windows arm64, macOS and Linux builds hide `.avif` until their toolchain is added.
 - PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
 - WebP ICC and WebP EXIF are not covered by fixtures.
 - ICO alpha, GIF transparency and BMP alpha are not covered by dedicated fixtures.

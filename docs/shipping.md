@@ -53,6 +53,7 @@ At 100 percent, a 100 MP JPEG creates a temporary tile file of about 400 MB unde
   - Windows: Visual Studio 2022 C++ desktop workload and a Windows SDK.
   - macOS: Xcode command line tools. `pack.sh` also uses `/usr/libexec/PlistBuddy` and `ditto`.
   - Linux: clang, zlib and the native dependencies required by .NET NativeAOT on the target distribution. ICU is required unless globalization is made invariant; AirGlance has not been changed to invariant globalization.
+- Windows x64 AVIF decoder: CMake and Ninja (from Visual Studio), Python 3 with Meson 1.7.2 (`python -m pip install --user meson==1.7.2`), and NASM. `native/avif/build.ps1` downloads and verifies libavif 1.4.2 / dav1d 1.5.5 and builds `airglance_avif.dll`. `pack.ps1` runs it automatically for `win-x64`; without NASM dav1d is built without x86 SIMD.
 - The package versions in `Directory.Packages.props`. SkiaSharp 4.150.1 and Avalonia 11.3.22 share one native asset graph; do not replace either with a 3.x SkiaSharp package.
 - For Store packaging: a Windows 10/11 SDK with `MakeAppx.exe`, `signtool.exe` and the Windows App Certification Kit.
 - A display for manual smoke tests. The build and packaging steps are headless, but launching the app is not. Linux smoke tests need X11/Wayland or Xvfb.
@@ -96,6 +97,7 @@ The scripts call `dotnet publish -c Release -r <rid> -p:PublishAot=true -p:Strip
 
 ```text
 AirGlance.exe
+airglance_avif.dll
 av_libglesv2.dll
 libHarfBuzzSharp.dll
 libSkiaSharp.dll
@@ -104,8 +106,10 @@ THIRD-PARTY-NOTICES.md
 ```
 
 The archive has `AirGlance.exe` at its root. It does not include `README.md`, but the MIT
-license and third-party notices travel with the binary. The macOS bundle carries them in
-`Contents/Resources`; the Linux tar.gz places them at the archive root.
+license and third-party notices travel with the binary. `airglance_avif.dll` is present in
+the `win-x64` archive; `win-arm64` does not build the AVIF decoder yet and hides `.avif`.
+The macOS bundle carries the notices in `Contents/Resources`; the Linux tar.gz places them
+at the archive root.
 
 ### macOS app bundle
 
@@ -277,7 +281,7 @@ The manifest also declares:
 - `TargetDeviceFamily` `Windows.Desktop` with `MinVersion="10.0.19041.0"` and `MaxVersionTested="10.0.26100.0"`;
 - `Application` with `Executable="AirGlance.exe"` and `EntryPoint="Windows.FullTrustApplication"`;
 - the `runFullTrust` restricted capability;
-- file associations for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.bmp`, `.gif`, `.ico`, `.tif`, `.tiff` and `.svg`;
+- file associations for `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`, `.avif`, `.bmp`, `.gif`, `.ico`, `.tif`, `.tiff` and `.svg`;
 - the package, tile and Store logos from `packaging/msix/Assets`.
 
 The manifest does not request network capabilities. It also has no telemetry component.

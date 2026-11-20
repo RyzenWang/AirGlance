@@ -28,6 +28,10 @@
 .PARAMETER Msix
     Also build an unsigned MSIX for the architecture corresponding to -Runtime.
 
+.PARAMETER NasmDirectory
+    Directory containing nasm.exe for the win-x64 AVIF build. Optional; the
+    native script also searches PATH and C:\Program Files\NASM.
+
 .EXAMPLE
     ./packaging/scripts/pack.ps1 -Version 0.1.0 -Runtime win-x64 -Aot
 
@@ -45,7 +49,9 @@ param(
 
     [string]$OutputDir = "artifacts",
 
-    [switch]$Msix
+    [switch]$Msix,
+
+    [string]$NasmDirectory = ""
 )
 
 Set-StrictMode -Version Latest
@@ -183,6 +189,24 @@ Write-Host ""
 
 try {
     New-Item -ItemType Directory -Path $publishPath -Force | Out-Null
+
+    if ($Runtime -eq "win-x64") {
+        $avifBuildScript = Join-Path $repoRoot "native\avif\build.ps1"
+        if (-not (Test-Path -LiteralPath $avifBuildScript -PathType Leaf)) {
+            throw "The AVIF decoder build script was not found: '$avifBuildScript'."
+        }
+
+        Write-Host "Building AVIF decoder..."
+        $avifArguments = @()
+        if (-not [string]::IsNullOrWhiteSpace($NasmDirectory)) {
+            $avifArguments = @("-NasmDirectory", $NasmDirectory)
+        }
+
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $avifBuildScript @avifArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "The AVIF decoder build failed with exit code $LASTEXITCODE."
+        }
+    }
 
     Write-Host "Publishing..."
     & $dotnetPath publish $projectPath -c Release -r $Runtime -p:PublishAot=$aotValue -p:StripSymbols=true -p:Version=$Version -o $publishPath
