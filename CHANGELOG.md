@@ -5,7 +5,7 @@ All notable changes to AirGlance are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-11-20
 
 ### Changed
 
@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Managed preview and 100% region reading for large TIFFs, including stripped,
+  tiled, pyramidal and planar layouts. The LibTiff.NET path replaces the old
+  libvips thumbnail/region implementation.
+- TIFF formats: planar RGB (8/16-bit), planar CMYK (8/16-bit), planar RGBA
+  (8/16-bit), float16/float32 RGB and gray, signed 16-bit RGB and gray, 16-bit
+  palette, tiled planar, and compressed subsampled YCbCr.
 - Non-destructive Edit drawer for rotate, flip and crop. The original file is
   never modified; Cancel restores the previous view and Reset clears the session.
 - Export copy dialog with JPEG/PNG/WebP, quality, original/long-edge/fit-within
@@ -309,6 +315,7 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
+[0.5.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0
 [0.4.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.1
 [0.4.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.0
 [0.3.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.3.0
