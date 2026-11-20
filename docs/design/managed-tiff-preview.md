@@ -146,6 +146,7 @@ tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多�
 - **16-bit 区域**：tiled 和 multi-strip 走 raw 区域路径，100% 可用；单 strip 的 raw RGB/gray 会建临时 BGRA 缓存（16-bit 首次约 9.9 s，8-bit 约 6.9 s，磁盘约 1 GB），其他格式仍抛 `TooLarge`。16-bit tiled/multi-strip 100% 工作集约 479/671 MB。
 - **pyramid level 选择**：允许 level 比目标小最多 5%，用最近邻块上采样（8000 → 8192 约 2.4%）；细节会比全图略软。低于 95% 的 level 不选，8192 目标下仍可能回退全图。
 - **pyramid 枚举范围**：递归 `SUBIFD` 树，但只跟随 SubIFD tag；不跟随 SubIFD 之间的 NextIFD 链，也不处理多页文档的页缩略图。`SUBFILETYPE` 的 page/mask 位会跳过；tag 缺失或为 0 时仍用尺寸和 1% 宽高比启发式，同比例的小页理论上可能被误选。
+- **12-bit JPEG**：当前 LibTiff.NET 与自带 mozjpeg 都是 8-bit，无法解码 12-bit JPEG-in-TIFF；暂不实现，仍走 libvips 回退。后续需要单独构建/接入 12-bit libjpeg。
 - **ICC**：元数据会显示 ICC 描述，但预览像素没有做 ICC→sRGB 转换，和旧的大 TIFF 路径一致。
 - **方向**：大 TIFF 仍按原始存储方向显示；代理和区域 tile 一致，但和普通 TIFF 的“应用 orientation”行为不同。
 
