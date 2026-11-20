@@ -5,7 +5,7 @@
 
 ## 结论
 
-可行。`16000 × 16000`（256 MP）的 tiled、stripped 和单 strip TIFF 都能用托管路径生成代理；并行 tile/strip 解码后，tiled 首帧约 **616 ms**、stripped 约 **585 ms**，峰值内存 **80–125 MB**。旧 libvips 路径约 **2.1–2.6 s / 270–300 MB**，托管路径现在同时更快、更省内存。单 strip 仍是顺序 `ReadScanline`，约 2.4 s。
+可行。`16000 × 16000`（256 MP）的 tiled、stripped 和单 strip TIFF 都能用托管路径生成代理；并行 tile/strip 解码后，tiled 首帧约 **616 ms**、stripped 约 **585 ms**，峰值内存 **80–125 MB**。有金字塔时，fit 预览只解码一个 reduced IFD，decode 约 **50 ms**、首帧约 **331 ms**。旧 libvips 路径约 **2.1–2.6 s / 270–300 MB**，托管路径现在同时更快、更省内存。单 strip 仍是顺序 `ReadScanline`，约 2.4 s。
 
 托管预览让大 TIFF 不再依赖 libvips 的 `Thumbnail`，是让大 TIFF 在 macOS/Linux 端到端可用的关键一步。
 
@@ -25,13 +25,14 @@
 - **回退**：Windows 上，单条带 16-bit/CMYK 等超出托管限制的情况回退到 `NetVipsTiffDecoder`；其他平台返回明确错误。
 - **路由**：`ImageDecoder.DecodeTiff` 的大图分支和 `ReadTiffMetadata` 的大图分支改走托管实现。
 - **并行解码**：大于 2 MP 的 tiled 和 multi-strip 图按源行带分给最多 8 个 worker，每个 worker 打开自己的 `Tiff` 句柄；目标像素用一次 32 位 `Volatile.Write` 写入，边界重复采样时 last-writer-wins，不会把像素拆成混合通道。worker 数还受 256 MiB 的每 worker 光栅预算限制。
+- **pyramid/subIFD**：枚举顶层目录和 `SUBIFD` 标签里的 IFD，选面积最小、宽高都大于等于目标、宽高比与全图一致、面积不超过 16 MP 的 reduced level，直接在这个 IFD 上解码。选中 level 走串行解码，因为并行 worker 的句柄固定打开首个目录；大于 16 MP 的 level 跳过，回退全图并行路径。
 - **应用修正**：`MainWindowViewModel.OnZoomChanged` 在 `percent >= 30` 时不再启动代理升级。旧逻辑在区域模式打开的同一帧还会启动 8192 代理升级，导致“8192 代理 + 区域 tile”同时解码，100% 时工作集冲到 ~1.4 GB。修正后只走区域 tile。
 
 ## 验证
 
 ### 单元测试
 
-新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，11 个测试：
+新增 `tests/AirGlance.Core.Tests/TiffPreviewDecoderTests.cs`，12 个测试：
 
 1. tiled TIFF 缩放到 80 × 50，四角颜色和 alpha 正确；
 2. stripped TIFF 同上；
@@ -43,9 +44,10 @@
 8. 元数据报告尺寸、位深、格式；
 9. 2048 × 1536 tiled 走并行路径后四角颜色正确；
 10. 2048 × 1536 stripped 走并行路径后四角颜色正确；
-11. 已取消的 token 抛出 `OperationCanceledException`。
+11. 已取消的 token 抛出 `OperationCanceledException`；
+12. 两层目录 TIFF 在目标较小时选中 reduced 目录（绿色），而不是全图目录（红色）。
 
-完整套件：Core **125 passed**，App **35 passed**。
+完整套件：Core **126 passed**，App **35 passed**。
 
 ### 直接预览基准（256 MP，`TiffPreviewDecoder.DecodePreview`）
 
@@ -60,6 +62,8 @@
 | single strip 16000² | 1000² | 2.39 s | +8.8 MB |
 | single strip 16000² | 4096² | 3.60 s | +40.3 MB |
 
+带金字塔的 16000² 文件，fit 预览只解码 reduced level：subIFD 版 **68 ms**，顶层目录版 **62 ms**（无金字塔 654 ms）。4096² 目标时，8000 px level 超过 16 MP 限制，回退全图并行路径（667 / 619 ms）。
+
 ### 应用 `--bench=startup`（NativeAOT win-x64）
 
 | 文件 | 首帧 | decode_ms | 峰值 WS |
@@ -67,6 +71,8 @@
 | tiled 16000² | 616 ms（首跑冷启动 1898 ms） | 478 ms | **81.3 MB** |
 | stripped 16000² | 585 ms | 447 ms | **125.2 MB** |
 | single strip 16000² | 2553 ms | 2408 ms | **105.2 MB** |
+| pyramid subIFD 16000² | **331 ms** | 53 ms | **82.7 MB** |
+| pyramid dirs 16000² | **331 ms** | 49 ms | **82.4 MB** |
 
 旧 libvips 路径对照（同一批文件，上一轮）：tiled 首帧 2139 ms / 268 MB；stripped 2647 ms / 299 MB；single strip 回退 3663 ms / 312 MB。
 
@@ -77,7 +83,7 @@
 | tiled 16000² | **164–228 MB** | 563 MB |
 | stripped 16000² | **336 MB** | 699 MB |
 
-tiled 的 132 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多出 96 MiB 的 strip 缓存和 LibTiff.NET 的条带解码缓冲。
+tiled 的 164–228 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多出 96 MiB 的 strip 缓存和 LibTiff.NET 的条带解码缓冲。
 
 ## 已知限制
 
@@ -86,13 +92,15 @@ tiled 的 132 MB 包含区域 tile 缓存；stripped 的 336 MB 主要多出 96 
 - **并行内存**：stripped 4K 预览的峰值增量约 113 MB（8 个 worker 的条带光栅 + 目标缓冲）。
 - **质量**：代理是 2× 过采样的最近邻，不是 Lanczos/box；细密网格和纹理可能比 libvips 硬。30% 以上由区域 tile 接管。
 - **格式长尾**：16-bit、palette、CMYK、YCbCr、JPEG-in-TIFF 仍走 `ReadRGBA*`；单 strip 的 16-bit 等超出 64 MiB 条带上限时，Windows 回退 libvips，其他平台返回错误。
-- **pyramid**：没有利用 TIFF 金字塔/subreduced IFD；对有金字塔的文件，预览仍会全量解码。
+- **pyramid level 串行且 ≤ 16 MP**：选中的 reduced level 走串行解码；超过 16 MP 的 level 直接跳过，回退全图并行。并行 worker 目前固定打开首个目录，还不能在 subIFD 上工作。
+- **pyramid 枚举范围**：只看顶层目录和首目录的 `SUBIFD`；嵌套 subIFD、`SUBFILETYPE` 语义、多页文档里的缩略页没有细查。宽度、高度和 1% 宽高比是启发式，同比例的小页可能被误选。
 - **ICC**：元数据会显示 ICC 描述，但预览像素没有做 ICC→sRGB 转换，和旧的大 TIFF 路径一致。
 - **方向**：大 TIFF 仍按原始存储方向显示；代理和区域 tile 一致，但和普通 TIFF 的“应用 orientation”行为不同。
 
 ## 下一步
 
-1. **pyramid/subIFD**：优先选接近目标尺寸的 reduced IFD；对有金字塔的 VIPS/Photoshop TIFF，预览可以接近瞬时。
-2. **16-bit / 长尾快速路径**：`ReadScanline` + 16-bit 转换，覆盖天文/扫描类 TIFF 的单 strip；之后可以移除 libvips 回退。
-3. **单 strip 并行**：需要能按行带解码的 LZW 流式实现，或者先接受顺序路径。
-4. 用真实 Cosmic（tiled）和 Trifid（single strip）验证预览和区域浏览。
+1. **大 level 并行**：给 worker 增加目录/subIFD 参数，让 8000 px 级 level 也能走并行；或者提高 16 MP 限制并测速。
+2. **更多金字塔布局**：嵌套 subIFD、多页金字塔、`SUBFILETYPE` 语义。
+3. **16-bit / 长尾快速路径**：`ReadScanline` + 16-bit 转换，覆盖天文/扫描类 TIFF 的单 strip；之后可以移除 libvips 回退。
+4. **单 strip 并行**：需要能按行带解码的 LZW 流式实现，或者先接受顺序路径。
+5. 用真实 Cosmic（tiled）和 Trifid（single strip）验证预览和区域浏览。

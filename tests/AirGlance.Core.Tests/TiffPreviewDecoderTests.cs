@@ -239,6 +239,33 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Fact]
+    public void Preview_uses_a_reduced_top_level_directory()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateTwoLevelTiff(path);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 200, 150);
+
+            Assert.Equal(200, bitmap.Width);
+            Assert.Equal(150, bitmap.Height);
+            Assert.Equal(800, bitmap.SourceWidth);
+            Assert.Equal(600, bitmap.SourceHeight);
+
+            // The reduced directory is green; the full directory is red.
+            Assert.Equal("green", Classify(Pixel(bitmap, 100, 75)));
+
+            var metadata = TiffPreviewDecoder.ReadMetadata(path);
+            Assert.Equal(800, metadata.RawWidth);
+            Assert.Equal(600, metadata.RawHeight);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
@@ -360,6 +387,33 @@ public sealed class TiffPreviewDecoderTests
             }
 
             tiff.WriteScanline(rowBytes, y);
+        }
+    }
+
+    private static void CreateTwoLevelTiff(string path)
+    {
+        using var tiff = Tiff.Open(path, "w");
+        Assert.NotNull(tiff);
+        WriteSolidDirectory(tiff, 800, 600, 255, 0, 0);
+        tiff.WriteDirectory();
+        WriteSolidDirectory(tiff, 400, 300, 0, 160, 60);
+    }
+
+    private static void WriteSolidDirectory(Tiff tiff, int width, int height, byte red, byte green, byte blue)
+    {
+        SetCommonFields(tiff, width, height, samplesPerPixel: 3, Orientation.TOPLEFT);
+        tiff.SetField(TiffTag.ROWSPERSTRIP, 64);
+        var row = new byte[width * 3];
+        for (var x = 0; x < width; x++)
+        {
+            row[x * 3] = red;
+            row[x * 3 + 1] = green;
+            row[x * 3 + 2] = blue;
+        }
+
+        for (var y = 0; y < height; y++)
+        {
+            tiff.WriteScanline(row, y);
         }
     }
 

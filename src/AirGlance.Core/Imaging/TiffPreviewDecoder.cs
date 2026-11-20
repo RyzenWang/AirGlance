@@ -21,6 +21,7 @@ public static class TiffPreviewDecoder
     private const long ParallelPixelThreshold = 2_000_000;
     private const long ParallelWorkerMemoryBudget = 256L * 1024 * 1024;
     private const int MaximumParallelWorkers = 8;
+    private const long PyramidSerialPixelLimit = 16_000_000;
 
     public static ImageMetadata ReadMetadata(string path)
     {
@@ -89,37 +90,51 @@ public static class TiffPreviewDecoder
 
             var (targetWidth, targetHeight, scale) = ComputeTarget(width, height, maxWidth, maxHeight);
             var pixels = new byte[checked(targetWidth * targetHeight * 4)];
-            var layout = GetRawLayout(image);
 
-            if (image.IsTiled())
+            // Prefer a reduced pyramid level when one is large enough for the
+            // requested preview. The selected level is small enough to decode on
+            // the calling handle, so no worker has to re-open a sub-directory.
+            var decodedReducedLevel = false;
+            var level = FindReducedLevel(image, width, height, targetWidth, targetHeight);
+            if (level is { } reduced && TrySwitchToLevel(image, reduced))
             {
-                if (!TryDecodeTiledParallel(
-                        image, path, width, height, targetWidth, targetHeight, scale, layout, pixels, cancellationToken))
+                var decodeWidth = TagInt(image, TiffTag.IMAGEWIDTH);
+                var decodeHeight = TagInt(image, TiffTag.IMAGELENGTH);
+                if (decodeWidth > 0 && decodeHeight > 0)
                 {
-                    if (layout == RawLayout.None)
-                    {
-                        DecodeTiledRgba(image, path, width, height, targetWidth, targetHeight, scale, pixels, cancellationToken);
-                    }
-                    else
-                    {
-                        DecodeTiledRaw(image, path, width, height, targetWidth, targetHeight, scale, layout, pixels, cancellationToken);
-                    }
+                    var sampleScale = Math.Min(
+                        1.0,
+                        Math.Min(targetWidth / (double)decodeWidth, targetHeight / (double)decodeHeight));
+                    DecodeCurrentDirectory(
+                        image,
+                        path,
+                        decodeWidth,
+                        decodeHeight,
+                        targetWidth,
+                        targetHeight,
+                        sampleScale,
+                        pixels,
+                        allowParallel: false,
+                        cancellationToken);
+                    decodedReducedLevel = true;
                 }
             }
-            else
+
+            if (!decodedReducedLevel)
             {
-                if (!TryDecodeStrippedParallel(
-                        image, path, width, height, targetWidth, targetHeight, scale, layout, pixels, cancellationToken))
-                {
-                    if (layout == RawLayout.None)
-                    {
-                        DecodeStrippedRgba(image, path, width, height, targetWidth, targetHeight, scale, pixels, cancellationToken);
-                    }
-                    else
-                    {
-                        DecodeStrippedRaw(image, path, width, height, targetWidth, targetHeight, scale, layout, pixels, cancellationToken);
-                    }
-                }
+                image.SetDirectory(0);
+                ForceStoredOrientation(image);
+                DecodeCurrentDirectory(
+                    image,
+                    path,
+                    width,
+                    height,
+                    targetWidth,
+                    targetHeight,
+                    scale,
+                    pixels,
+                    allowParallel: true,
+                    cancellationToken);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -170,6 +185,220 @@ public static class TiffPreviewDecoder
                 exception);
         }
     }
+
+    private static void DecodeCurrentDirectory(
+        Tiff image,
+        string path,
+        int decodeWidth,
+        int decodeHeight,
+        int targetWidth,
+        int targetHeight,
+        double sampleScale,
+        byte[] pixels,
+        bool allowParallel,
+        CancellationToken cancellationToken)
+    {
+        var layout = GetRawLayout(image);
+        if (image.IsTiled())
+        {
+            if (allowParallel &&
+                TryDecodeTiledParallel(
+                    image,
+                    path,
+                    decodeWidth,
+                    decodeHeight,
+                    targetWidth,
+                    targetHeight,
+                    sampleScale,
+                    layout,
+                    pixels,
+                    cancellationToken))
+            {
+                return;
+            }
+
+            if (layout == RawLayout.None)
+            {
+                DecodeTiledRgba(
+                    image, path, decodeWidth, decodeHeight, targetWidth, targetHeight, sampleScale, pixels, cancellationToken);
+            }
+            else
+            {
+                DecodeTiledRaw(
+                    image, path, decodeWidth, decodeHeight, targetWidth, targetHeight, sampleScale, layout, pixels, cancellationToken);
+            }
+
+            return;
+        }
+
+        if (allowParallel &&
+            TryDecodeStrippedParallel(
+                image,
+                path,
+                decodeWidth,
+                decodeHeight,
+                targetWidth,
+                targetHeight,
+                sampleScale,
+                layout,
+                pixels,
+                cancellationToken))
+        {
+            return;
+        }
+
+        if (layout == RawLayout.None)
+        {
+            DecodeStrippedRgba(
+                image, path, decodeWidth, decodeHeight, targetWidth, targetHeight, sampleScale, pixels, cancellationToken);
+        }
+        else
+        {
+            DecodeStrippedRaw(
+                image, path, decodeWidth, decodeHeight, targetWidth, targetHeight, sampleScale, layout, pixels, cancellationToken);
+        }
+    }
+
+    private static ReducedLevel? FindReducedLevel(
+        Tiff image,
+        int fullWidth,
+        int fullHeight,
+        int targetWidth,
+        int targetHeight)
+    {
+        var fullArea = (long)fullWidth * fullHeight;
+        var fullAspect = fullWidth / (double)fullHeight;
+        ReducedLevel? best = null;
+        var bestArea = long.MaxValue;
+
+        void Consider(int width, int height, short directory, long subIfdOffset)
+        {
+            if (width <= 0 || height <= 0 ||
+                width < targetWidth || height < targetHeight)
+            {
+                return;
+            }
+
+            var area = (long)width * height;
+            if (area >= fullArea || area > PyramidSerialPixelLimit || area >= bestArea)
+            {
+                return;
+            }
+
+            var aspect = width / (double)height;
+            if (Math.Abs(aspect - fullAspect) > fullAspect * 0.01)
+            {
+                return;
+            }
+
+            best = new ReducedLevel(width, height, directory, subIfdOffset);
+            bestArea = area;
+        }
+
+        var directoryCount = image.NumberOfDirectories();
+        for (short directory = 1; directory < directoryCount; directory++)
+        {
+            if (!image.SetDirectory(directory))
+            {
+                continue;
+            }
+
+            Consider(
+                TagInt(image, TiffTag.IMAGEWIDTH),
+                TagInt(image, TiffTag.IMAGELENGTH),
+                directory,
+                0);
+        }
+
+        image.SetDirectory(0);
+        foreach (var offset in ReadSubIfdOffsets(image))
+        {
+            if (!image.SetSubDirectory(offset))
+            {
+                continue;
+            }
+
+            Consider(
+                TagInt(image, TiffTag.IMAGEWIDTH),
+                TagInt(image, TiffTag.IMAGELENGTH),
+                0,
+                offset);
+            image.SetDirectory(0);
+        }
+
+        image.SetDirectory(0);
+        return best;
+    }
+
+    private static bool TrySwitchToLevel(Tiff image, ReducedLevel level)
+    {
+        var switched = level.SubIfdOffset > 0
+            ? image.SetSubDirectory(level.SubIfdOffset)
+            : image.SetDirectory(level.Directory);
+        if (!switched)
+        {
+            return false;
+        }
+
+        ForceStoredOrientation(image);
+        return true;
+    }
+
+    private static void ForceStoredOrientation(Tiff image)
+    {
+        var orientation = TagInt(image, TiffTag.ORIENTATION);
+        if (orientation is > 1 and <= 8)
+        {
+            image.SetField(TiffTag.ORIENTATION, Orientation.TOPLEFT);
+        }
+    }
+
+    private static long[] ReadSubIfdOffsets(Tiff image)
+    {
+        var field = image.GetField(TiffTag.SUBIFD);
+        if (field is null)
+        {
+            return [];
+        }
+
+        foreach (var value in field)
+        {
+            switch (value.Value)
+            {
+                case long[] offsets:
+                    return offsets;
+                case int[] ints:
+                {
+                    var offsets = new long[ints.Length];
+                    for (var index = 0; index < ints.Length; index++)
+                    {
+                        offsets[index] = ints[index];
+                    }
+
+                    return offsets;
+                }
+
+                case uint[] uints:
+                {
+                    var offsets = new long[uints.Length];
+                    for (var index = 0; index < uints.Length; index++)
+                    {
+                        offsets[index] = uints[index];
+                    }
+
+                    return offsets;
+                }
+            }
+        }
+
+        return [];
+    }
+
+    private readonly record struct ReducedLevel(
+        int Width,
+        int Height,
+        short Directory,
+        long SubIfdOffset);
 
     private static bool TryDecodeTiledParallel(
         Tiff image,
