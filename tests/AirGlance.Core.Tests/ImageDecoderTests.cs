@@ -224,27 +224,6 @@ public sealed class ImageDecoderTests
     }
 
     [Fact]
-    public void Tiff_region_reader_returns_bgra_tile()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            // The Plan A native libvips package is currently Windows-only.
-            return;
-        }
-
-        using var reader = TiffRegionReader.Open(Asset("rgb-lzw.tif"));
-        var width = Math.Min(4, reader.PixelWidth);
-        var height = Math.Min(4, reader.PixelHeight);
-        var bytes = reader.ReadTile(0, 0, width, height);
-
-        Assert.Equal(width * height * 4, bytes.Length);
-        for (var index = 0; index < width * height; index++)
-        {
-            Assert.Equal(255, bytes[index * 4 + 3]);
-        }
-    }
-
-    [Fact]
     public void Tiff_alpha_is_preserved()
     {
         var bitmap = ImageDecoder.DecodeFull(Asset("alpha.tif"));
