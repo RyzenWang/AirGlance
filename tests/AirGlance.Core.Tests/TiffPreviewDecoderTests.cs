@@ -428,6 +428,37 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Theory]
+    [InlineData("cmyk-quadrants.tif")]
+    [InlineData("rgb-quadrants-jpeg.tif")]
+    public void Preview_decodes_cmyk_and_rgb_jpeg_quadrants(string name)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", name);
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 80, 50);
+
+        Assert.Equal(320, bitmap.SourceWidth);
+        Assert.Equal(200, bitmap.SourceHeight);
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+        Assert.Equal(8, TiffPreviewDecoder.ReadMetadata(path).BitDepth);
+    }
+
+    [Fact]
+    public void Preview_decodes_an_oversized_cmyk_single_strip()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "cmyk-large-single-strip.tif");
+        var bitmap = TiffPreviewDecoder.DecodePreview(path, 105, 100);
+
+        Assert.Equal(4200, bitmap.SourceWidth);
+        Assert.Equal(4000, bitmap.SourceHeight);
+        Assert.Equal("red", Classify(Pixel(bitmap, 1, 1)));
+        Assert.Equal("green", Classify(Pixel(bitmap, bitmap.Width - 2, 1)));
+        Assert.Equal("blue", Classify(Pixel(bitmap, 1, bitmap.Height - 2)));
+        Assert.Equal("yellow", Classify(Pixel(bitmap, bitmap.Width - 2, bitmap.Height - 2)));
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 

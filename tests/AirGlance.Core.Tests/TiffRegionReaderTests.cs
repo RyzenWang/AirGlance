@@ -358,6 +358,79 @@ public sealed class TiffRegionReaderTests
         }
     }
 
+    [Theory]
+    [InlineData("cmyk-quadrants.tif")]
+    [InlineData("rgb-quadrants-jpeg.tif")]
+    public void Region_reader_decodes_cmyk_and_rgb_jpeg_quadrants(string name)
+    {
+        using var reader = TiffRegionReader.Open(Asset(name));
+        Assert.Equal(320, reader.PixelWidth);
+        Assert.Equal(200, reader.PixelHeight);
+
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+        foreach (var tile in new[] { topLeft, topRight, bottomLeft, bottomRight })
+        {
+            for (var index = 0; index < 16; index++)
+            {
+                Assert.Equal(255, tile[index * 4 + 3]);
+            }
+        }
+    }
+
+    [Fact]
+    public void Region_reader_streams_an_oversized_cmyk_single_strip()
+    {
+        using var reader = TiffRegionReader.Open(Asset("cmyk-large-single-strip.tif"));
+        Assert.Equal(4200, reader.PixelWidth);
+        Assert.Equal(4000, reader.PixelHeight);
+        Assert.True(reader.RequiresStreamingCache);
+
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+    }
+
+    private static string ClassifyTile(byte[] bgra, int pixel)
+    {
+        var offset = pixel * 4;
+        var blue = bgra[offset];
+        var green = bgra[offset + 1];
+        var red = bgra[offset + 2];
+        if (red > 140 && green < 130 && blue < 130)
+        {
+            return "red";
+        }
+
+        if (green > 120 && red < 130 && blue < 160)
+        {
+            return "green";
+        }
+
+        if (blue > 140 && red < 130 && green < 160)
+        {
+            return "blue";
+        }
+
+        if (red > 140 && green > 140 && blue < 130)
+        {
+            return "yellow";
+        }
+
+        return $"unknown({red},{green},{blue})";
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-region-" + Guid.NewGuid().ToString("N") + ".tif");
 

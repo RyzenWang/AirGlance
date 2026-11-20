@@ -17,7 +17,7 @@
 ## 实现要点
 
 - **不会整图解码**：`ReadTile` 只分配 `width * height * 4` 的输出和一个 tile/strip 的光栅；40K TIFF 不需要 3 GB 的缓冲区。
-- **raw 路径**：8/16-bit RGB/gray、contig、uint、None/LZW/Deflate/PackBits 用原始 tile/strip 样本，避免 RGBA 转换；16-bit 取高字节。
+- **raw 路径**：8/16-bit RGB/gray、8-bit CMYK、photometric=RGB 的 JPEG、contig、uint、None/LZW/Deflate/PackBits/JPEG 用原始 tile/strip 样本，避免 RGBA 转换；16-bit 取高字节，CMYK 按 `255 - min(255, C + K)` 转 RGB。
 - **strip 缓存**：stripped 图像按条带缓存已解码的光栅/字节（上限 96 MiB，LRU）。相邻 512 tile 落在同一组条带上时不会重复解码。
 - **方向**：LibTiff 的 RGBA 读取会应用 TIFF orientation tag。区域路径需要“存储方向”的光栅，由 `ImageTransform` 统一应用一次方向，因此 `Open` 里把 orientation 在内存目录中改成 `TOPLEFT`。文件以只读方式打开，实测 SHA-256 不变。
 - **行序**：RGBA 路径的光栅原点在左下角，复制时翻转；raw tile/strip 是 top-down，直接映射。
@@ -44,9 +44,12 @@
 9. 16-bit tiled TIFF 的四角颜色正确；
 10. 16-bit multi-strip TIFF 的四角颜色正确；
 11. 16-bit 单 strip TIFF（384 KB raw strip）的四角颜色正确；
-12. 4200 × 4000 的 16-bit 单 strip（raw strip 100.8 MB）触发流式临时缓存，四角颜色正确。
+12. 4200 × 4000 的 16-bit 单 strip（raw strip 100.8 MB）触发流式临时缓存，四角颜色正确；
+13. CMYK LZW 四象限 TIFF 的四角颜色正确；
+14. RGB JPEG-in-TIFF 四象限的四角颜色正确；
+15. 4200 × 4000 的 CMYK 单 strip（raw strip 67.2 MB）走流式缓存，四角颜色正确。
 
-结果：Core 137 passed，App 35 passed。
+结果：Core 143 passed，App 35 passed。
 
 ### 大文件基准
 
@@ -91,6 +94,7 @@ tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-stri
 - LZW + predictor；
 - 8-bit RGB、RGBA alpha；
 - 16-bit RGB/gray 的 raw tile/strip；
+- 8-bit CMYK 和 RGB JPEG 的 raw tile/strip；
 - orientation tag（按原始存储方向输出）；
 - 边缘 tile / 不完整末条；
 - BigTIFF 容器（LibTiff.NET 2.4.660 支持）。

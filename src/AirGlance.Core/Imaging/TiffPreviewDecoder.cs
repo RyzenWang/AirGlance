@@ -1394,16 +1394,16 @@ public static class TiffPreviewDecoder
             : (ushort)((row[offset] << 8) | row[offset + 1]);
     }
 
-    private static bool IsRgbLayout(RawLayout layout) => layout is RawLayout.Rgb or RawLayout.Rgb16;
-
-    private static bool Is16BitLayout(RawLayout layout) =>
-        layout is RawLayout.Rgb16 or RawLayout.Gray16 or RawLayout.Gray16Inverted;
-
-    private static bool IsInvertedGrayLayout(RawLayout layout) =>
-        layout is RawLayout.GrayInverted or RawLayout.Gray16Inverted;
-
     private static int RawPixelBytes(RawLayout layout) =>
-        (IsRgbLayout(layout) ? 3 : 1) * (Is16BitLayout(layout) ? 2 : 1);
+        layout switch
+        {
+            RawLayout.None => 0,
+            RawLayout.Rgb => 3,
+            RawLayout.Rgb16 => 6,
+            RawLayout.Cmyk8 => 4,
+            RawLayout.Gray or RawLayout.GrayInverted => 1,
+            _ => 2
+        };
 
     private static void ReadRawPixel(
         byte[] source,
@@ -1424,6 +1424,15 @@ public static class TiffPreviewDecoder
                 red = (byte)(ReadUInt16Native(source, offset) >> 8);
                 green = (byte)(ReadUInt16Native(source, offset + 2) >> 8);
                 blue = (byte)(ReadUInt16Native(source, offset + 4) >> 8);
+                return;
+            case RawLayout.Cmyk8:
+                var cyan = source[offset];
+                var magenta = source[offset + 1];
+                var yellow = source[offset + 2];
+                var black = source[offset + 3];
+                red = (byte)(255 - Math.Min(255, cyan + black));
+                green = (byte)(255 - Math.Min(255, magenta + black));
+                blue = (byte)(255 - Math.Min(255, yellow + black));
                 return;
             case RawLayout.Gray:
                 red = green = blue = source[offset];
@@ -1561,7 +1570,7 @@ public static class TiffPreviewDecoder
         }
 
         var compression = TagInt(image, TiffTag.COMPRESSION);
-        if (compression is not (1 or 5 or 8 or 32946 or 32773))
+        if (compression is not (1 or 5 or 7 or 8 or 32946 or 32773))
         {
             return RawLayout.None;
         }
@@ -1576,6 +1585,11 @@ public static class TiffPreviewDecoder
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 8 && samples == 4 && photometric == 5 && compression != 7)
+        {
+            return RawLayout.Cmyk8;
+        }
+
         if (samples == 3 && photometric == 2)
         {
             return bits == 16 ? RawLayout.Rgb16 : RawLayout.Rgb;
@@ -1599,6 +1613,7 @@ public static class TiffPreviewDecoder
         None,
         Rgb,
         Rgb16,
+        Cmyk8,
         Gray,
         Gray16,
         GrayInverted,

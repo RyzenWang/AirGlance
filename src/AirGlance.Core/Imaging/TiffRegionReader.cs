@@ -632,6 +632,15 @@ public sealed class TiffRegionReader : IDisposable
                 green = (byte)(ReadUInt16Native(source, offset + 2) >> 8);
                 blue = (byte)(ReadUInt16Native(source, offset + 4) >> 8);
                 return;
+            case RegionRawLayout.Cmyk8:
+                var cyan = source[offset];
+                var magenta = source[offset + 1];
+                var yellow = source[offset + 2];
+                var black = source[offset + 3];
+                red = (byte)(255 - Math.Min(255, cyan + black));
+                green = (byte)(255 - Math.Min(255, magenta + black));
+                blue = (byte)(255 - Math.Min(255, yellow + black));
+                return;
             case RegionRawLayout.Gray8:
                 red = green = blue = source[offset];
                 return;
@@ -671,7 +680,7 @@ public sealed class TiffRegionReader : IDisposable
         }
 
         var compression = TagInt(image, TiffTag.COMPRESSION);
-        if (compression is not (1 or 5 or 8 or 32946 or 32773))
+        if (compression is not (1 or 5 or 7 or 8 or 32946 or 32773))
         {
             return RegionRawLayout.None;
         }
@@ -686,6 +695,11 @@ public sealed class TiffRegionReader : IDisposable
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 8 && samples == 4 && photometric == 5 && compression != 7)
+        {
+            return RegionRawLayout.Cmyk8;
+        }
+
         if (samples == 3 && photometric == 2)
         {
             return bits == 16 ? RegionRawLayout.Rgb16 : RegionRawLayout.Rgb8;
@@ -710,6 +724,7 @@ public sealed class TiffRegionReader : IDisposable
             RegionRawLayout.None => 0,
             RegionRawLayout.Rgb8 => 3,
             RegionRawLayout.Rgb16 => 6,
+            RegionRawLayout.Cmyk8 => 4,
             RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted => 1,
             _ => 2
         };
@@ -724,6 +739,7 @@ public sealed class TiffRegionReader : IDisposable
         None,
         Rgb8,
         Rgb16,
+        Cmyk8,
         Gray8,
         Gray16,
         Gray8Inverted,
