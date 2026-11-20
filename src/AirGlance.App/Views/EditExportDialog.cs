@@ -1,4 +1,5 @@
 using AirGlance.App.Controls;
+using AirGlance.App.Styles;
 using AirGlance.App.Services;
 using AirGlance.Core.Imaging;
 using Avalonia;
@@ -61,16 +62,21 @@ internal sealed class EditExportDialog : Window
         Width = 790;
         Height = 500;
         Focusable = true;
-        Resources["SystemAccentColor"] = Color.Parse("#E3563B");
-        Resources["SystemAccentColorLight1"] = Color.Parse("#EE7B61");
-        Resources["SystemAccentColorDark1"] = Color.Parse("#C94F39");
-        Resources["SliderTrackValueFill"] = Res("Coral");
-        Resources["SliderTrackValueFillPointerOver"] = Res("Coral");
-        Resources["SliderThumbBackground"] = Res("Coral");
-        Resources["SliderThumbBackgroundPointerOver"] = Res("Coral");
-        Resources["CheckBoxCheckBackgroundFillChecked"] = Res("Coral");
-        Resources["CheckBoxCheckBackgroundStrokeChecked"] = Res("Coral");
-        Resources["CheckBoxCheckGlyphForegroundChecked"] = Brushes.White;
+        Foreground = Res("Ink");
+
+        var coral = Res("Coral");
+        var accentHover = Res("AccentHover");
+        var accentPressed = Res("AccentPressed");
+        Resources["SystemAccentColor"] = ColorOf(coral, Color.Parse("#FF6B4E"));
+        Resources["SystemAccentColorLight1"] = ColorOf(accentHover, Color.Parse("#FF8168"));
+        Resources["SystemAccentColorDark1"] = ColorOf(accentPressed, Color.Parse("#E85A40"));
+        Resources["SliderTrackValueFill"] = coral;
+        Resources["SliderTrackValueFillPointerOver"] = accentHover;
+        Resources["SliderThumbBackground"] = coral;
+        Resources["SliderThumbBackgroundPointerOver"] = accentHover;
+        Resources["CheckBoxCheckBackgroundFillChecked"] = coral;
+        Resources["CheckBoxCheckBackgroundStrokeChecked"] = coral;
+        Resources["CheckBoxCheckGlyphForegroundChecked"] = Res("OnCoral");
 
         var loc = services.Localization;
         var title = new TextBlock
@@ -78,7 +84,8 @@ internal sealed class EditExportDialog : Window
             Text = loc.T("L.EditExportReady"),
             FontSize = 23,
             FontWeight = FontWeight.SemiBold,
-            LetterSpacing = -0.4
+            LetterSpacing = -0.4,
+            Foreground = Res("Ink")
         };
         var subtitle = new TextBlock
         {
@@ -151,7 +158,9 @@ internal sealed class EditExportDialog : Window
             Height = 30,
             Padding = new Thickness(3),
             CornerRadius = new CornerRadius(9),
-            Background = new SolidColorBrush(Color.Parse("#EEE7DD")),
+            Background = Res("SurfaceSunken"),
+            BorderBrush = Res("Border"),
+            BorderThickness = new Thickness(1),
             ClipToBounds = true,
             Child = segmentGrid
         };
@@ -180,7 +189,7 @@ internal sealed class EditExportDialog : Window
         {
             Text = defaults.NormalizedQuality.ToString(),
             FontSize = 11,
-            Foreground = Res("InkSecondary")
+            Foreground = Res("Ink")
         };
         var qualityHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         qualityHeader.Children.Add(Label(loc.T("L.EditQuality")));
@@ -196,7 +205,8 @@ internal sealed class EditExportDialog : Window
                 loc.T("L.EditFitWithin")
             },
             SelectedIndex = 0,
-            HorizontalAlignment = HorizontalAlignment.Stretch
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Classes = { "export-input" }
         };
         _resizeValue = new TextBox
         {
@@ -204,7 +214,8 @@ internal sealed class EditExportDialog : Window
             Width = 92,
             IsEnabled = false,
             Opacity = 0.45,
-            HorizontalAlignment = HorizontalAlignment.Right
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Classes = { "export-input" }
         };
         var resizeRow = new Grid
         {
@@ -217,17 +228,19 @@ internal sealed class EditExportDialog : Window
 
         _fileName = new TextBox
         {
-            Text = Path.GetFileNameWithoutExtension(sourcePath) + "-edited.jpg"
+            Text = Path.GetFileNameWithoutExtension(sourcePath) + "-edited.jpg",
+            Classes = { "export-input" }
         };
         _metadata = new CheckBox
         {
             Content = loc.T("L.EditKeepMetadata"),
-            IsChecked = defaults.KeepMetadata
+            IsChecked = defaults.KeepMetadata,
+            Classes = { "export-check" }
         };
         _hint = new TextBlock
         {
             FontSize = 10.5,
-            Foreground = Res("InkTertiary"),
+            Foreground = Res("InkMuted"),
             VerticalAlignment = VerticalAlignment.Center
         };
         _status = new TextBlock
@@ -311,15 +324,15 @@ internal sealed class EditExportDialog : Window
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             Padding = new Thickness(26, 24, 26, 20),
-            Background = Res("Surface"),
-            BorderBrush = Res("Border"),
+            Background = Res("SurfaceRaised"),
+            BorderBrush = Res("BorderEmphasis"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(20),
             BoxShadow = new BoxShadows(new BoxShadow
             {
                 Blur = 70,
                 OffsetY = 24,
-                Color = Color.FromArgb(90, 30, 22, 16)
+                Color = Color.FromArgb(150, 0, 0, 0)
             }),
             Child = content
         };
@@ -366,7 +379,7 @@ internal sealed class EditExportDialog : Window
             Height = 250,
             CornerRadius = new CornerRadius(7),
             ClipToBounds = true,
-            Background = Res("Surface")
+            Background = Res("SurfaceSunken")
         };
         if (preview is not null)
         {
@@ -386,7 +399,7 @@ internal sealed class EditExportDialog : Window
         {
             Text = $"{cropWidth} × {cropHeight} · cropped preview",
             FontSize = 10,
-            Foreground = Res("InkTertiary"),
+            Foreground = Res("InkMuted"),
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 8, 0, 0)
         };
@@ -497,7 +510,7 @@ internal sealed class EditExportDialog : Window
         FontSize = 10,
         FontWeight = FontWeight.SemiBold,
         LetterSpacing = 0.8,
-        Foreground = Res("InkSecondary"),
+        Foreground = Res("InkMuted"),
         Margin = new Thickness(0, 0, 0, 5)
     };
 
@@ -511,18 +524,11 @@ internal sealed class EditExportDialog : Window
         VerticalAlignment = VerticalAlignment.Center
     };
 
-    private static IBrush Res(string key) => key switch
-    {
-        "Surface" => new SolidColorBrush(Color.Parse("#FBFAF7")),
-        "SurfaceAlt" => new SolidColorBrush(Color.Parse("#F6F2EB")),
-        "Border" => new SolidColorBrush(Color.Parse("#E3DAD0")),
-        "Ink" => new SolidColorBrush(Color.Parse("#23211F")),
-        "InkSecondary" => new SolidColorBrush(Color.Parse("#69645C")),
-        "InkTertiary" => new SolidColorBrush(Color.Parse("#9A9286")),
-        "Coral" => new SolidColorBrush(Color.Parse("#E3563B")),
-        "OnCoral" => Brushes.White,
-        _ => Brushes.Transparent
-    };
+    private static IBrush Res(string key) =>
+        ThemeResources.Brush(key, Colors.Transparent);
+
+    private static Color ColorOf(IBrush brush, Color fallback) =>
+        brush is ISolidColorBrush solid ? solid.Color : fallback;
 
     private static Geometry FindGeometry(string key) =>
         Application.Current?.FindResource(key) as Geometry

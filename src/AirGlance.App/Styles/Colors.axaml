@@ -7,13 +7,29 @@
       <SolidColorBrush x:Key="Surface" Color="#FBFAF7" />
       <SolidColorBrush x:Key="SurfaceAlt" Color="#F6F2EB" />
       <SolidColorBrush x:Key="SurfaceHover" Color="#F3EEE5" />
+      <SolidColorBrush x:Key="SurfaceRaised" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="SurfaceSunken" Color="#F3EEE5" />
+      <SolidColorBrush x:Key="SurfacePressed" Color="#EDE7DC" />
+      <SolidColorBrush x:Key="SurfaceOverlay" Color="#FBFAF7" />
       <SolidColorBrush x:Key="Border" Color="#E0D9CD" />
       <SolidColorBrush x:Key="BorderStrong" Color="#C7BEB0" />
+      <SolidColorBrush x:Key="BorderEmphasis" Color="#C7BEB0" />
+      <SolidColorBrush x:Key="BorderHover" Color="#B8AD9D" />
       <SolidColorBrush x:Key="Ink" Color="#1D232C" />
       <SolidColorBrush x:Key="InkSecondary" Color="#69645C" />
       <SolidColorBrush x:Key="InkTertiary" Color="#9A9286" />
+      <SolidColorBrush x:Key="InkMuted" Color="#9A9286" />
       <SolidColorBrush x:Key="Coral" Color="#E3563B" />
       <SolidColorBrush x:Key="OnCoral" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="AccentHover" Color="#D94B31" />
+      <SolidColorBrush x:Key="AccentPressed" Color="#C9442B" />
+      <SolidColorBrush x:Key="AccentSoft" Color="#FFF3EF" />
+      <SolidColorBrush x:Key="AccentSoftHover" Color="#FFE9E2" />
+      <SolidColorBrush x:Key="AccentSoftPressed" Color="#FFDDD3" />
+      <SolidColorBrush x:Key="AccentSoftText" Color="#B23A2B" />
+      <SolidColorBrush x:Key="SegmentActive" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="SegmentActiveHover" Color="#FBFAF7" />
+      <SolidColorBrush x:Key="FocusRing" Color="#99E3563B" />
       <SolidColorBrush x:Key="Teal" Color="#2E6F63" />
       <SolidColorBrush x:Key="Caution" Color="#B26B1F" />
       <SolidColorBrush x:Key="Danger" Color="#B23A2B" />
@@ -55,14 +71,30 @@
       <SolidColorBrush x:Key="PaperDeep" Color="#0F1318" />
       <SolidColorBrush x:Key="Surface" Color="#1C222A" />
       <SolidColorBrush x:Key="SurfaceAlt" Color="#202831" />
-      <SolidColorBrush x:Key="SurfaceHover" Color="#232C36" />
+      <SolidColorBrush x:Key="SurfaceHover" Color="#26313C" />
+      <SolidColorBrush x:Key="SurfaceRaised" Color="#222A33" />
+      <SolidColorBrush x:Key="SurfaceSunken" Color="#151B22" />
+      <SolidColorBrush x:Key="SurfacePressed" Color="#2F3B48" />
+      <SolidColorBrush x:Key="SurfaceOverlay" Color="#1B222B" />
       <SolidColorBrush x:Key="Border" Color="#2C343E" />
       <SolidColorBrush x:Key="BorderStrong" Color="#43505D" />
+      <SolidColorBrush x:Key="BorderEmphasis" Color="#3A4552" />
+      <SolidColorBrush x:Key="BorderHover" Color="#56657A" />
       <SolidColorBrush x:Key="Ink" Color="#F3EFE6" />
       <SolidColorBrush x:Key="InkSecondary" Color="#ABA49A" />
       <SolidColorBrush x:Key="InkTertiary" Color="#7B756D" />
+      <SolidColorBrush x:Key="InkMuted" Color="#9A948B" />
       <SolidColorBrush x:Key="Coral" Color="#FF6B4E" />
       <SolidColorBrush x:Key="OnCoral" Color="#13171C" />
+      <SolidColorBrush x:Key="AccentHover" Color="#FF8168" />
+      <SolidColorBrush x:Key="AccentPressed" Color="#E85A40" />
+      <SolidColorBrush x:Key="AccentSoft" Color="#3A2620" />
+      <SolidColorBrush x:Key="AccentSoftHover" Color="#4A2E27" />
+      <SolidColorBrush x:Key="AccentSoftPressed" Color="#57352B" />
+      <SolidColorBrush x:Key="AccentSoftText" Color="#FFB4A4" />
+      <SolidColorBrush x:Key="SegmentActive" Color="#2E3A47" />
+      <SolidColorBrush x:Key="SegmentActiveHover" Color="#35424F" />
+      <SolidColorBrush x:Key="FocusRing" Color="#B3FF6B4E" />
       <SolidColorBrush x:Key="Teal" Color="#69B3A4" />
       <SolidColorBrush x:Key="Caution" Color="#D9A35A" />
       <SolidColorBrush x:Key="Danger" Color="#FF8E79" />

@@ -1,4 +1,5 @@
 using AirGlance.App.Services;
+using AirGlance.App.Styles;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -29,16 +30,16 @@ internal sealed class CropToolbarView : UserControl
             Text = "CROP SIZE",
             FontSize = 9,
             FontWeight = FontWeight.Bold,
-            LetterSpacing = 1.1,
-            Foreground = new SolidColorBrush(Color.Parse("#9A9286"))
+            LetterSpacing = 1.1
         };
+        ThemeResources.SetDynamic(_sizeLabel, TextBlock.ForegroundProperty, "InkMuted");
         _size = new TextBlock
         {
             Text = "2400 × 1350",
             FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = new SolidColorBrush(Color.Parse("#23211F")),
+            FontWeight = FontWeight.SemiBold
         };
+        ThemeResources.SetDynamic(_size, TextBlock.ForegroundProperty, "Ink");
         var sizeBlock = new StackPanel
         {
             MinWidth = 112,
@@ -102,7 +103,6 @@ internal sealed class CropToolbarView : UserControl
             ColumnSpacing = 12
         };
         grid.Children.Add(sizeBlock);
-        grid.Children.Add(Divider());
         Grid.SetColumn(ratios, 2);
         grid.Children.Add(ratios);
         Grid.SetColumn(reset, 3);
@@ -170,13 +170,5 @@ internal sealed class CropToolbarView : UserControl
         HorizontalAlignment = HorizontalAlignment.Stretch,
         VerticalAlignment = VerticalAlignment.Center,
         Width = width > 0 ? width : double.NaN
-    };
-
-    private static Border Divider() => new()
-    {
-        Width = 1,
-        Height = 34,
-        Background = new SolidColorBrush(Color.Parse("#E0D9CD")),
-        Margin = new Thickness(2, 0, 2, 0)
     };
 }

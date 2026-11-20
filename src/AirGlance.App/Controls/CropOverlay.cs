@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using AirGlance.App.Styles;
 using AirGlance.Core.Imaging;
 
 namespace AirGlance.App.Controls;
@@ -18,10 +19,10 @@ internal sealed class CropOverlay : UserControl
     private const double DimOpacity = 0.52;
 
     private static readonly IBrush DimBrush = new SolidColorBrush(Color.FromArgb(138, 12, 10, 8));
-    private static readonly IBrush HandleBrush = new SolidColorBrush(Color.Parse("#D65A43"));
+    private IBrush _handleBrush = Brushes.Transparent;
     private static readonly IBrush WhiteBrush = Brushes.White;
-    private static readonly Pen BorderPen = new(new SolidColorBrush(Color.Parse("#F8F6F2")), 1.5);
-    private static readonly Pen GridPen = new(new SolidColorBrush(Color.FromArgb(130, 255, 255, 255)), 1);
+    private Pen _borderPen = new(Brushes.Transparent, 1.5);
+    private Pen _gridPen = new(Brushes.Transparent, 1);
 
     private readonly ImageViewer _viewer;
     private readonly Border _surface;
@@ -42,9 +43,18 @@ internal sealed class CropOverlay : UserControl
         _drawLayer = new DrawLayer(this) { IsHitTestVisible = false };
         _surface = new Border { Background = Brushes.Transparent };
         Content = new Grid { Children = { _drawLayer, _surface } };
+        RefreshTheme();
     }
 
     public event EventHandler? CropChanged;
+
+    public void RefreshTheme()
+    {
+        _handleBrush = Res("Coral", Color.Parse("#FF6B4E"));
+        _borderPen = new Pen(Res("Coral", Color.Parse("#FF6B4E")), 1.5);
+        _gridPen = new Pen(new SolidColorBrush(Color.FromArgb(130, 255, 255, 255)), 1);
+        _drawLayer.InvalidateVisual();
+    }
 
     public CropRegion Crop => _crop;
 
@@ -159,25 +169,25 @@ internal sealed class CropOverlay : UserControl
 
         // Dim everything outside the crop but keep the photo itself as the bounds.
         FillOutside(context, image, crop);
-        context.DrawRectangle(null, BorderPen, crop);
+        context.DrawRectangle(null, _borderPen, crop);
 
         var thirdWidth = crop.Width / 3;
         var thirdHeight = crop.Height / 3;
         for (var index = 1; index <= 2; index++)
         {
             context.DrawLine(
-                GridPen,
+                _gridPen,
                 new Point(crop.Left + thirdWidth * index, crop.Top),
                 new Point(crop.Left + thirdWidth * index, crop.Bottom));
             context.DrawLine(
-                GridPen,
+                _gridPen,
                 new Point(crop.Left, crop.Top + thirdHeight * index),
                 new Point(crop.Right, crop.Top + thirdHeight * index));
         }
 
         foreach (var point in HandlePoints(crop))
         {
-            context.FillRectangle(HandleBrush, new Rect(
+            context.FillRectangle(_handleBrush, new Rect(
                 point.X - HandleRadius / 2,
                 point.Y - HandleRadius / 2,
                 HandleRadius,
@@ -377,6 +387,9 @@ internal sealed class CropOverlay : UserControl
         image.Y + _crop.Y * image.Height,
         _crop.Width * image.Width,
         _crop.Height * image.Height);
+
+    private static IBrush Res(string key, Color fallback) =>
+        ThemeResources.Brush(key, fallback);
 
     private static IEnumerable<Point> HandlePoints(Rect crop)
     {

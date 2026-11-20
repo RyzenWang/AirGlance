@@ -877,7 +877,11 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(button, text);
     }
 
-    private void OnThemeChanged(object? sender, EventArgs e) => UpdateThemeButton();
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        UpdateThemeButton();
+        CropControl.RefreshTheme();
+    }
 
     private void UpdateThemeButton()
     {
@@ -2083,6 +2087,7 @@ public partial class MainWindow : Window
         _cropBeforeEnter = _viewModel.Crop;
         _cropAspectBeforeEnter = _cropAspect;
         _cropMode = true;
+        CropControl.RefreshTheme();
         CropControl.SetCrop(_cropBeforeEnter);
         CropControl.IsActive = true;
         CropBar.SetActiveRatio(_cropAspect);

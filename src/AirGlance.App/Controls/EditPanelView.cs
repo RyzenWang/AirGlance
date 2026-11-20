@@ -1,4 +1,5 @@
 using AirGlance.App.Services;
+using AirGlance.App.Styles;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -48,16 +49,17 @@ internal sealed class EditPanelView : UserControl
         _title = new TextBlock { Classes = { "edit-title" } };
         _subtitle = new TextBlock { Classes = { "edit-sub" }, Margin = new Thickness(0, 5, 0, 0) };
         var eyebrow = new TextBlock { Text = "NON-DESTRUCTIVE", Classes = { "edit-eyebrow" } };
+        var closeIcon = new IconPath
+        {
+            Data = FindGeometry("IconClose"),
+            Width = 15,
+            Height = 15,
+            StrokeThickness = 1.7
+        };
+        ThemeResources.SetDynamic(closeIcon, IconPath.StrokeProperty, "InkSecondary");
         var close = new Button
         {
-            Content = new IconPath
-            {
-                Data = FindGeometry("IconClose"),
-                Width = 15,
-                Height = 15,
-                Stroke = new SolidColorBrush(Color.Parse("#69645C")),
-                StrokeThickness = 1.7
-            },
+            Content = closeIcon,
             Classes = { "icon" },
             Width = 30,
             Height = 30,
@@ -138,6 +140,7 @@ internal sealed class EditPanelView : UserControl
             FontSize = 11,
             Margin = new Thickness(0, 1, 0, 0)
         };
+        ThemeResources.SetDynamic(_cropSize, TextBlock.ForegroundProperty, "InkMuted");
         body.Children.Add(_cropSize);
         body.Children.Add(Separator());
 
@@ -158,6 +161,16 @@ internal sealed class EditPanelView : UserControl
             FontSize = 10.5,
             VerticalAlignment = VerticalAlignment.Center
         };
+        ThemeResources.SetDynamic(_safeNote, TextBlock.ForegroundProperty, "Teal");
+        var safeIcon = new IconPath
+        {
+            Data = FindGeometry("IconShieldCheck"),
+            Width = 14,
+            Height = 14,
+            StrokeThickness = 1.7,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        ThemeResources.SetDynamic(safeIcon, IconPath.StrokeProperty, "Teal");
         var safeRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -165,15 +178,7 @@ internal sealed class EditPanelView : UserControl
             Margin = new Thickness(0, 0, 0, 9),
             Children =
             {
-                new IconPath
-                {
-                    Data = FindGeometry("IconShieldCheck"),
-                    Width = 14,
-                    Height = 14,
-                    Stroke = new SolidColorBrush(Color.Parse("#237F76")),
-                    StrokeThickness = 1.7,
-                    VerticalAlignment = VerticalAlignment.Center
-                },
+                safeIcon,
                 _safeNote
             }
         };
@@ -275,9 +280,9 @@ internal sealed class EditPanelView : UserControl
             BorderThickness = new Thickness(0),
             Padding = new Thickness(0),
             FontSize = 10.5,
-            Foreground = new SolidColorBrush(Color.Parse("#D65A43")),
             IsVisible = showAction
         };
+        ThemeResources.SetDynamic(action, Button.ForegroundProperty, "Coral");
         Grid.SetColumn(action, 1);
         header.Children.Add(action);
         return label;
@@ -294,16 +299,17 @@ internal sealed class EditPanelView : UserControl
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+        ThemeResources.SetDynamic(text, TextBlock.ForegroundProperty, "Ink");
         var icon = new IconPath
         {
             Data = FindGeometry(iconKey),
             Width = 17,
             Height = 17,
-            Stroke = new SolidColorBrush(Color.Parse("#69645C")),
             StrokeThickness = 1.65,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+        ThemeResources.SetDynamic(icon, IconPath.StrokeProperty, "InkSecondary");
         var content = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,Auto"),
@@ -340,10 +346,14 @@ internal sealed class EditPanelView : UserControl
         Width = 128
     };
 
-    private static Border Separator() => new()
+    private static Border Separator()
     {
-        BorderBrush = new SolidColorBrush(Color.Parse("#DED5CA")),
-        BorderThickness = new Thickness(0, 1, 0, 0),
-        Margin = new Thickness(0, 4, 0, 0)
-    };
+        var border = new Border
+        {
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+        ThemeResources.SetDynamic(border, Border.BorderBrushProperty, "Border");
+        return border;
+    }
 }
