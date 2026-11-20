@@ -132,6 +132,7 @@ jobs:
         shell: pwsh
         run: |
           choco install nasm -y --no-progress
+          choco install llvm -y --no-progress
           python -m pip install --user meson==1.7.2
 
       - name: Build portable Windows zip

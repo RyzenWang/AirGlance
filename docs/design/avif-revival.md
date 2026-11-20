@@ -1,7 +1,7 @@
 # AVIF 重新支持可行性评估
 
-> 状态：已实现 Windows x64、macOS x64/arm64、Linux x64/arm64（2026-11-20）。Windows
-> arm64 尚未接入 ARM64 工具链，`SupportedFormats` 会在缺少原生库时隐藏 `.avif`。
+> 状态：已实现 Windows x64/arm64、macOS x64/arm64、Linux x64/arm64（2026-11-20）。Windows
+> arm64 使用 LLVM 从 x64 主机交叉构建，PE 已校验；没有 Windows arm64 硬件运行记录。
 >
 > 背景：0.5.0 移除 libvips 后 AVIF 不再支持，但 MSIX 仍注册 `.avif` 文件关联，
 > 用户从“打开方式”选择 AirGlance 打开 AVIF 会得到“不支持的格式”。本次评估回答
@@ -186,7 +186,7 @@ native/avif/
 | RID | 构建要点 | 风险 |
 | --- | --- | --- |
 | win-x64 | MSVC + CMake + Meson + NASM；`/MT`；x86 SIMD | 中：NASM 与 MSVC 的 Meson 组合需验证，必要时 clang-cl |
-| win-arm64 | dav1d 的 arm64 汇编是 GAS 语法，MSVC 不能直接汇编；用 clang-cl 或先关 asm | 高：性能/构建二选一 |
+| win-arm64 | LLVM clang 交叉构建，dav1d asm 关闭；UCRT + `ucrt.c` + /NOENTRY | 中：无硬件运行验证 |
 | osx-x64 | Xcode clang + Meson + NASM；dylib 放 `Contents/MacOS` | 低 |
 | osx-arm64 | NEON，无需 NASM；将来签名要覆盖 dylib | 低 |
 | linux-x64 | gcc/clang + Meson + NASM；静态链接，避免 rpath | 低 |
@@ -207,7 +207,7 @@ native/avif/
 
 | 风险 | 可能性 | 影响 | 缓解 |
 | --- | --- | --- | --- |
-| 6 个 RID 原生构建/CI 复杂度 | 中高 | 进度 | 先 win-x64；脚本化 + 缓存；arm64 允许 no-asm 兜底 |
+| 6 个 RID 原生构建/CI 复杂度 | 中高 | 进度 | 先 win-x64；脚本化 + 缓存；arm64 用 LLVM 交叉构建、no-asm 兜底 |
 | `irot`/`imir`/`clap` 或 EXIF 二次旋转 | 中 | 显示错误 | 专项 fixtures；只在 C# 应用一次；对照 ffmpeg/WIC 参考图 |
 | ICC/HDR 色彩偏差 | 中 | 观感 | v1 用 Skia 做 ICC→sRGB；HDR 明确不支持 |
 | 超大 AVIF 内存 | 中 | OOM | `imageSizeLimit`/`imageDimensionLimit`；预览先 scale；超限报 Unsupported |
@@ -259,8 +259,9 @@ native/avif/
 本评估先完成 Windows x64 spike，再把同一 shim 扩到 macOS/Linux：
 
 - 原生层：libavif 1.4.2 + dav1d 1.5.5，Windows x64 打开 x86 SIMD，静态 CRT，单个
-  `airglance_avif.dll` **2.06 MiB**；macOS/Linux 用 `build.sh` 构建 PIC 静态库并链接
-  `libairglance_avif.dylib` / `libairglance_avif.so`。macOS/Linux 构建由 CI 验证。
+  `airglance_avif.dll` **2.06 MiB**（x64）/ **0.72 MiB**（arm64，无 x86 SIMD）；macOS/Linux
+  用 `build.sh` 构建 PIC 静态库并链接 `libairglance_avif.dylib` / `libairglance_avif.so`。
+  macOS/Linux 构建由 CI 构建验证；Windows arm64 为 LLVM 交叉构建并做 PE 校验。
 - C#：`AvifNative`（`LibraryImport`）、`LibAvifDecoder`、`SupportedFormats` 门控、
   `ImageDecoder` 的预览/全图/元数据分支；`Directory.Build.targets` 把对应 RID 的库
   复制到可执行文件和测试输出。
@@ -273,8 +274,8 @@ native/avif/
   **122.1 ms**、first frame **191.1 ms**、decode **17.1 ms**、峰值 100.8 MB。
 - 包体：带 AVIF 的 win-x64 zip **20.84 MB**（十进制显示），低于 30 MB 预算；
   DLL 本身 2.06 MiB，压缩后约 0.84 MiB。
-- 平台：Windows x64、macOS x64/arm64、Linux x64/arm64；Windows arm64 暂无 ARM64
-  工具链，隐藏 `.avif`。
+- 平台：Windows x64/arm64、macOS x64/arm64、Linux x64/arm64；Windows arm64
+  无 x86 SIMD，且没有对应硬件运行记录。
 - 限制：ICC 只读描述、不做像素色彩管理；HDR/gain map 不支持；AVIF 编码不支持；
   动画只取第一帧；`clap`/`imir` 无端到端夹具。
 - 构建：`native/avif/build.ps1` / `build.sh` 下载/校验源码并构建；`pack.ps1` /

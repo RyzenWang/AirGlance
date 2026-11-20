@@ -2,8 +2,8 @@
 
 > 分支：`spike/no-libvips`（已合并）
 >
-> 后续：AVIF 已于 2026-11-20 通过 libavif + dav1d（方案 1）在 Windows x64、macOS 和
-> Linux 恢复，未重新引入 libvips。见 [avif-revival.md](avif-revival.md)。
+> 后续：AVIF 已于 2026-11-20 通过 libavif + dav1d（方案 1）在 Windows x64/arm64、macOS
+> 和 Linux 恢复，未重新引入 libvips。见 [avif-revival.md](avif-revival.md)。
 
 ## 做了什么
 

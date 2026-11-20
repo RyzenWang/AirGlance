@@ -55,14 +55,14 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 
 ## Image formats
 
-A file is recognised by its extension. Ordinary raster formats decode with SkiaSharp; TIFF decodes with LibTiff, SVG is parsed and rasterized with Svg.Skia, and AVIF uses a bundled libavif + dav1d decoder on Windows x64, macOS and Linux. The supported formats are:
+A file is recognised by its extension. Ordinary raster formats decode with SkiaSharp; TIFF decodes with LibTiff, SVG is parsed and rasterized with Svg.Skia, and AVIF uses a bundled libavif + dav1d decoder on Windows x64/arm64, macOS and Linux. The supported formats are:
 
 | Format | Extensions | Notes |
 | --- | --- | --- |
 | JPEG | `.jpg`, `.jpeg`, `.jfif` | EXIF orientation and embedded ICC to sRGB. JPEG copies flatten transparency onto white. |
 | PNG | `.png` | Alpha and embedded ICC are preserved. A 16-bit PNG is reported as 16-bit but displayed and saved at 8-bit. |
 | WebP | `.webp` | Still images with alpha; embedded ICC to sRGB. |
-| AVIF | `.avif` | Windows x64, macOS x64/arm64 and Linux x64/arm64. First frame, alpha, 10/12-bit sources, `irot`/`imir`, clean aperture, ICC/EXIF metadata. AVIF export is not supported. Windows arm64 hides AVIF until its native toolchain is added. |
+| AVIF | `.avif` | Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64. First frame, alpha, 10/12-bit sources, `irot`/`imir`, clean aperture, ICC/EXIF metadata. AVIF export is not supported. The Windows arm64 build uses a cross-compiled arm64 decoder without x86 SIMD. |
 | BMP | `.bmp` | Decoded through SkiaSharp. |
 | GIF | `.gif` | Animated GIFs play and loop automatically; static GIFs show one frame. |
 | ICO | `.ico` | One image is selected from the icon by the codec. |
@@ -77,11 +77,11 @@ Not supported:
 
 Why these are absent:
 
-- **HEIC / HEIF** need a native HEVC decoder. AirGlance does not bundle one, so these formats are outside the current package. AVIF uses AV1 instead of HEVC and is supported by the Windows x64, macOS and Linux builds.
+- **HEIC / HEIF** need a native HEVC decoder. AirGlance does not bundle one, so these formats are outside the current package. AVIF uses AV1 instead of HEVC and is supported by the Windows x64/arm64, macOS and Linux builds.
 - **RAW** files are not display-ready pixels. Opening one requires demosaicing, white balance, a camera colour matrix, tone mapping and often lens corrections. That is a separate LibRaw-class engine, not a decoder switch.
 - **Video** needs demuxing, a video decoder, audio/video synchronisation and a media stack such as FFmpeg or the OS media APIs. That is outside a still-image viewer, and the codec licensing and package size are significant.
 
-AirGlance uses SkiaSharp for ordinary raster formats, LibTiff for TIFF, Svg.Skia for SVG, and a bundled libavif + dav1d decoder for AVIF on Windows x64, macOS and Linux. There is no libvips native payload and no platform-codec fallback. Builds that do not contain the AVIF decoder (currently Windows arm64) hide `.avif` from the file picker and folder scan instead of advertising a format they cannot open.
+AirGlance uses SkiaSharp for ordinary raster formats, LibTiff for TIFF, Svg.Skia for SVG, and a bundled libavif + dav1d decoder for AVIF on Windows x64/arm64, macOS and Linux. There is no libvips native payload and no platform-codec fallback. A build that does not contain the AVIF decoder hides `.avif` from the file picker and folder scan instead of advertising a format it cannot open.
 
 ## Install
 
@@ -190,7 +190,7 @@ The 0.3.0 build meets the startup and first-frame targets on the reference machi
 
 These are limitations, not a promise list.
 
-- HEIC/HEIF and camera RAW are not supported. AVIF is supported by the Windows x64, macOS x64/arm64 and Linux x64/arm64 builds; Windows arm64 hides `.avif` until its native toolchain is added.
+- HEIC/HEIF and camera RAW are not supported. AVIF is supported by the Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64 builds; the Windows arm64 decoder is cross-compiled without x86 SIMD.
 - AVIF shows the first frame only; animated AVIF is not played. AVIF cannot be written by Save copy.
 - Animated GIFs play; animated WebP and APNG remain still images. Video is not supported.
 - TIFF shows the first page only. BigTIFF and some exotic compression variants remain outside the support contract; the managed LibTiff path covers stripped, tiled, pyramidal and planar files, including 8/16-bit RGB, CMYK, RGBA, float and palette data.
@@ -218,7 +218,13 @@ macOS and Linux use CMake, Ninja, Meson and (on x64) NASM:
 bash native/avif/build.sh
 ```
 
-The packaging scripts build it automatically for their target. Without the native library, `.avif` is hidden from the file picker and folder scan, and the Windows AVIF test fails with a build instruction. Windows arm64 is not built yet and hides AVIF. See [native/avif/README.md](native/avif/README.md).
+The packaging scripts build it automatically for their target. Without the native library, `.avif` is hidden from the file picker and folder scan, and the Windows AVIF test fails with a build instruction. The Windows arm64 decoder is built by `native/avif/build-win-arm64.ps1` with LLVM:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File native/avif/build-win-arm64.ps1 -LlvmDirectory "C:\Program Files\LLVM\bin"
+```
+
+See [native/avif/README.md](native/avif/README.md).
 
 ```bash
 git clone https://github.com/RyzenWang/AirGlance.git

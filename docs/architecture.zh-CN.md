@@ -14,7 +14,7 @@ AirGlance 0.5.0 是一款桌面图像查看器。它一次打开一个文件夹�
 | SkiaSharp | 4.150.1 | 图像解码与编码 |
 | Svg.Skia | 5.2.3 | SVG 解析与光栅化 |
 | BitMiracle.LibTiff.NET | 2.4.660 | TIFF 第一页解码 |
-| libavif + dav1d | 1.4.2 / 1.5.5 | Windows x64、macOS 和 Linux 上通过随包原生 shim 解码 AVIF |
+| libavif + dav1d | 1.4.2 / 1.5.5 | Windows x64/arm64、macOS 和 Linux 上通过随包原生 shim 解码 AVIF |
 | NativeAOT | .NET 10 | 在 Windows、macOS 和 Linux 上的发布 |
 
 SkiaSharp 3.x 系列已被取代。4.150.1 是能够在 Windows、macOS 和 Linux 上与 Avalonia 11.3.22 的原生资产图统一的版本。所有项目都使用 `Directory.Packages.props` 中的版本；不要把 3.x 的 SkiaSharp 包混入该依赖图。
@@ -65,7 +65,7 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 - `DecodedBitmap` 携带像素缓冲区、stride、方向应用后的源宽/高、解码缩放和 `HasAlpha`。当缩放至少为 0.999 时，`IsFullResolution` 为 true。
 
 - `ImageDecoder.DecodeFullRaw` 是瓦片缓存的解码路径。它解码到非托管内存（`NativeMemory.Alloc`），而不是托管的 `byte[]`，因此 100 MP 的缓冲区可以在瓦片文件写入后立即释放。它返回带有原始尺寸、方向应用后的源尺寸、EXIF 方向和 alpha 能力的 `DecodedImageBuffer`；它不执行方向拷贝。
-- `LibAvifDecoder`（Windows x64、macOS、Linux）是 AVIF 桥接层。它通过 `LibraryImport` 调用 `airglance_avif.dll`、`libairglance_avif.dylib` 或 `libairglance_avif.so`，用 libavif 解析元数据，把第一帧解成调用方内存中的预乘 BGRA，应用 `clap` 裁剪，把 `irot`/`imir` 映射到现有的 `ImageOrientation`（缺失时回退 EXIF 方向），并限制解码像素量。原生 shim 静态链接 libavif 和 dav1d；Windows 使用静态 CRT。库由 `Directory.Build.targets` 复制到可执行文件旁，不提交到 git。Windows arm64 在补上 ARM64 工具链前会隐藏 `.avif`。
+- `LibAvifDecoder`（Windows x64/arm64、macOS、Linux）是 AVIF 桥接层。它通过 `LibraryImport` 调用 `airglance_avif.dll`、`libairglance_avif.dylib` 或 `libairglance_avif.so`，用 libavif 解析元数据，把第一帧解成调用方内存中的预乘 BGRA，应用 `clap` 裁剪，把 `irot`/`imir` 映射到现有的 `ImageOrientation`（缺失时回退 EXIF 方向），并限制解码像素量。原生 shim 静态链接 libavif 和 dav1d；Windows 使用静态 CRT。库由 `Directory.Build.targets` 复制到可执行文件旁，不提交到 git。Windows arm64 DLL 使用 LLVM 针对 ARM64 UCRT 交叉构建并做 PE 校验；没有记录 Windows arm64 硬件运行结果。
 - `TiledImageSource`（App）将 512 px 的瓦片写入一个以临时文件为后端的缓存。每个瓦片是 512 × 512 的 BGRA，补齐到固定大小；最后一行/列是部分瓦片。方向和显示编辑在拷贝进瓦片时应用，因此不存在完整的已定向或已编辑中间缓冲区。瓦片文件在释放时删除；超过一天的文件会在启动时清理。只缓存 32 个瓦片位图，查看器绘制与视口相交的瓦片。
 - 对于忽略所请求预览缩放的编解码器（尤其是 PNG），`ImageDecoder.Decode` 会在软件中对解码后的缓冲区降采样，以免适配预览保留整张图像。降采样采用最近邻，且仅在编解码器返回其完整尺寸时使用。
 - `ImageTransform` 包含 EXIF 方向像素映射和显示编辑。`EditTransform` 存储一个规范状态：先镜像，再进行若干次顺时针四分之一圈旋转。任意顺序的旋转和翻转命令都会归约为八种状态。旋转或翻转会分配新的像素缓冲区，并在轴交换时更新源尺寸。

@@ -32,6 +32,11 @@
     Directory containing nasm.exe for the win-x64 AVIF build. Optional; the
     native script also searches PATH and C:\Program Files\NASM.
 
+.PARAMETER LlvmDirectory
+    Directory containing clang.exe, lld-link.exe and llvm-ar.exe for the
+    win-arm64 AVIF cross build. Optional; the native script also searches PATH
+    and C:\Program Files\LLVM\bin.
+
 .EXAMPLE
     ./packaging/scripts/pack.ps1 -Version 0.1.0 -Runtime win-x64 -Aot
 
@@ -51,7 +56,9 @@ param(
 
     [switch]$Msix,
 
-    [string]$NasmDirectory = ""
+    [string]$NasmDirectory = "",
+
+    [string]$LlvmDirectory = ""
 )
 
 Set-StrictMode -Version Latest
@@ -205,6 +212,23 @@ try {
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $avifBuildScript @avifArguments
         if ($LASTEXITCODE -ne 0) {
             throw "The AVIF decoder build failed with exit code $LASTEXITCODE."
+        }
+    }
+    elseif ($Runtime -eq "win-arm64") {
+        $avifBuildScript = Join-Path $repoRoot "native\avif\build-win-arm64.ps1"
+        if (-not (Test-Path -LiteralPath $avifBuildScript -PathType Leaf)) {
+            throw "The Windows ARM64 AVIF build script was not found: '$avifBuildScript'."
+        }
+
+        Write-Host "Building Windows ARM64 AVIF decoder..."
+        $avifArguments = @()
+        if (-not [string]::IsNullOrWhiteSpace($LlvmDirectory)) {
+            $avifArguments = @("-LlvmDirectory", $LlvmDirectory)
+        }
+
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $avifBuildScript @avifArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "The Windows ARM64 AVIF decoder build failed with exit code $LASTEXITCODE."
         }
     }
 

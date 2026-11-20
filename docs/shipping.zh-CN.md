@@ -56,7 +56,7 @@ macOS 和 arm64 归档仍然会发布，因为它们在测试中有用；但在�
 - AVIF 解码器：
   - Windows x64：CMake 和 Ninja（来自 Visual Studio）、Python 3 + Meson 1.7.2（`python -m pip install --user meson==1.7.2`）以及 NASM。`native/avif/build.ps1` 会下载并校验 libavif 1.4.2 / dav1d 1.5.5，构建 `airglance_avif.dll`；`pack.ps1` 自动调用。
   - macOS/Linux：CMake、Ninja、Meson、C 编译器，x64 还需要 NASM。`native/avif/build.sh` 构建 `libairglance_avif.dylib` 或 `libairglance_avif.so`；`pack.sh` 自动调用。
-  - Windows arm64 暂未构建，会隐藏 `.avif`。
+  - Windows arm64：LLVM（clang、lld-link、llvm-ar）和支持 ARM64 库的 Windows SDK。`native/avif/build-win-arm64.ps1` 在 x64 主机上交叉构建 `airglance_avif.dll`；不带 x86 SIMD，未记录硬件运行结果。
 - `Directory.Packages.props` 中的包版本。SkiaSharp 4.150.1 和 Avalonia 11.3.22 共用一套本机资产依赖图；不要把其中任何一个替换为 3.x 的 SkiaSharp 包。
 - 用于 Store 打包：带有 `MakeAppx.exe`、`signtool.exe` 和 Windows App Certification Kit 的 Windows 10/11 SDK。
 - 用于手动冒烟测试的显示器。构建和打包步骤是无头的，但启动应用不是。Linux 冒烟测试需要 X11/Wayland 或 Xvfb。
@@ -108,7 +108,7 @@ LICENSE
 THIRD-PARTY-NOTICES.md
 ```
 
-`win-x64` 包含 `airglance_avif.dll`；`win-arm64` 尚未构建 AVIF 解码器，会隐藏 `.avif`。macOS 应用包在 `Contents/MacOS` 中包含 `libairglance_avif.dylib`；Linux tar 包在根目录包含 `libairglance_avif.so`。
+`win-x64` 和 `win-arm64` 都包含 `airglance_avif.dll`；arm64 解码器交叉构建，不带 x86 SIMD。macOS 应用包在 `Contents/MacOS` 中包含 `libairglance_avif.dylib`；Linux tar 包在根目录包含 `libairglance_avif.so`。
 
 归档根目录下是 `AirGlance.exe`。它不包含 `README.md`，但 MIT 许可证和第三方声明随二进制一同提供。
 macOS 应用包将它们放在 `Contents/Resources` 中；
@@ -261,7 +261,7 @@ MSIX 包仅用于 Microsoft Store 提交：
 
 - `AirGlance_1.0.0.0_x64.msix`
 
-Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，源码 tag 仍为 `v0.5.0`。首个 Store 提交仅提供 x64。arm64 等到所有原生包支持 Windows ARM64 后再加入。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
+Microsoft Store 包版本与 GitHub tag 独立：Store 从 `1.0.0.0` 开始，源码 tag 仍为 `v0.5.0`。首个 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在首次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
 
 ### 包标识和发布者
 
