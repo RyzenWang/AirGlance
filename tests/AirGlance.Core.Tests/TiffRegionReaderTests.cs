@@ -403,6 +403,43 @@ public sealed class TiffRegionReaderTests
     }
 
     [Fact]
+    public void Region_reader_preserves_alpha_for_16bit_rgba_quadrants()
+    {
+        using var reader = TiffRegionReader.Open(Asset("rgba16-quadrants.tif"));
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+        Assert.Equal(255, topLeft[3]);
+        Assert.Equal(156, topRight[3]);
+        Assert.Equal(156, bottomLeft[3]);
+        Assert.Equal(255, bottomRight[3]);
+    }
+
+    [Theory]
+    [InlineData("ycbcr-subsampled-lzw.tif")]
+    [InlineData("ycbcr-subsampled-deflate.tif")]
+    public void Region_reader_streams_compressed_subsampled_ycbcr(string name)
+    {
+        using var reader = TiffRegionReader.Open(Asset(name));
+        Assert.True(reader.RequiresStreamingCache);
+        reader.Prepare();
+
+        var topLeft = reader.ReadTile(0, 0, 4, 4);
+        var topRight = reader.ReadTile(reader.PixelWidth - 4, 0, 4, 4);
+        var bottomLeft = reader.ReadTile(0, reader.PixelHeight - 4, 4, 4);
+        var bottomRight = reader.ReadTile(reader.PixelWidth - 4, reader.PixelHeight - 4, 4, 4);
+        Assert.Equal("red", ClassifyTile(topLeft, 0));
+        Assert.Equal("green", ClassifyTile(topRight, 0));
+        Assert.Equal("blue", ClassifyTile(bottomLeft, 0));
+        Assert.Equal("yellow", ClassifyTile(bottomRight, 0));
+    }
+
+    [Fact]
     public void Region_reader_streams_subsampled_ycbcr()
     {
         using var reader = TiffRegionReader.Open(Asset("ycbcr-subsampled.tif"));

@@ -17,7 +17,7 @@
 ## 实现要点
 
 - **不会整图解码**：`ReadTile` 只分配 `width * height * 4` 的输出和一个 tile/strip 的光栅；40K TIFF 不需要 3 GB 的缓冲区。
-- **raw 路径**：8/16-bit RGB/gray、8-bit CMYK（含 CMYK JPEG）、8-bit RGBA、8-bit palette、JPEG（RGB、YCbCr、CMYK；YCbCr 设 `JPEGCOLORMODE=RGB`）、非 JPEG YCbCr（1×1，或未压缩 subsampled，BT.601 转换）、contig、uint、None/LZW/Deflate/PackBits/JPEG 用原始 tile/strip 样本，避免 RGBA 转换；16-bit 取高字节，CMYK 按 `255 - min(255, C + K)` 转 RGB，palette 查 `COLORMAP`，RGBA 预乘 alpha。subsampled YCbCr 首次读取会建临时 BGRA 缓存。
+- **raw 路径**：8/16-bit RGB/gray、8-bit CMYK（含 CMYK JPEG）、8/16-bit RGBA、8-bit palette、JPEG（RGB、YCbCr、CMYK；YCbCr 设 `JPEGCOLORMODE=RGB`）、非 JPEG YCbCr（1×1，或未压缩/LZW/Deflate subsampled，BT.601 转换）、contig、uint、None/LZW/Deflate/PackBits/JPEG 用原始 tile/strip 样本，避免 RGBA 转换；16-bit 取高字节，CMYK 按 `255 - min(255, C + K)` 转 RGB，palette 查 `COLORMAP`，RGBA 预乘 alpha。subsampled YCbCr 首次读取会建临时 BGRA 缓存。
 - **strip 缓存**：stripped 图像按条带缓存已解码的光栅/字节（上限 96 MiB，LRU）。相邻 512 tile 落在同一组条带上时不会重复解码。
 - **方向**：LibTiff 的 RGBA 读取会应用 TIFF orientation tag。区域路径需要“存储方向”的光栅，由 `ImageTransform` 统一应用一次方向，因此 `Open` 里把 orientation 在内存目录中改成 `TOPLEFT`。文件以只读方式打开，实测 SHA-256 不变。
 - **行序**：RGBA 路径的光栅原点在左下角，复制时翻转；raw tile/strip 是 top-down，直接映射。
@@ -53,9 +53,12 @@
 18. 2048 × 1536 YCbCr JPEG 四象限（128 行 strip）的四角颜色正确；
 19. 2048 × 1536 CMYK JPEG 四象限（128 行 strip）的四角颜色正确；
 20. 320 × 200 非 JPEG YCbCr（subsampling=1×1）四象限颜色正确；
-21. 320 × 200 未压缩 YCbCr（subsampling=2×2）走临时缓存，四角颜色正确。
+21. 320 × 200 未压缩 YCbCr（subsampling=2×2）走临时缓存，四角颜色正确；
+22. LZW 压缩的 2×2 YCbCr 走临时缓存，四角颜色正确；
+23. Deflate 压缩的 2×2 YCbCr 走临时缓存，四角颜色正确；
+24. 16-bit RGBA 四象限颜色和 alpha（255/156）正确。
 
-结果：Core 155 passed，App 35 passed。
+结果：Core 161 passed，App 35 passed。
 
 ### 大文件基准
 
@@ -100,7 +103,7 @@ tiled 的 479 MB 包含 16-bit raw tile 解码和区域 tile 缓存；multi-stri
 - LZW + predictor；
 - 8-bit RGB、RGBA alpha；
 - 16-bit RGB/gray 的 raw tile/strip；
-- 8-bit CMYK（含 CMYK JPEG）、RGBA、palette、RGB/YCbCr JPEG、非 JPEG 1×1 YCbCr、未压缩 subsampled YCbCr 的 raw tile/strip；
+- 8-bit CMYK（含 CMYK JPEG）、8/16-bit RGBA、palette、RGB/YCbCr JPEG、非 JPEG 1×1 YCbCr、未压缩及 LZW/Deflate 压缩的 subsampled YCbCr 的 raw tile/strip；
 - orientation tag（按原始存储方向输出）；
 - 边缘 tile / 不完整末条；
 - BigTIFF 容器（LibTiff.NET 2.4.660 支持）。

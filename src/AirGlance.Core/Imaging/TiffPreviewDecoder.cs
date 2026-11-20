@@ -1523,8 +1523,52 @@ public static class TiffPreviewDecoder
         var blockBytes = subX * subY + 2;
         var blockRowBytes = blocksAcross * blockBytes;
         var step = SampleStep(scale);
-        var blockRow = new byte[blockRowBytes];
 
+        var compression = TagInt(image, TiffTag.COMPRESSION);
+        if (compression != 1)
+        {
+            var stripSize = image.StripSize();
+            if (stripSize <= 0 || stripSize > MaximumRasterBytes)
+            {
+                throw Corrupt(path, "The compressed YCbCr strip is too large.");
+            }
+
+            var strip = new byte[stripSize];
+            for (var stripIndex = 0; stripIndex < offsets.Length; stripIndex++)
+            {
+                var stripRow = stripIndex * (int)rowsPerStrip;
+                if (stripRow >= height)
+                {
+                    break;
+                }
+
+                var rowCount = Math.Min((int)rowsPerStrip, height - stripRow);
+                var read = image.ReadEncodedStrip(stripIndex, strip, 0, strip.Length);
+                if (read <= 0)
+                {
+                    throw Corrupt(path, "The compressed YCbCr strip could not be decoded.");
+                }
+
+                DecodeYCbCrStripBuffer(
+                    strip,
+                    read,
+                    width,
+                    height,
+                    stripRow,
+                    rowCount,
+                    targetWidth,
+                    targetHeight,
+                    subX,
+                    subY,
+                    step,
+                    pixels,
+                    cancellationToken);
+            }
+
+            return;
+        }
+
+        var blockRow = new byte[blockRowBytes];
         using var stream = new FileStream(
             path,
             FileMode.Open,
@@ -1588,6 +1632,61 @@ public static class TiffPreviewDecoder
         }
     }
 
+    private static void DecodeYCbCrStripBuffer(
+        byte[] strip,
+        int read,
+        int width,
+        int height,
+        int stripRow,
+        int rowCount,
+        int targetWidth,
+        int targetHeight,
+        int subX,
+        int subY,
+        int step,
+        byte[] pixels,
+        CancellationToken cancellationToken)
+    {
+        var blocksAcross = (width + subX - 1) / subX;
+        var blockBytes = subX * subY + 2;
+        var blockRowBytes = blocksAcross * blockBytes;
+        var blockRows = (rowCount + subY - 1) / subY;
+        for (var blockRowIndex = 0; blockRowIndex < blockRows; blockRowIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var blockRowOffset = blockRowIndex * blockRowBytes;
+            for (var dy = 0; dy < subY; dy++)
+            {
+                var sourceY = stripRow + blockRowIndex * subY + dy;
+                if (sourceY >= height || sourceY % step != 0)
+                {
+                    continue;
+                }
+
+                for (var sourceX = 0; sourceX < width; sourceX += step)
+                {
+                    var blockOffset = blockRowOffset + (sourceX / subX) * blockBytes;
+                    var yOffset = blockOffset + dy * subX + (sourceX % subX);
+                    var cbOffset = blockOffset + subX * subY;
+                    if (cbOffset + 1 >= read || cbOffset + 1 >= strip.Length)
+                    {
+                        continue;
+                    }
+
+                    WriteScaled(
+                        pixels,
+                        targetWidth,
+                        targetHeight,
+                        sourceX,
+                        sourceY,
+                        width,
+                        height,
+                        FromYCbCr(strip[yOffset], strip[cbOffset], strip[cbOffset + 1]));
+                }
+            }
+        }
+    }
+
     private static ushort ReadUInt16Native(byte[] row, int offset)
     {
         // LibTiff returns 16-bit scanline samples in the machine byte order.
@@ -1603,6 +1702,7 @@ public static class TiffPreviewDecoder
             RawLayout.Rgb => 3,
             RawLayout.Rgb16 => 6,
             RawLayout.Cmyk8 or RawLayout.Rgba8 => 4,
+            RawLayout.Rgba16 => 8,
             RawLayout.Rgb or RawLayout.YCbCr8 => 3,
             RawLayout.Gray or RawLayout.GrayInverted or RawLayout.Palette8 => 1,
             _ => 2
@@ -1634,6 +1734,12 @@ public static class TiffPreviewDecoder
                     source[offset + 1],
                     source[offset + 2],
                     source[offset + 3]);
+            case RawLayout.Rgba16:
+                return PremultipliedBgra(
+                    (byte)(ReadUInt16Native(source, offset) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 2) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 4) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 6) >> 8));
             case RawLayout.Palette8:
                 var palette = format.Palette!;
                 var index = source[offset];
@@ -1796,7 +1902,8 @@ public static class TiffPreviewDecoder
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
-        if (bits == 8 && samples == 3 && photometric == 6 && compression == 1 && !image.IsTiled())
+        if (bits == 8 && samples == 3 && photometric == 6 &&
+            compression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
         {
             var (subX, subY) = ReadSubsampling(image);
             if (subX > 1 || subY > 1)
@@ -1837,6 +1944,11 @@ public static class TiffPreviewDecoder
             image.GetField(TiffTag.EXTRASAMPLES) is not null)
         {
             return new RawFormat(RawLayout.Rgba8, null);
+        }
+
+        if (bits == 16 && samples == 4 && photometric == 2 && compression != 7)
+        {
+            return new RawFormat(RawLayout.Rgba16, null);
         }
 
         if (samples == 3 && photometric == 2)
@@ -1900,6 +2012,7 @@ public static class TiffPreviewDecoder
         Rgb16,
         Cmyk8,
         Rgba8,
+        Rgba16,
         Palette8,
         YCbCr8,
         YCbCrSub8,

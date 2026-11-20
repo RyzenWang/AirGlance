@@ -584,15 +584,67 @@ public sealed class TiffRegionReader : IDisposable
             FileOptions.RandomAccess | FileOptions.DeleteOnClose);
         try
         {
+            var bgra = new byte[PixelWidth * 4];
+            var reportEvery = Math.Max(1, PixelHeight / 100);
+            var rowsWritten = 0;
+            if (TagInt(_image, TiffTag.COMPRESSION) != 1)
+            {
+                var stripSize = _image.StripSize();
+                if (stripSize <= 0 || stripSize > MaximumStripRasterBytes)
+                {
+                    throw new ImageLoadException(
+                        ImageLoadFailure.TooLarge,
+                        "The compressed YCbCr strip is too large for region reading.",
+                        _path,
+                        Path.GetExtension(_path));
+                }
+
+                var strip = new byte[stripSize];
+                for (var stripIndex = 0; stripIndex < offsets.Length; stripIndex++)
+                {
+                    var stripRow = stripIndex * (int)rowsPerStrip;
+                    if (stripRow >= PixelHeight)
+                    {
+                        break;
+                    }
+
+                    var rowCount = Math.Min((int)rowsPerStrip, PixelHeight - stripRow);
+                    var read = _image.ReadEncodedStrip(stripIndex, strip, 0, strip.Length);
+                    if (read <= 0)
+                    {
+                        throw new ImageLoadException(
+                            ImageLoadFailure.Corrupt,
+                            "The compressed YCbCr strip could not be decoded.",
+                            _path,
+                            Path.GetExtension(_path));
+                    }
+
+                    WriteYCbCrStripCache(
+                        strip,
+                        read,
+                        stripRow,
+                        rowCount,
+                        subX,
+                        subY,
+                        bgra,
+                        cache,
+                        ref rowsWritten,
+                        reportEvery,
+                        cancellationToken);
+                }
+
+                cache.Flush();
+                CacheProgressChanged?.Invoke(1);
+                _streamCache = cache;
+                return cache;
+            }
+
             using var source = new FileStream(
                 _path,
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete);
             var blockRow = new byte[blockRowBytes];
-            var bgra = new byte[PixelWidth * 4];
-            var reportEvery = Math.Max(1, PixelHeight / 100);
-            var rowsWritten = 0;
             for (var strip = 0; strip < offsets.Length; strip++)
             {
                 var stripRow = strip * (int)rowsPerStrip;
@@ -659,6 +711,61 @@ public sealed class TiffRegionReader : IDisposable
         {
             cache.Dispose();
             throw;
+        }
+    }
+
+    private void WriteYCbCrStripCache(
+        byte[] strip,
+        int read,
+        int stripRow,
+        int rowCount,
+        int subX,
+        int subY,
+        byte[] bgra,
+        FileStream cache,
+        ref int rowsWritten,
+        int reportEvery,
+        CancellationToken cancellationToken)
+    {
+        var blocksAcross = (PixelWidth + subX - 1) / subX;
+        var blockBytes = subX * subY + 2;
+        var blockRowBytes = blocksAcross * blockBytes;
+        var blockRows = (rowCount + subY - 1) / subY;
+        for (var blockRowIndex = 0; blockRowIndex < blockRows; blockRowIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var blockRowOffset = blockRowIndex * blockRowBytes;
+            for (var dy = 0; dy < subY; dy++)
+            {
+                var pixelY = stripRow + blockRowIndex * subY + dy;
+                if (pixelY >= PixelHeight)
+                {
+                    break;
+                }
+
+                for (var pixelX = 0; pixelX < PixelWidth; pixelX++)
+                {
+                    var blockOffset = blockRowOffset + (pixelX / subX) * blockBytes;
+                    var yOffset = blockOffset + dy * subX + (pixelX % subX);
+                    var cbOffset = blockOffset + subX * subY;
+                    if (cbOffset + 1 >= read || cbOffset + 1 >= strip.Length)
+                    {
+                        continue;
+                    }
+
+                    WriteBgra(
+                        bgra,
+                        pixelX * 4,
+                        FromYCbCr(strip[yOffset], strip[cbOffset], strip[cbOffset + 1]));
+                }
+
+                cache.Write(bgra, 0, bgra.Length);
+                rowsWritten++;
+                if (rowsWritten % reportEvery == 0 || rowsWritten == PixelHeight)
+                {
+                    CacheProgressChanged?.Invoke(rowsWritten / (double)PixelHeight);
+                }
+            }
         }
     }
 
@@ -935,6 +1042,12 @@ public sealed class TiffRegionReader : IDisposable
                     source[offset + 1],
                     source[offset + 2],
                     source[offset + 3]);
+            case RegionRawLayout.Rgba16:
+                return PremultipliedBgra(
+                    (byte)(ReadUInt16Native(source, offset) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 2) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 4) >> 8),
+                    (byte)(ReadUInt16Native(source, offset + 6) >> 8));
             case RegionRawLayout.Palette8:
                 var palette = _rawPalette!;
                 var index = source[offset];
@@ -1024,7 +1137,8 @@ public sealed class TiffRegionReader : IDisposable
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
-        if (bits == 8 && samples == 3 && photometric == 6 && compression == 1 && !image.IsTiled())
+        if (bits == 8 && samples == 3 && photometric == 6 &&
+            compression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
         {
             var (subX, subY) = ReadSubsampling(image);
             if (subX > 1 || subY > 1)
@@ -1062,6 +1176,11 @@ public sealed class TiffRegionReader : IDisposable
             return RegionRawLayout.Rgba8;
         }
 
+        if (bits == 16 && samples == 4 && photometric == 2 && compression != 7)
+        {
+            return RegionRawLayout.Rgba16;
+        }
+
         if (samples == 3 && photometric == 2)
         {
             return bits == 16 ? RegionRawLayout.Rgb16 : RegionRawLayout.Rgb8;
@@ -1088,6 +1207,7 @@ public sealed class TiffRegionReader : IDisposable
             RegionRawLayout.Rgb8 or RegionRawLayout.YCbCr8 => 3,
             RegionRawLayout.Rgb16 => 6,
             RegionRawLayout.Cmyk8 or RegionRawLayout.Rgba8 => 4,
+            RegionRawLayout.Rgba16 => 8,
             RegionRawLayout.Gray8 or RegionRawLayout.Gray8Inverted or RegionRawLayout.Palette8 => 1,
             _ => 2
         };
@@ -1170,6 +1290,7 @@ public sealed class TiffRegionReader : IDisposable
         Rgb16,
         Cmyk8,
         Rgba8,
+        Rgba16,
         Palette8,
         YCbCr8,
         YCbCrSub8,
