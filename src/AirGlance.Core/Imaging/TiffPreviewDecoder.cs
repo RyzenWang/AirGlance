@@ -21,7 +21,6 @@ public static class TiffPreviewDecoder
     private const long ParallelPixelThreshold = 2_000_000;
     private const long ParallelWorkerMemoryBudget = 256L * 1024 * 1024;
     private const int MaximumParallelWorkers = 8;
-    private const long PyramidSerialPixelLimit = 16_000_000;
 
     public static ImageMetadata ReadMetadata(string path)
     {
@@ -114,7 +113,9 @@ public static class TiffPreviewDecoder
                         targetHeight,
                         sampleScale,
                         pixels,
-                        allowParallel: false,
+                        allowParallel: true,
+                        reduced.Directory,
+                        reduced.SubIfdOffset,
                         cancellationToken);
                     decodedReducedLevel = true;
                 }
@@ -134,6 +135,8 @@ public static class TiffPreviewDecoder
                     scale,
                     pixels,
                     allowParallel: true,
+                    directory: 0,
+                    subIfdOffset: 0,
                     cancellationToken);
             }
 
@@ -196,6 +199,8 @@ public static class TiffPreviewDecoder
         double sampleScale,
         byte[] pixels,
         bool allowParallel,
+        short directory,
+        long subIfdOffset,
         CancellationToken cancellationToken)
     {
         var layout = GetRawLayout(image);
@@ -212,6 +217,8 @@ public static class TiffPreviewDecoder
                     sampleScale,
                     layout,
                     pixels,
+                    directory,
+                    subIfdOffset,
                     cancellationToken))
             {
                 return;
@@ -242,6 +249,8 @@ public static class TiffPreviewDecoder
                 sampleScale,
                 layout,
                 pixels,
+                directory,
+                subIfdOffset,
                 cancellationToken))
         {
             return;
@@ -280,7 +289,7 @@ public static class TiffPreviewDecoder
             }
 
             var area = (long)width * height;
-            if (area >= fullArea || area > PyramidSerialPixelLimit || area >= bestArea)
+            if (area >= fullArea || area >= bestArea)
             {
                 return;
             }
@@ -410,6 +419,8 @@ public static class TiffPreviewDecoder
         double scale,
         RawLayout layout,
         byte[] pixels,
+        short directory,
+        long subIfdOffset,
         CancellationToken cancellationToken)
     {
         if ((long)width * height < ParallelPixelThreshold)
@@ -461,6 +472,8 @@ public static class TiffPreviewDecoder
                 tileWidth,
                 tileHeight,
                 pixels,
+                directory,
+                subIfdOffset,
                 cancellationToken));
         return true;
     }
@@ -478,6 +491,8 @@ public static class TiffPreviewDecoder
         int tileWidth,
         int tileHeight,
         byte[] pixels,
+        short directory,
+        long subIfdOffset,
         CancellationToken cancellationToken)
     {
         var (bandStart, bandEnd) = Band(worker, workerCount, height);
@@ -486,7 +501,7 @@ public static class TiffPreviewDecoder
             return;
         }
 
-        using var image = OpenRaw(path);
+        using var image = OpenAtLevel(path, directory, subIfdOffset);
         var tilesAcross = (width + tileWidth - 1) / tileWidth;
         var firstTileY = bandStart / tileHeight * tileHeight;
         if (layout == RawLayout.None)
@@ -590,6 +605,8 @@ public static class TiffPreviewDecoder
         double scale,
         RawLayout layout,
         byte[] pixels,
+        short directory,
+        long subIfdOffset,
         CancellationToken cancellationToken)
     {
         if ((long)width * height < ParallelPixelThreshold)
@@ -647,6 +664,8 @@ public static class TiffPreviewDecoder
                     rowsPerStripValue,
                     stripSize,
                     pixels,
+                    directory,
+                    subIfdOffset,
                     cancellationToken));
             return true;
         }
@@ -683,6 +702,8 @@ public static class TiffPreviewDecoder
                 step,
                 rowsPerStripValue,
                 pixels,
+                directory,
+                subIfdOffset,
                 cancellationToken));
         return true;
     }
@@ -700,6 +721,8 @@ public static class TiffPreviewDecoder
         int rowsPerStrip,
         int stripSize,
         byte[] pixels,
+        short directory,
+        long subIfdOffset,
         CancellationToken cancellationToken)
     {
         var (bandStart, bandEnd) = Band(worker, workerCount, height);
@@ -708,7 +731,7 @@ public static class TiffPreviewDecoder
             return;
         }
 
-        using var image = OpenRaw(path);
+        using var image = OpenAtLevel(path, directory, subIfdOffset);
         var raw = new byte[stripSize];
         var bytesPerPixel = layout == RawLayout.Rgb ? 3 : 1;
         var firstStrip = bandStart / rowsPerStrip;
@@ -770,6 +793,8 @@ public static class TiffPreviewDecoder
         int step,
         int rowsPerStrip,
         byte[] pixels,
+        short directory,
+        long subIfdOffset,
         CancellationToken cancellationToken)
     {
         var (bandStart, bandEnd) = Band(worker, workerCount, height);
@@ -778,7 +803,7 @@ public static class TiffPreviewDecoder
             return;
         }
 
-        using var image = OpenRaw(path);
+        using var image = OpenAtLevel(path, directory, subIfdOffset);
         var raster = new int[width * rowsPerStrip];
         var firstStrip = bandStart / rowsPerStrip;
         var lastStrip = (bandEnd - 1) / rowsPerStrip;
@@ -1183,6 +1208,34 @@ public static class TiffPreviewDecoder
 
     private static int RoundUp(int value, int step) =>
         step <= 1 ? value : ((value + step - 1) / step) * step;
+
+    private static Tiff OpenAtLevel(string path, short directory, long subIfdOffset)
+    {
+        var image = Tiff.Open(path, "r");
+        if (image is null)
+        {
+            throw Corrupt(path, "The TIFF could not be opened.");
+        }
+
+        try
+        {
+            var switched = subIfdOffset > 0
+                ? image.SetSubDirectory(subIfdOffset)
+                : image.SetDirectory(directory);
+            if (!switched)
+            {
+                throw Corrupt(path, "The TIFF level could not be opened.");
+            }
+
+            ForceStoredOrientation(image);
+            return image;
+        }
+        catch
+        {
+            image.Dispose();
+            throw;
+        }
+    }
 
     private static Tiff OpenRaw(string path)
     {

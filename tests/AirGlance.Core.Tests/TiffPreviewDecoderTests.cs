@@ -266,6 +266,30 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
+    [Fact]
+    public void Preview_parallels_a_reduced_directory()
+    {
+        var path = TemporaryTiff();
+        try
+        {
+            CreateTwoLevelTiff(path, 4096, 3072, 2048, 1536);
+            var bitmap = TiffPreviewDecoder.DecodePreview(path, 1024, 768);
+
+            Assert.Equal(1024, bitmap.Width);
+            Assert.Equal(768, bitmap.Height);
+            Assert.Equal(4096, bitmap.SourceWidth);
+            Assert.Equal(3072, bitmap.SourceHeight);
+
+            // The 2048 x 1536 reduced directory is above the 2 MP parallel
+            // threshold and is green; worker handles must open it, not dir 0.
+            Assert.Equal("green", Classify(Pixel(bitmap, 512, 384)));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string TemporaryTiff() =>
         Path.Combine(Path.GetTempPath(), "airglance-preview-" + Guid.NewGuid().ToString("N") + ".tif");
 
@@ -390,13 +414,21 @@ public sealed class TiffPreviewDecoderTests
         }
     }
 
-    private static void CreateTwoLevelTiff(string path)
+    private static void CreateTwoLevelTiff(string path) =>
+        CreateTwoLevelTiff(path, 800, 600, 400, 300);
+
+    private static void CreateTwoLevelTiff(
+        string path,
+        int fullWidth,
+        int fullHeight,
+        int reducedWidth,
+        int reducedHeight)
     {
         using var tiff = Tiff.Open(path, "w");
         Assert.NotNull(tiff);
-        WriteSolidDirectory(tiff, 800, 600, 255, 0, 0);
+        WriteSolidDirectory(tiff, fullWidth, fullHeight, 255, 0, 0);
         tiff.WriteDirectory();
-        WriteSolidDirectory(tiff, 400, 300, 0, 160, 60);
+        WriteSolidDirectory(tiff, reducedWidth, reducedHeight, 0, 160, 60);
     }
 
     private static void WriteSolidDirectory(Tiff tiff, int width, int height, byte red, byte green, byte blue)
