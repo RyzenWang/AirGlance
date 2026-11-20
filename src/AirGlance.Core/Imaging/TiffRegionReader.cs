@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using BitMiracle.LibTiff.Classic;
 
 namespace AirGlance.Core.Imaging;
@@ -32,6 +33,8 @@ public sealed class TiffRegionReader : IDisposable
     private readonly RegionRawLayout _rawLayout;
     private readonly int _rawPixelBytes;
     private readonly ushort[]? _rawPalette;
+    private readonly int _subX;
+    private readonly int _subY;
     private int[] _tileRaster = [];
     private byte[] _rawTile = [];
     private FileStream? _streamCache;
@@ -68,6 +71,7 @@ public sealed class TiffRegionReader : IDisposable
         _rawLayout = GetRawLayout(image);
         _rawPixelBytes = RawPixelBytes(_rawLayout);
         _rawPalette = _rawLayout == RegionRawLayout.Palette8 ? ReadColorMap(image) : null;
+        (_subX, _subY) = ReadSubsampling(image);
     }
 
     public int PixelWidth { get; }
@@ -76,14 +80,19 @@ public sealed class TiffRegionReader : IDisposable
 
     public event Action<double>? CacheProgressChanged;
 
-    public bool RequiresStreamingCache => IsOversizedSingleStrip();
+    public bool RequiresStreamingCache =>
+        _rawLayout == RegionRawLayout.YCbCrSub8 || IsOversizedSingleStrip();
 
     public void Prepare(CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (IsOversizedSingleStrip())
+            if (_rawLayout == RegionRawLayout.YCbCrSub8)
+            {
+                EnsureYCbCrSubsampledCache(cancellationToken);
+            }
+            else if (IsOversizedSingleStrip())
             {
                 EnsureSingleStripCache(cancellationToken);
             }
@@ -292,6 +301,12 @@ public sealed class TiffRegionReader : IDisposable
 
     private void ReadStripped(int x, int y, int width, int height, byte[] destination)
     {
+        if (_rawLayout == RegionRawLayout.YCbCrSub8)
+        {
+            ReadSingleStripStreaming(x, y, width, height, destination);
+            return;
+        }
+
         if (_rawLayout != RegionRawLayout.None)
         {
             if (IsOversizedSingleStrip())
@@ -504,7 +519,9 @@ public sealed class TiffRegionReader : IDisposable
 
     private void ReadSingleStripStreaming(int x, int y, int width, int height, byte[] destination)
     {
-        var cache = EnsureSingleStripCache();
+        var cache = _rawLayout == RegionRawLayout.YCbCrSub8
+            ? EnsureYCbCrSubsampledCache()
+            : EnsureSingleStripCache();
         var rowBytes = width * 4;
         var row = new byte[rowBytes];
         try
@@ -524,6 +541,290 @@ public sealed class TiffRegionReader : IDisposable
                 _path,
                 Path.GetExtension(_path));
         }
+    }
+
+    private FileStream EnsureYCbCrSubsampledCache(CancellationToken cancellationToken = default)
+    {
+        if (_streamCache is not null)
+        {
+            return _streamCache;
+        }
+
+        var offsets = ReadIfdTagValues(_path, TiffTag.STRIPOFFSETS);
+        if (offsets.Length == 0)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Corrupt,
+                "The TIFF has no strip offsets.",
+                _path,
+                Path.GetExtension(_path));
+        }
+
+        var rowsPerStripValues = ReadIfdTagValues(_path, TiffTag.ROWSPERSTRIP);
+        var rowsPerStrip = rowsPerStripValues.Length > 0 ? rowsPerStripValues[0] : PixelHeight;
+        if (rowsPerStrip <= 0 || rowsPerStrip > PixelHeight)
+        {
+            rowsPerStrip = PixelHeight;
+        }
+
+        var subX = Math.Max(1, _subX);
+        var subY = Math.Max(1, _subY);
+        var blocksAcross = (PixelWidth + subX - 1) / subX;
+        var blockBytes = subX * subY + 2;
+        var blockRowBytes = blocksAcross * blockBytes;
+        var cachePath = Path.Combine(
+            Path.GetTempPath(),
+            $"airglance-region-{Guid.NewGuid():N}.bgra");
+        var cache = new FileStream(
+            cachePath,
+            FileMode.CreateNew,
+            FileAccess.ReadWrite,
+            FileShare.Read,
+            bufferSize: 1 << 20,
+            FileOptions.RandomAccess | FileOptions.DeleteOnClose);
+        try
+        {
+            using var source = new FileStream(
+                _path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            var blockRow = new byte[blockRowBytes];
+            var bgra = new byte[PixelWidth * 4];
+            var reportEvery = Math.Max(1, PixelHeight / 100);
+            var rowsWritten = 0;
+            for (var strip = 0; strip < offsets.Length; strip++)
+            {
+                var stripRow = strip * (int)rowsPerStrip;
+                if (stripRow >= PixelHeight)
+                {
+                    break;
+                }
+
+                var rowCount = Math.Min((int)rowsPerStrip, PixelHeight - stripRow);
+                source.Position = offsets[strip];
+                var blockRows = (rowCount + subY - 1) / subY;
+                for (var blockRowIndex = 0; blockRowIndex < blockRows; blockRowIndex++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        source.ReadExactly(blockRow);
+                    }
+                    catch (EndOfStreamException)
+                    {
+                        throw new ImageLoadException(
+                            ImageLoadFailure.Corrupt,
+                            "The TIFF YCbCr strip ended unexpectedly.",
+                            _path,
+                            Path.GetExtension(_path));
+                    }
+
+                    for (var dy = 0; dy < subY; dy++)
+                    {
+                        var pixelY = stripRow + blockRowIndex * subY + dy;
+                        if (pixelY >= PixelHeight)
+                        {
+                            break;
+                        }
+
+                        for (var pixelX = 0; pixelX < PixelWidth; pixelX++)
+                        {
+                            var blockX = pixelX / subX;
+                            var withinX = pixelX % subX;
+                            var blockOffset = blockX * blockBytes;
+                            var value = FromYCbCr(
+                                blockRow[blockOffset + dy * subX + withinX],
+                                blockRow[blockOffset + subX * subY],
+                                blockRow[blockOffset + subX * subY + 1]);
+                            WriteBgra(bgra, pixelX * 4, value);
+                        }
+
+                        cache.Write(bgra, 0, bgra.Length);
+                        rowsWritten++;
+                        if (rowsWritten % reportEvery == 0 || rowsWritten == PixelHeight)
+                        {
+                            CacheProgressChanged?.Invoke(rowsWritten / (double)PixelHeight);
+                        }
+                    }
+                }
+            }
+
+            cache.Flush();
+            CacheProgressChanged?.Invoke(1);
+            _streamCache = cache;
+            return cache;
+        }
+        catch
+        {
+            cache.Dispose();
+            throw;
+        }
+    }
+
+    private static long[] ReadIfdTagValues(string path, TiffTag tag)
+    {
+        try
+        {
+            using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            if (stream.Length < 8)
+            {
+                return [];
+            }
+
+            Span<byte> header = stackalloc byte[16];
+            var headerLength = (int)Math.Min(header.Length, stream.Length);
+            stream.ReadExactly(header[..headerLength]);
+            var little = header[0] == (byte)'I' && header[1] == (byte)'I';
+            var bigEndian = header[0] == (byte)'M' && header[1] == (byte)'M';
+            if (!little && !bigEndian)
+            {
+                return [];
+            }
+
+            var magic = ReadU16(header[2..4], little);
+            var bigTiff = magic == 43;
+            long ifdOffset;
+            if (magic == 42)
+            {
+                ifdOffset = ReadU32(header[4..8], little);
+            }
+            else if (bigTiff && headerLength >= 16)
+            {
+                ifdOffset = (long)ReadU64(header[8..16], little);
+            }
+            else
+            {
+                return [];
+            }
+
+            var countSize = bigTiff ? 8 : 2;
+            var entrySize = bigTiff ? 20 : 12;
+            var offsetSize = bigTiff ? 8 : 4;
+            if (ifdOffset <= 0 || ifdOffset + countSize > stream.Length)
+            {
+                return [];
+            }
+
+            stream.Position = ifdOffset;
+            var entryCount = bigTiff ? ReadU64(stream, little) : ReadU16(stream, little);
+            if (entryCount is 0 or > 4096)
+            {
+                return [];
+            }
+
+            var entryBase = ifdOffset + countSize;
+            for (ulong index = 0; index < entryCount; index++)
+            {
+                var position = entryBase + (long)index * entrySize;
+                if (position + entrySize > stream.Length)
+                {
+                    return [];
+                }
+
+                stream.Position = position;
+                var entryTag = ReadU16(stream, little);
+                var type = ReadU16(stream, little);
+                var count = bigTiff ? ReadU64(stream, little) : ReadU32(stream, little);
+                var valuePosition = stream.Position;
+                if (entryTag != (ushort)tag || count is 0 or > 100_000)
+                {
+                    continue;
+                }
+
+                var itemSize = type switch
+                {
+                    3 => 2,
+                    4 or 13 => 4,
+                    16 or 18 => 8,
+                    _ => 0
+                };
+                if (itemSize == 0)
+                {
+                    return [];
+                }
+
+                var total = (long)count * itemSize;
+                if (total > offsetSize)
+                {
+                    stream.Position = valuePosition;
+                    var dataOffset = bigTiff
+                        ? (long)ReadU64(stream, little)
+                        : ReadU32(stream, little);
+                    if (dataOffset <= 0 || dataOffset + total > stream.Length)
+                    {
+                        return [];
+                    }
+
+                    stream.Position = dataOffset;
+                }
+                else
+                {
+                    stream.Position = valuePosition;
+                }
+
+                var result = new long[count];
+                for (var item = 0; item < result.Length; item++)
+                {
+                    result[item] = type switch
+                    {
+                        3 => ReadU16(stream, little),
+                        4 or 13 => bigTiff && type == 13
+                            ? (long)ReadU64(stream, little)
+                            : ReadU32(stream, little),
+                        _ => (long)ReadU64(stream, little)
+                    };
+                }
+
+                return result;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or EndOfStreamException or ArgumentException)
+        {
+            // The raw IFD is unavailable; the caller can fall back.
+        }
+
+        return [];
+    }
+
+    private static ushort ReadU16(ReadOnlySpan<byte> source, bool little) =>
+        little
+            ? BinaryPrimitives.ReadUInt16LittleEndian(source)
+            : BinaryPrimitives.ReadUInt16BigEndian(source);
+
+    private static uint ReadU32(ReadOnlySpan<byte> source, bool little) =>
+        little
+            ? BinaryPrimitives.ReadUInt32LittleEndian(source)
+            : BinaryPrimitives.ReadUInt32BigEndian(source);
+
+    private static ulong ReadU64(ReadOnlySpan<byte> source, bool little) =>
+        little
+            ? BinaryPrimitives.ReadUInt64LittleEndian(source)
+            : BinaryPrimitives.ReadUInt64BigEndian(source);
+
+    private static ushort ReadU16(Stream stream, bool little)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        stream.ReadExactly(buffer);
+        return ReadU16(buffer, little);
+    }
+
+    private static uint ReadU32(Stream stream, bool little)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        stream.ReadExactly(buffer);
+        return ReadU32(buffer, little);
+    }
+
+    private static ulong ReadU64(Stream stream, bool little)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        stream.ReadExactly(buffer);
+        return ReadU64(buffer, little);
     }
 
     private FileStream EnsureSingleStripCache(CancellationToken cancellationToken = default)
@@ -723,6 +1024,15 @@ public sealed class TiffRegionReader : IDisposable
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 8 && samples == 3 && photometric == 6 && compression == 1 && !image.IsTiled())
+        {
+            var (subX, subY) = ReadSubsampling(image);
+            if (subX > 1 || subY > 1)
+            {
+                return RegionRawLayout.YCbCrSub8;
+            }
+        }
+
         if (bits == 8 && samples == 3 && photometric == 6 && compression == 7)
         {
             EnableJpegRgbMode(image);
@@ -774,6 +1084,7 @@ public sealed class TiffRegionReader : IDisposable
         layout switch
         {
             RegionRawLayout.None => 0,
+            RegionRawLayout.YCbCrSub8 => 0,
             RegionRawLayout.Rgb8 or RegionRawLayout.YCbCr8 => 3,
             RegionRawLayout.Rgb16 => 6,
             RegionRawLayout.Cmyk8 or RegionRawLayout.Rgba8 => 4,
@@ -786,12 +1097,18 @@ public sealed class TiffRegionReader : IDisposable
             ? (ushort)(source[offset] | (source[offset + 1] << 8))
             : (ushort)((source[offset] << 8) | source[offset + 1]);
 
-    private static bool HasUnitSubsampling(Tiff image)
+    private static (int X, int Y) ReadSubsampling(Tiff image)
     {
         var field = image.GetField(TiffTag.YCBCRSUBSAMPLING);
-        return field is { Length: >= 2 } &&
-               field[0].ToInt() == 1 &&
-               field[1].ToInt() == 1;
+        return field is { Length: >= 2 }
+            ? (field[0].ToInt(), field[1].ToInt())
+            : (0, 0);
+    }
+
+    private static bool HasUnitSubsampling(Tiff image)
+    {
+        var (x, y) = ReadSubsampling(image);
+        return x == 1 && y == 1;
     }
 
     private static uint FromYCbCr(byte y, byte cb, byte cr)
@@ -855,6 +1172,7 @@ public sealed class TiffRegionReader : IDisposable
         Rgba8,
         Palette8,
         YCbCr8,
+        YCbCrSub8,
         Gray8,
         Gray16,
         Gray8Inverted,

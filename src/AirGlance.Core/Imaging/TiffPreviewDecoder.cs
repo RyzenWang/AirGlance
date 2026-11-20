@@ -207,6 +207,22 @@ public static class TiffPreviewDecoder
         CancellationToken cancellationToken)
     {
         var format = GetRawFormat(image);
+        if (!image.IsTiled() && format.Layout == RawLayout.YCbCrSub8)
+        {
+            DecodeStrippedYCbCrSubsampled(
+                image,
+                path,
+                decodeWidth,
+                decodeHeight,
+                targetWidth,
+                targetHeight,
+                sampleScale,
+                format,
+                pixels,
+                cancellationToken);
+            return;
+        }
+
         if (image.IsTiled())
         {
             if (allowParallel &&
@@ -1374,6 +1390,204 @@ public static class TiffPreviewDecoder
         }
     }
 
+    private static long[] ReadIfdTagValues(string path, TiffTag tag)
+    {
+        try
+        {
+            using var stream = OpenIfdStream(path);
+            if (!TryReadIfdLayout(stream, out var layout))
+            {
+                return [];
+            }
+
+            var ifdOffset = layout.FirstIfdOffset;
+            if (ifdOffset <= 0 || ifdOffset + layout.CountSize > stream.Length)
+            {
+                return [];
+            }
+
+            stream.Position = ifdOffset;
+            var entryCount = layout.BigTiff
+                ? ReadUInt64(stream, layout.Little)
+                : ReadUInt16(stream, layout.Little);
+            if (entryCount is 0 or > 4096)
+            {
+                return [];
+            }
+
+            var entryBase = ifdOffset + layout.CountSize;
+            for (ulong index = 0; index < entryCount; index++)
+            {
+                var position = entryBase + (long)index * layout.EntrySize;
+                if (position + layout.EntrySize > stream.Length)
+                {
+                    return [];
+                }
+
+                stream.Position = position;
+                var entryTag = ReadUInt16(stream, layout.Little);
+                var type = ReadUInt16(stream, layout.Little);
+                var count = layout.BigTiff
+                    ? ReadUInt64(stream, layout.Little)
+                    : ReadUInt32(stream, layout.Little);
+                var valuePosition = stream.Position;
+                if (entryTag != (ushort)tag || count is 0 or > 100_000)
+                {
+                    continue;
+                }
+
+                var itemSize = type switch
+                {
+                    3 => 2,
+                    4 or 13 => 4,
+                    16 or 18 => 8,
+                    _ => 0
+                };
+                if (itemSize == 0)
+                {
+                    return [];
+                }
+
+                var total = (long)count * itemSize;
+                var valueSize = layout.BigTiff ? 8 : 4;
+                if (total > valueSize)
+                {
+                    stream.Position = valuePosition;
+                    var dataOffset = layout.BigTiff
+                        ? (long)ReadUInt64(stream, layout.Little)
+                        : ReadUInt32(stream, layout.Little);
+                    if (dataOffset <= 0 || dataOffset + total > stream.Length)
+                    {
+                        return [];
+                    }
+
+                    stream.Position = dataOffset;
+                }
+                else
+                {
+                    stream.Position = valuePosition;
+                }
+
+                var result = new long[count];
+                for (var item = 0; item < result.Length; item++)
+                {
+                    result[item] = type switch
+                    {
+                        3 => ReadUInt16(stream, layout.Little),
+                        4 or 13 => layout.BigTiff && type == 13
+                            ? (long)ReadUInt64(stream, layout.Little)
+                            : ReadUInt32(stream, layout.Little),
+                        _ => (long)ReadUInt64(stream, layout.Little)
+                    };
+                }
+
+                return result;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or EndOfStreamException or ArgumentException)
+        {
+            // Fall back to the LibTiff tag when the raw IFD is unreadable.
+        }
+
+        return [];
+    }
+
+    private static void DecodeStrippedYCbCrSubsampled(
+        Tiff image,
+        string path,
+        int width,
+        int height,
+        int targetWidth,
+        int targetHeight,
+        double scale,
+        RawFormat format,
+        byte[] pixels,
+        CancellationToken cancellationToken)
+    {
+        var offsets = ReadIfdTagValues(path, TiffTag.STRIPOFFSETS);
+        if (offsets.Length == 0)
+        {
+            throw Corrupt(path, "The TIFF has no strip offsets.");
+        }
+
+        var rowsPerStripValues = ReadIfdTagValues(path, TiffTag.ROWSPERSTRIP);
+        var rowsPerStrip = rowsPerStripValues.Length > 0 ? rowsPerStripValues[0] : height;
+        if (rowsPerStrip <= 0 || rowsPerStrip > height)
+        {
+            rowsPerStrip = height;
+        }
+
+        var subX = Math.Max(1, format.SubX);
+        var subY = Math.Max(1, format.SubY);
+        var blocksAcross = (width + subX - 1) / subX;
+        var blockBytes = subX * subY + 2;
+        var blockRowBytes = blocksAcross * blockBytes;
+        var step = SampleStep(scale);
+        var blockRow = new byte[blockRowBytes];
+
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        for (var strip = 0; strip < offsets.Length; strip++)
+        {
+            var stripRow = strip * (int)rowsPerStrip;
+            if (stripRow >= height)
+            {
+                break;
+            }
+
+            var rowCount = Math.Min((int)rowsPerStrip, height - stripRow);
+            stream.Position = offsets[strip];
+            var blockRows = (rowCount + subY - 1) / subY;
+            for (var blockRowIndex = 0; blockRowIndex < blockRows; blockRowIndex++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    stream.ReadExactly(blockRow);
+                }
+                catch (EndOfStreamException)
+                {
+                    throw Corrupt(path, "The TIFF YCbCr strip ended unexpectedly.");
+                }
+
+                for (var dy = 0; dy < subY; dy++)
+                {
+                    var sourceY = stripRow + blockRowIndex * subY + dy;
+                    if (sourceY >= height || sourceY % step != 0)
+                    {
+                        continue;
+                    }
+
+                    for (var sourceX = 0; sourceX < width; sourceX += step)
+                    {
+                        var blockX = sourceX / subX;
+                        var withinX = sourceX % subX;
+                        var blockOffset = blockX * blockBytes;
+                        var yOffset = blockOffset + dy * subX + withinX;
+                        var cbOffset = blockOffset + subX * subY;
+                        if (cbOffset + 1 >= blockRow.Length)
+                        {
+                            continue;
+                        }
+
+                        WriteScaled(
+                            pixels,
+                            targetWidth,
+                            targetHeight,
+                            sourceX,
+                            sourceY,
+                            width,
+                            height,
+                            FromYCbCr(blockRow[yOffset], blockRow[cbOffset], blockRow[cbOffset + 1]));
+                    }
+                }
+            }
+        }
+    }
+
     private static ushort ReadUInt16Native(byte[] row, int offset)
     {
         // LibTiff returns 16-bit scanline samples in the machine byte order.
@@ -1582,6 +1796,15 @@ public static class TiffPreviewDecoder
         }
 
         var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 8 && samples == 3 && photometric == 6 && compression == 1 && !image.IsTiled())
+        {
+            var (subX, subY) = ReadSubsampling(image);
+            if (subX > 1 || subY > 1)
+            {
+                return new RawFormat(RawLayout.YCbCrSub8, null, subX, subY);
+            }
+        }
+
         if (bits == 8 && samples == 3 && photometric == 6 && compression == 7)
         {
             EnableJpegRgbMode(image);
@@ -1664,7 +1887,11 @@ public static class TiffPreviewDecoder
         return null;
     }
 
-    private readonly record struct RawFormat(RawLayout Layout, ushort[]? Palette);
+    private readonly record struct RawFormat(
+        RawLayout Layout,
+        ushort[]? Palette,
+        int SubX = 1,
+        int SubY = 1);
 
     private enum RawLayout
     {
@@ -1675,6 +1902,7 @@ public static class TiffPreviewDecoder
         Rgba8,
         Palette8,
         YCbCr8,
+        YCbCrSub8,
         Gray,
         Gray16,
         GrayInverted,
@@ -1710,12 +1938,18 @@ public static class TiffPreviewDecoder
     private static int RoundUp(int value, int step) =>
         step <= 1 ? value : ((value + step - 1) / step) * step;
 
-    private static bool HasUnitSubsampling(Tiff image)
+    private static (int X, int Y) ReadSubsampling(Tiff image)
     {
         var field = image.GetField(TiffTag.YCBCRSUBSAMPLING);
-        return field is { Length: >= 2 } &&
-               field[0].ToInt() == 1 &&
-               field[1].ToInt() == 1;
+        return field is { Length: >= 2 }
+            ? (field[0].ToInt(), field[1].ToInt())
+            : (0, 0);
+    }
+
+    private static bool HasUnitSubsampling(Tiff image)
+    {
+        var (x, y) = ReadSubsampling(image);
+        return x == 1 && y == 1;
     }
 
     private static uint FromYCbCr(byte y, byte cb, byte cr)
