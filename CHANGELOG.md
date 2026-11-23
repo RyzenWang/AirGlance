@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+
 ### Added
 
 - A read-only analysis drawer opened from the canvas context menu. It shows
@@ -400,6 +402,7 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
+[0.7.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.0
 [0.6.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.6.0
 [0.5.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.5.0
 [0.4.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.4.1

@@ -14,7 +14,7 @@
   <a href="https://github.com/RyzenWang/AirGlance/releases/latest">最新发布</a>
 </p>
 
-AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.6.0，也是最新公开二进制版本。它刻意保持小巧。
+AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.7.0，也是最新公开二进制版本。它刻意保持小巧。
 
 > **Windows：** 推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装，更新由商店负责。商店版本可能落后于 GitHub Release；Windows、macOS 和 Linux 的便携包仍可在 [GitHub Releases](https://github.com/RyzenWang/AirGlance/releases/latest) 下载。
 
@@ -90,7 +90,7 @@ AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia �
 
 ## 安装
 
-Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装；各平台的便携包在 [v0.6.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.6.0)。商店版本可能落后于 GitHub Release。
+Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装；各平台的便携包在 [v0.7.0 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.0)。商店版本可能落后于 GitHub Release。
 
 ### Microsoft Store（Windows）
 
@@ -99,20 +99,20 @@ Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30
 
 ### Windows 便携版
 
-1. 下载 `AirGlance-0.6.0-win-x64.zip`（或 `win-arm64`）。
+1. 下载 `AirGlance-0.7.0-win-x64.zip`（或 `win-arm64`）。
 2. 解压到任意位置，运行 `AirGlance.exe`。
 
 Windows 便携版没有代码签名，首次运行会出现 SmartScreen 警告。选择 **更多信息 → 仍要运行**。可执行文件是 NativeAOT 构建，不需要安装 .NET 运行时。
 
 ### macOS
 
-1. 下载 `AirGlance-0.6.0-osx-arm64.zip` 或 `-osx-x64.zip`。
+1. 下载 `AirGlance-0.7.0-osx-arm64.zip` 或 `-osx-x64.zip`。
 2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.5 尚未公证。
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.6.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.7.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -124,14 +124,14 @@ tar -xzf AirGlance-0.6.0-linux-x64.tar.gz
 
 | 平台 | 压缩包 | 实际运行过 NativeAOT 二进制 |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **已验证** — 已启动 0.6.0 本地 AOT 构建并显示图片 |
+| Windows x64 | `win-x64.zip` | **已验证** — 已启动 0.7.0 本地 AOT 构建并显示图片 |
 | Linux x64 | `linux-x64.tar.gz` | **已验证**（维护者，0.1.1） |
 | Windows arm64 | `win-arm64.zip` | 未验证 |
 | macOS arm64 | `osx-arm64.zip` | 未验证 |
 | macOS x64 | `osx-x64.zip` | 未验证 |
 | Linux arm64 | `linux-arm64.tar.gz` | 未验证 |
 
-“已验证”是指实际启动过 AOT 二进制并显示过图片。Windows x64 条目对应 0.6.0 本地 AOT 构建；此前已发布的 0.5.0 压缩包已用 JPEG、TIFF、SVG 和 GIF 冒烟测试；Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
+“已验证”是指实际启动过 AOT 二进制并显示过图片。Windows x64 条目对应 0.7.0 本地 AOT 构建；此前已发布的 0.5.0 压缩包已用 JPEG、TIFF、SVG 和 GIF 冒烟测试；Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
 
 Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 分发；商店版本可能落后于 GitHub Release，更新由 Windows 负责。
 
@@ -187,7 +187,7 @@ Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/
 | 24 MP 适应窗口内存峰值 | ≤ 250 MB | 84.5 MB |
 | Windows x64 便携 zip | ≤ 30 MB | 20.51 MB |
 
-0.6.0 恢复 AVIF，并新增深色模式交互适配。但启动性能尚未重新测量，因此上表仍标注测量版本；0.6.0 本地 win-x64 AOT 包为 20.85 MiB（0.5.0 为 20.76 MiB）。
+0.7.0 新增分析抽屉。启动性能尚未按完整方法重新测量，因此上表仍标注各自测量时的版本；0.7.0 本地 win-x64 AOT 包为 21.05 MiB（0.6.0 为 20.85 MiB，0.5.0 为 20.76 MiB）。单次本地 0.7.0 AOT 检查中，首窗 130 ms，1.7 MP JPEG 首帧 191 ms。
 
 0.3.0 在参考机器上达到启动和首帧目标：窗口约 222 ms 出现，24 MP 图片约 425 ms 上屏。窗口外壳用 C# 构建而不是 XAML，移除了最大的一项首帧开销；解码与建窗重叠。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
 

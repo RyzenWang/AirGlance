@@ -2,7 +2,7 @@
 
 [English](architecture.md) · **简体中文**
 
-AirGlance 0.6.0 是一款桌面图像查看器。它一次打开一个文件夹，并一次显示一张图像。代码拆分为一个不依赖 UI 的核心库和一个 Avalonia 应用程序。
+AirGlance 0.7.0 是一款桌面图像查看器。它一次打开一个文件夹，并一次显示一张图像。代码拆分为一个不依赖 UI 的核心库和一个 Avalonia 应用程序。
 
 ## 技术栈
 
@@ -299,7 +299,7 @@ dotnet test AirGlance.sln -c Release
 ## 相关文档
 
 - [格式支持矩阵](formats.zh-CN.md)
-- [交付 AirGlance 0.6.0](shipping.zh-CN.md)
+- [交付 AirGlance 0.7.0](shipping.zh-CN.md)
 - [第三方声明](../THIRD-PARTY-NOTICES.md)
 - [变更日志](../CHANGELOG.md)
 - [README](../README.zh-CN.md)

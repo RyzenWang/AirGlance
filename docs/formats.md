@@ -189,6 +189,6 @@ The test projects copy `tests/Assets` into their output directories, so the fixt
 ## Related documents
 
 - [Architecture](architecture.md)
-- [Shipping AirGlance 0.6.0](shipping.md)
+- [Shipping AirGlance 0.7.0](shipping.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)

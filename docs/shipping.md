@@ -1,35 +1,35 @@
-# Shipping AirGlance 0.6.0
+# Shipping AirGlance 0.7.0
 
 **English** · [简体中文](shipping.zh-CN.md)
 
-This is the release procedure for AirGlance 0.6.0 (2026-11-20). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used for the Microsoft Store submission, WACK and the Store listing.
+This is the release procedure for AirGlance 0.7.0 (2026-11-23). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used for the Microsoft Store submission, WACK and the Store listing.
 
-The 0.6.0 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The Windows x64 build is also live in the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); no signing certificate is stored in the repository.
+The 0.7.0 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The Windows x64 build is also live in the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); no signing certificate is stored in the repository.
 
 ## Release matrix
 
 | Target | Public artifact | Signature | Built by | Distribution |
 | --- | --- | --- | --- | --- |
-| Windows x64 | `AirGlance-0.6.0-win-x64.zip` | None | `packaging/scripts/pack.ps1` | GitHub release |
-| Windows arm64 | `AirGlance-0.6.0-win-arm64.zip` | None | `packaging/scripts/pack.ps1` on `windows-latest` | GitHub release |
-| macOS arm64 | `AirGlance-0.6.0-osx-arm64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15` | GitHub release |
-| macOS x64 | `AirGlance-0.6.0-osx-x64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15-intel` | GitHub release |
-| Linux x64 | `AirGlance-0.6.0-linux-x64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-22.04` | GitHub release |
-| Linux arm64 | `AirGlance-0.6.0-linux-arm64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-24.04-arm` | GitHub release |
+| Windows x64 | `AirGlance-0.7.0-win-x64.zip` | None | `packaging/scripts/pack.ps1` | GitHub release |
+| Windows arm64 | `AirGlance-0.7.0-win-arm64.zip` | None | `packaging/scripts/pack.ps1` on `windows-latest` | GitHub release |
+| macOS arm64 | `AirGlance-0.7.0-osx-arm64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15` | GitHub release |
+| macOS x64 | `AirGlance-0.7.0-osx-x64.zip` (contains `AirGlance.app`) | None | `packaging/scripts/pack.sh` on `macos-15-intel` | GitHub release |
+| Linux x64 | `AirGlance-0.7.0-linux-x64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-22.04` | GitHub release |
+| Linux arm64 | `AirGlance-0.7.0-linux-arm64.tar.gz` | None | `packaging/scripts/pack.sh` on `ubuntu-24.04-arm` | GitHub release |
 | Windows x64 MSIX | `AirGlance_1.0.1.0_x64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
 | Windows arm64 MSIX | `AirGlance_1.0.1.0_arm64.msix` | None in the repository | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
 
-Archive names use the three-part product version `0.6.0`. MSIX names use the four-part package version `1.0.1.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
+Archive names use the three-part product version `0.7.0`. MSIX names use the four-part package version `1.0.1.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
 
 The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for Store review and Partner Center.
 
 ## Runtime verification status
 
-The release matrix is about artifacts, not runtime coverage. The v0.6.0 status is:
+The release matrix is about artifacts, not runtime coverage. The v0.7.0 status is:
 
 | Target | Artifact built | AOT binary run |
 | --- | --- | --- |
-| Windows x64 | yes | **yes** — the 0.6.0 local AOT build launched; JPEG, TIFF, SVG and GIF smoke-tested |
+| Windows x64 | yes | **yes** — the 0.7.0 local AOT build launched and rendered a JPEG first frame |
 | Linux x64 | yes | **yes** — verified by the maintainer against 0.1.1 outside this repository's CI |
 | Windows arm64 | yes | unverified |
 | macOS arm64 | yes | unverified |
@@ -79,17 +79,17 @@ NativeAOT cannot cross-compile between operating-system families. `pack.sh` refu
 Windows x64 or arm64:
 
 ```powershell
-./packaging/scripts/pack.ps1 -Version 0.6.0 -Runtime win-x64 -Aot
-./packaging/scripts/pack.ps1 -Version 0.6.0 -Runtime win-x64 -Aot -Msix
+./packaging/scripts/pack.ps1 -Version 0.7.0 -Runtime win-x64 -Aot
+./packaging/scripts/pack.ps1 -Version 0.7.0 -Runtime win-x64 -Aot -Msix
 ```
 
 macOS or Linux, on the matching host:
 
 ```sh
-./packaging/scripts/pack.sh 0.6.0 osx-arm64
-./packaging/scripts/pack.sh 0.6.0 osx-x64
-./packaging/scripts/pack.sh 0.6.0 linux-x64
-./packaging/scripts/pack.sh 0.6.0 linux-arm64
+./packaging/scripts/pack.sh 0.7.0 osx-arm64
+./packaging/scripts/pack.sh 0.7.0 osx-x64
+./packaging/scripts/pack.sh 0.7.0 linux-x64
+./packaging/scripts/pack.sh 0.7.0 linux-arm64
 ```
 
 The scripts call `dotnet publish -c Release -r <rid> -p:PublishAot=true -p:StripSymbols=true -p:Version=<version>`. `pack.ps1` also removes any remaining PDBs and enforces a 30 MB zip budget. `pack.sh` removes PDB, DBG and MDB files before packaging.
@@ -130,7 +130,7 @@ The current `Info.plist` declares:
 - `CFBundleExecutable` = `AirGlance`;
 - `CFBundleIdentifier` = `dev.airworks.AirGlance`;
 - `CFBundleName` and `CFBundleDisplayName` = `AirGlance`;
-- `CFBundleShortVersionString` = `0.6.0`, stamped by `pack.sh` from the version argument;
+- `CFBundleShortVersionString` = `0.7.0`, stamped by `pack.sh` from the version argument;
 - `CFBundleVersion` = `1`, not stamped per build;
 - `CFBundleIconFile` = `airglance.icns`;
 - `LSMinimumSystemVersion` = `12.0`;
@@ -159,7 +159,7 @@ The archive has no wrapper directory. The desktop entry uses `Exec=AirGlance %f`
 
 ```powershell
 ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.6.0 `
+  -Version 0.7.0 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
@@ -183,7 +183,7 @@ A successful run prints `first_window_ms`, `first_frame_ms`, `decode_ms`, `image
 
 Also open a folder, navigate with the arrow keys, press `D` to check both canvases (same-folder next image, `Tab`, `X`, divider, fixed 50/50 filmstrip, right-click pane menu with Open folder, information, copy, and the `Esc` order), toggle fullscreen, switch language and save a copy on each OS before publishing. These checks are manual. The CI workflows run the test suite and package the binaries, but they do not launch the packaged app or run `--bench`; no packaged-artifact smoke result is recorded in the repository.
 
-## Windows 0.6.0: unsigned portable build
+## Windows 0.7.0: unsigned portable build
 
 The Windows zip is not Authenticode-signed. Windows shows "Windows protected your PC" / "Unknown publisher" for a new unsigned binary.
 
@@ -198,9 +198,9 @@ Do not disable SmartScreen or Windows Defender to run AirGlance. Enterprise poli
 
 There is no Windows installer. The zip does not register file associations, add an uninstall entry or create a Start menu shortcut. The MSIX is a Store package, not a workaround for unsigned public distribution.
 
-A real Authenticode certificate and timestamp would remove the unknown-publisher warning. No certificate is used for 0.6.0.
+A real Authenticode certificate and timestamp would remove the unknown-publisher warning. No certificate is used for 0.7.0.
 
-## macOS 0.6.0: unsigned build
+## macOS 0.7.0: unsigned build
 
 The macOS release archive contains an unsigned `AirGlance.app`. It is not ad-hoc signed, not hardened and not notarized. Gatekeeper may show "AirGlance cannot be opened because the developer cannot be verified."
 
@@ -220,14 +220,14 @@ codesign --force --deep --sign - AirGlance.app
 codesign --verify --deep --strict --verbose=2 AirGlance.app
 ```
 
-An ad-hoc signature does not satisfy Gatekeeper or notarization requirements. There is no Developer ID certificate, hardened runtime, notarization or stapled ticket in 0.6.0. macOS x64 and arm64 are separate builds; no universal binary is produced.
+An ad-hoc signature does not satisfy Gatekeeper or notarization requirements. There is no Developer ID certificate, hardened runtime, notarization or stapled ticket in 0.7.0. macOS x64 and arm64 are separate builds; no universal binary is produced.
 
-## Linux 0.6.0: tar.gz install
+## Linux 0.7.0: tar.gz install
 
 Extract the archive and run the binary:
 
 ```sh
-tar -xzf AirGlance-0.6.0-linux-x64.tar.gz
+tar -xzf AirGlance-0.7.0-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -253,7 +253,7 @@ update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 ```
 
-For a system-wide install, use `/usr/local/bin/AirGlance`, `/usr/share/applications/airglance.desktop` and `/usr/share/icons/hicolor`. The desktop entry only advertises the supported MIME types; it does not make AirGlance the default viewer. There is no `.deb`, `.rpm`, Flatpak or AppImage for 0.6.0. The Linux artifacts are built on Ubuntu 22.04/24.04 runners for the matching architecture; musl/Alpine is not tested.
+For a system-wide install, use `/usr/local/bin/AirGlance`, `/usr/share/applications/airglance.desktop` and `/usr/share/icons/hicolor`. The desktop entry only advertises the supported MIME types; it does not make AirGlance the default viewer. There is no `.deb`, `.rpm`, Flatpak or AppImage for 0.7.0. The Linux artifacts are built on Ubuntu 22.04/24.04 runners for the matching architecture; musl/Alpine is not tested.
 
 ## MSIX for the Microsoft Store
 
@@ -371,12 +371,12 @@ This claim was checked against the source: there are no `HttpClient`, `WebReques
 The release workflow writes a checksum file named `SHA256SUMS.txt`. It contains all six public archives, sorted by file name, in standard `sha256sum` format. It deliberately excludes MSIX packages.
 
 ```text
-<64 lowercase hex characters>  AirGlance-0.6.0-linux-arm64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.6.0-linux-x64.tar.gz
-<64 lowercase hex characters>  AirGlance-0.6.0-osx-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.6.0-osx-x64.zip
-<64 lowercase hex characters>  AirGlance-0.6.0-win-arm64.zip
-<64 lowercase hex characters>  AirGlance-0.6.0-win-x64.zip
+<64 lowercase hex characters>  AirGlance-0.7.0-linux-arm64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.7.0-linux-x64.tar.gz
+<64 lowercase hex characters>  AirGlance-0.7.0-osx-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.7.0-osx-x64.zip
+<64 lowercase hex characters>  AirGlance-0.7.0-win-arm64.zip
+<64 lowercase hex characters>  AirGlance-0.7.0-win-x64.zip
 ```
 
 The checked-in workflow uses the `.txt` suffix; it is the SHA256SUMS file for the release. The conventional unsuffixed `SHA256SUMS` name is not produced by the current workflow.
@@ -386,11 +386,11 @@ The checked-in workflow uses the `.txt` suffix; it is the SHA256SUMS file for th
 Verify a download:
 
 ```powershell
-Get-FileHash .\AirGlance-0.6.0-win-x64.zip -Algorithm SHA256
+Get-FileHash .\AirGlance-0.7.0-win-x64.zip -Algorithm SHA256
 ```
 
 ```sh
-shasum -a 256 AirGlance-0.6.0-osx-arm64.zip
+shasum -a 256 AirGlance-0.7.0-osx-arm64.zip
 sha256sum -c SHA256SUMS.txt
 ```
 
@@ -413,7 +413,7 @@ Three workflows are checked in:
 3. Downloads exactly six archives and rejects any MSIX in the release set.
 4. Sorts the archive names and writes `SHA256SUMS.txt`.
 5. Builds release notes from `CHANGELOG.md` for the tag version, falling back to the tag message.
-6. Creates or updates the GitHub release `v0.6.0` with the six archives and `SHA256SUMS.txt`.
+6. Creates or updates the GitHub release `v0.7.0` with the six archives and `SHA256SUMS.txt`.
 
 `store.yml` does not submit anything to Partner Center. It builds the MSIX files, runs WACK when the kit is present, and uploads the packages and reports for manual review. The live listing is managed manually in Partner Center.
 

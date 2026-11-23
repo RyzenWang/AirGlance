@@ -189,6 +189,6 @@ dotnet test tests/AirGlance.Core.Tests/AirGlance.Core.Tests.csproj -c Release --
 ## 相关文档
 
 - [架构](architecture.zh-CN.md)
-- [发布 AirGlance 0.6.0](shipping.zh-CN.md)
+- [发布 AirGlance 0.7.0](shipping.zh-CN.md)
 - [更新日志](../CHANGELOG.md)
 - [README](../README.zh-CN.md)

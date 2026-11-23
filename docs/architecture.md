@@ -2,7 +2,7 @@
 
 **English** · [简体中文](architecture.zh-CN.md)
 
-AirGlance 0.6.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
+AirGlance 0.7.0 is a desktop image viewer. It opens one folder at a time and displays one image at a time. The code is split into a UI-free core library and an Avalonia application.
 
 ## Stack
 
@@ -296,7 +296,7 @@ dotnet test AirGlance.sln -c Release
 ## Related documents
 
 - [Format support matrix](formats.md)
-- [Shipping AirGlance 0.6.0](shipping.md)
+- [Shipping AirGlance 0.7.0](shipping.md)
 - [Third-party notices](../THIRD-PARTY-NOTICES.md)
 - [Changelog](../CHANGELOG.md)
 - [README](../README.md)
