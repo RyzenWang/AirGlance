@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A read-only analysis drawer opened from the canvas context menu. It shows
+  luminance/RGB/hue/saturation histograms with hover readout, clipping shares and
+  tone zones, a palette with average colour, an eyedropper with pinned samples and
+  viewer markers, sharpness/noise/JPEG/exposure estimates, and image data. It is
+  single-image only and offers no copy, export, A/B or folder analysis. Pixel work
+  lives in Core `ImageAnalyzer`; JPEG quantization/subsampling parsing was added to
+  `ImageHeaderReader`. Twelve Core tests and nine App interaction tests cover it.
+- The `Analyze` submenu keeps the default Fluent menu styling and adds no shortcut;
+  analysis is disabled while editing or in fullscreen, closes when dual view or the
+  information panel opens, and is hidden in fullscreen (restored on exit).
+
 ### Changed
 
 - Prepared the Microsoft Store package `1.0.1.0` (app 0.6.0), replacing the

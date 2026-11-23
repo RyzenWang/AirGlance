@@ -32,9 +32,12 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer? _benchmarkTimeout;
     private readonly ImageViewer Viewer = new();
     private WindowState _stateBeforeFullscreen = WindowState.Normal;
-    private ContextMenu? _contextMenu;
     private FilmstripView? _filmstripView;
     private InfoPanelView? _infoPanel;
+    private AnalysisPanelView? _analysisPanel;
+    private ContextMenu? _contextMenu;
+    private MenuItem? _analysisMenu;
+    private MenuItem? _eyedropperMenuItem;
     private bool _panelsCreated;
     private bool _isFullscreen;
     private bool _initialZoomApplied;
@@ -60,13 +63,15 @@ public partial class MainWindow : Window
     private Grid PrevHost = null!;
     private Grid NextHost = null!;
     private Border InfoHost = null!;
+    private ContentControl InfoContentHost = null!;
+    private Border AnalysisHost = null!;
+    private ContentControl AnalysisContentHost = null!;
     private Border FilmstripHost = null!;
     private EditPanelView EditPanel = null!;
     private CropOverlay CropControl = null!;
     private CropToolbarView CropBar = null!;
     private Border CropModeTag = null!;
     private Border CropSafeTag = null!;
-    private ContentControl InfoContentHost = null!;
     private Border EmptyCard = null!;
     private Border LoadingChip = null!;
     private Border TileLoadingChip = null!;
@@ -135,6 +140,8 @@ public partial class MainWindow : Window
         _viewModel.ImagePresented += OnImagePresented;
         _viewModel.TiledImagePresented += OnTiledImagePresented;
         _viewModel.TiledImageCleared += OnTiledImageCleared;
+        Viewer.PickHover += OnViewerPickHover;
+        Viewer.PickRequested += OnViewerPickRequested;
         _viewModel.CurrentItemChanged += (_, _) => _filmstripView?.ScrollTo(_viewModel.CurrentIndex);
         StartupTrace.Mark("window-ctor-vm");
 
@@ -630,6 +637,15 @@ public partial class MainWindow : Window
         InfoHost.Child = infoGrid;
         root.Children.Add(InfoHost);
 
+        // Analysis drawer. Same geometry as the information drawer; only one of the
+        // two is visible at a time.
+        AnalysisHost = new Border { IsVisible = false };
+        AnalysisHost.Classes.Add("analysis-drawer");
+        AnalysisHost.SetValue(Panel.ZIndexProperty, 36);
+        AnalysisContentHost = new ContentControl();
+        AnalysisHost.Child = AnalysisContentHost;
+        root.Children.Add(AnalysisHost);
+
         EditPanel = new EditPanelView(_services.Localization)
         {
             IsVisible = false
@@ -940,6 +956,19 @@ public partial class MainWindow : Window
         InfoHost.Margin = _viewModel.FilmstripShown
             ? new Thickness(0, 82, 22, 150)
             : new Thickness(0, 82, 22, 92);
+        AnalysisHost.IsVisible = _viewModel.AnalysisShown && !_cropMode && !_viewModel.IsEditing;
+        AnalysisHost.Margin = _viewModel.FilmstripShown
+            ? new Thickness(0, 82, 22, 150)
+            : new Thickness(0, 82, 22, 92);
+        if (AnalysisHost.IsVisible)
+        {
+            EnsureAnalysisPanel();
+        }
+        Viewer.IsPicking = _viewModel.Analysis.IsEyedropperActive &&
+                           _viewModel.AnalysisShown &&
+                           !_viewModel.IsEditing &&
+                           !_dualMode &&
+                           !_cropMode;
         EditPanel.IsVisible = _viewModel.IsEditing && !_cropMode;
         EditPanel.Margin = new Thickness(0, 82, 22, 0);
         CropBar.IsVisible = _viewModel.IsEditing && _cropMode;
@@ -1010,6 +1039,7 @@ public partial class MainWindow : Window
             NextHost.IsVisible = false;
             FilmstripHost.IsVisible = false;
             InfoHost.IsVisible = false;
+            AnalysisHost.IsVisible = false;
             FullscreenHint.IsVisible = false;
             DragOverlay.IsVisible = false;
             WindowChip.IsVisible = OperatingSystem.IsWindows() && !_viewModel.IsFullscreen;
@@ -1269,6 +1299,63 @@ public partial class MainWindow : Window
         InfoContentHost.Content = _infoPanel;
     }
 
+    private void EnsureAnalysisPanel()
+    {
+        if (AnalysisContentHost.Content is not null)
+        {
+            return;
+        }
+
+        _analysisPanel = new AnalysisPanelView(_viewModel.Analysis);
+        AnalysisContentHost.Content = _analysisPanel;
+        _viewModel.Analysis.SamplesChanged += OnAnalysisSamplesChanged;
+        _viewModel.Analysis.CloseRequested += OnAnalysisCloseRequested;
+    }
+
+    private void OnAnalysisCloseRequested(object? sender, EventArgs e)
+    {
+        _viewModel.CloseAnalysis();
+        Viewer.IsPicking = false;
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private void OnAnalysisSamplesChanged(object? sender, EventArgs e)
+    {
+        var pins = _viewModel.Analysis.Pins;
+        Viewer.Samples = pins.Count == 0
+            ? null
+            : pins.Select(pin => new ViewerSample(
+                pin.X,
+                pin.Y,
+                pin.Brush is ISolidColorBrush solid ? solid.Color : Colors.White,
+                int.TryParse(pin.IndexText, out var index) ? index : 0)).ToArray();
+    }
+
+    private void OnViewerPickHover(object? sender, ViewerPickEventArgs e)
+    {
+        if (!_viewModel.Analysis.IsEyedropperActive ||
+            !Viewer.TryGetImagePixel(e.Position, out var x, out var y) ||
+            !_viewModel.TryGetDisplayedPixel(x, y, out var color, out var alpha))
+        {
+            return;
+        }
+
+        _viewModel.Analysis.HoverSample(x, y, color, alpha);
+    }
+
+    private void OnViewerPickRequested(object? sender, ViewerPickEventArgs e)
+    {
+        if (!_viewModel.Analysis.IsEyedropperActive ||
+            !Viewer.TryGetImagePixel(e.Position, out var x, out var y) ||
+            !_viewModel.TryGetDisplayedPixel(x, y, out var color, out var alpha))
+        {
+            return;
+        }
+
+        _viewModel.Analysis.PinSample(x, y, color, alpha);
+    }
+
     private async Task ToggleDualAsync()
     {
         if (_dualMode)
@@ -1292,6 +1379,9 @@ public partial class MainWindow : Window
         {
             await CloseEditAsync();
         }
+
+        _viewModel.CloseAnalysis();
+        Viewer.IsPicking = false;
 
         if (_dualView is null)
         {
@@ -1644,6 +1734,13 @@ public partial class MainWindow : Window
                     if (_isFullscreen)
                     {
                         ExitFullscreen();
+                    }
+                    else if (_viewModel.AnalysisVisible)
+                    {
+                        _viewModel.CloseAnalysis();
+                        Viewer.IsPicking = false;
+                        ApplyViewModelState();
+                        ShowChrome();
                     }
                     else if (_viewModel.InfoVisible)
                     {
@@ -2434,6 +2531,8 @@ public partial class MainWindow : Window
     private void OnLocalizationChanged(object? sender, EventArgs e)
     {
         _contextMenu = null;
+        _analysisMenu = null;
+        _eyedropperMenuItem = null;
         CanvasBorder.ContextMenu = null;
         ApplyLanguage();
     }
@@ -2490,6 +2589,7 @@ public partial class MainWindow : Window
         }
 
         _contextMenu ??= BuildContextMenu();
+        UpdateAnalysisMenuState();
         _contextMenu.Open(CanvasBorder);
         e.Handled = true;
     }
@@ -2514,11 +2614,90 @@ public partial class MainWindow : Window
         Add("L.ShowInFolder", OnShowInFolderClick);
         Add("L.OpenWith", OnOpenWithClick);
         menu.Items.Add(new Separator());
+
+        _analysisMenu = new MenuItem { Header = localization.T("L.Analyze") };
+        AddAnalysisItem(_analysisMenu, "L.AnalysisHistogramMenu", AnalysisTab.Histogram);
+        AddAnalysisItem(_analysisMenu, "L.AnalysisColorMenu", AnalysisTab.Color);
+        AddAnalysisItem(_analysisMenu, "L.AnalysisQualityMenu", AnalysisTab.Quality);
+        AddAnalysisItem(_analysisMenu, "L.AnalysisDataMenu", AnalysisTab.Data);
+        _analysisMenu.Items.Add(new Separator());
+        _eyedropperMenuItem = new MenuItem
+        {
+            Header = localization.T("L.AnalysisEyedropper"),
+            ToggleType = MenuItemToggleType.CheckBox
+        };
+        _eyedropperMenuItem.Click += OnEyedropperClick;
+        _analysisMenu.Items.Add(_eyedropperMenuItem);
+        menu.Items.Add(_analysisMenu);
+        menu.Items.Add(new Separator());
+
         Add("L.Settings", OnSettingsClick);
         Add("L.Shortcuts", OnShortcutsClick);
 
         CanvasBorder.ContextMenu = menu;
         return menu;
+    }
+
+    private void AddAnalysisItem(MenuItem parent, string key, AnalysisTab tab)
+    {
+        var item = new MenuItem { Header = _services.Localization.T(key) };
+        item.Click += (_, _) => OpenAnalysisTab(tab);
+        parent.Items.Add(item);
+    }
+
+    private void OpenAnalysisTab(AnalysisTab tab)
+    {
+        if (_dualMode || _viewModel.IsEditing || _isFullscreen || _viewModel.IsLoading || !_viewModel.HasImage)
+        {
+            return;
+        }
+
+        EnsurePanels();
+        EnsureAnalysisPanel();
+        _viewModel.OpenAnalysis(tab);
+        ApplyViewModelState();
+        ShowChrome();
+    }
+
+    private void OnEyedropperClick(object? sender, RoutedEventArgs e)
+    {
+        var active = _eyedropperMenuItem?.IsChecked == true;
+        if (active && (_dualMode || _viewModel.IsEditing || _isFullscreen || !_viewModel.HasImage))
+        {
+            if (_eyedropperMenuItem is not null)
+            {
+                _eyedropperMenuItem.IsChecked = false;
+            }
+
+            return;
+        }
+
+        _viewModel.Analysis.SetEyedropper(active);
+        Viewer.IsPicking = active;
+        if (active)
+        {
+            OpenAnalysisTab(AnalysisTab.Color);
+        }
+
+        ApplyViewModelState();
+    }
+
+    private void UpdateAnalysisMenuState()
+    {
+        if (_analysisMenu is not null)
+        {
+            _analysisMenu.IsEnabled =
+                _viewModel.HasImage &&
+                !_viewModel.IsEditing &&
+                !_viewModel.IsLoading &&
+                !_viewModel.IsFullscreen &&
+                !_dualMode;
+        }
+
+        if (_eyedropperMenuItem is not null)
+        {
+            _eyedropperMenuItem.IsChecked = _viewModel.Analysis.IsEyedropperActive;
+        }
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

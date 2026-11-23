@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using AirGlance.App.Imaging;
 using Avalonia;
 using Avalonia.Controls;
@@ -29,6 +30,13 @@ public sealed class ViewportChangedEventArgs(int pixelWidth, int pixelHeight) : 
 
     public int PixelHeight { get; } = pixelHeight;
 }
+
+public sealed class ViewerPickEventArgs(Point position) : EventArgs
+{
+    public Point Position { get; } = position;
+}
+
+public readonly record struct ViewerSample(int X, int Y, Color Color, int Index);
 
 /// <summary>
 /// The image canvas. It owns zoom and pan so wheel anchoring stays correct, draws the
@@ -130,6 +138,41 @@ public sealed class ImageViewer : Control
     /// <summary>Raised once, after the first image has actually been painted.</summary>
     public event EventHandler? FirstFramePresented;
 
+    public event EventHandler<ViewerPickEventArgs>? PickHover;
+
+    public event EventHandler<ViewerPickEventArgs>? PickRequested;
+
+    private bool _isPicking;
+
+    private IReadOnlyList<ViewerSample>? _samples;
+
+    /// <summary>When true, the pointer reads pixels instead of panning.</summary>
+    public bool IsPicking
+    {
+        get => _isPicking;
+        set
+        {
+            if (_isPicking == value)
+            {
+                return;
+            }
+
+            _isPicking = value;
+            UpdateCursor();
+        }
+    }
+
+    /// <summary>Pinned samples drawn over the image, in image-pixel coordinates.</summary>
+    public IReadOnlyList<ViewerSample>? Samples
+    {
+        get => _samples;
+        set
+        {
+            _samples = value;
+            InvalidateVisual();
+        }
+    }
+
     public WriteableBitmap? Source
     {
         get => GetValue(SourceProperty);
@@ -217,6 +260,49 @@ public sealed class ImageViewer : Control
         return layout.IsValid
             ? new Rect(layout.Left, layout.Top, layout.ImageWidth, layout.ImageHeight)
             : default;
+    }
+
+    /// <summary>
+    /// Maps a viewer point to a pixel in the displayed bitmap. Returns false outside the
+    /// image or when the canvas is showing tiles without a display bitmap.
+    /// </summary>
+    public bool TryGetImagePixel(Point point, out int x, out int y)
+    {
+        x = 0;
+        y = 0;
+        var source = Source;
+        if (source is null || !HasImage)
+        {
+            return false;
+        }
+
+        var layout = CalculateLayout();
+        if (!layout.IsValid)
+        {
+            return false;
+        }
+
+        var rect = new Rect(layout.Left, layout.Top, layout.ImageWidth, layout.ImageHeight);
+        if (!rect.Contains(point))
+        {
+            return false;
+        }
+
+        var size = source.PixelSize;
+        if (size.Width <= 0 || size.Height <= 0)
+        {
+            return false;
+        }
+
+        x = Math.Clamp(
+            (int)((point.X - layout.Left) / layout.ImageWidth * size.Width),
+            0,
+            size.Width - 1);
+        y = Math.Clamp(
+            (int)((point.Y - layout.Top) / layout.ImageHeight * size.Height),
+            0,
+            size.Height - 1);
+        return true;
     }
 
     public void SetTiles(TiledImageSource? tiles)
@@ -533,12 +619,66 @@ public sealed class ImageViewer : Control
             }
         }
 
+        DrawSamples(context, layout);
+
         if (!_firstFrameRaised && opacity >= 0.99)
         {
             _firstFrameRaised = true;
             Dispatcher.UIThread.Post(
                 () => FirstFramePresented?.Invoke(this, EventArgs.Empty),
                 DispatcherPriority.Background);
+        }
+    }
+
+    private void DrawSamples(DrawingContext context, Layout layout)
+    {
+        var samples = _samples;
+        var source = Source;
+        if (samples is null || samples.Count == 0 || source is null)
+        {
+            return;
+        }
+
+        var size = source.PixelSize;
+        if (size.Width <= 0 || size.Height <= 0)
+        {
+            return;
+        }
+
+        using (context.PushClip(new Rect(Bounds.Size)))
+        {
+            foreach (var sample in samples)
+            {
+                var x = layout.Left + (sample.X + 0.5) / size.Width * layout.ImageWidth;
+                var y = layout.Top + (sample.Y + 0.5) / size.Height * layout.ImageHeight;
+                var center = new Point(x, y);
+                context.DrawEllipse(
+                    new SolidColorBrush(sample.Color),
+                    new Pen(Brushes.White, 2),
+                    center,
+                    9,
+                    9);
+                context.DrawEllipse(
+                    null,
+                    new Pen(new SolidColorBrush(Color.FromArgb(130, 0, 0, 0)), 1),
+                    center,
+                    10.5,
+                    10.5);
+
+                var luminance = (0.2126 * sample.Color.R +
+                                 0.7152 * sample.Color.G +
+                                 0.0722 * sample.Color.B) / 255.0;
+                var text = new FormattedText(
+                    sample.Index.ToString(CultureInfo.InvariantCulture),
+                    CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    Typeface.Default,
+                    8,
+                    luminance > 0.55 ? Brushes.Black : Brushes.White);
+                context.DrawText(
+                    text,
+                    new Point(center.X - text.Width / 2, center.Y - text.Height / 2));
+            }
         }
     }
 
@@ -634,6 +774,13 @@ public sealed class ImageViewer : Control
         }
 
         var point = e.GetCurrentPoint(this);
+        if (IsPicking && point.Properties.IsLeftButtonPressed)
+        {
+            PickRequested?.Invoke(this, new ViewerPickEventArgs(e.GetPosition(this)));
+            e.Handled = true;
+            return;
+        }
+
         if (!point.Properties.IsLeftButtonPressed)
         {
             return;
@@ -668,6 +815,13 @@ public sealed class ImageViewer : Control
         }
 
         var position = e.GetPosition(this);
+        if (IsPicking)
+        {
+            PickHover?.Invoke(this, new ViewerPickEventArgs(position));
+            UpdateCursor();
+            return;
+        }
+
         if (_isDragging)
         {
             _panX = _dragPanX + (position.X - _dragStart.X);
@@ -699,7 +853,7 @@ public sealed class ImageViewer : Control
         base.OnPointerExited(e);
         if (!_isDragging && !_cursorHidden)
         {
-            Cursor = new Cursor(StandardCursorType.Arrow);
+            Cursor = new Cursor(IsPicking ? StandardCursorType.Cross : StandardCursorType.Arrow);
         }
     }
 
@@ -1088,7 +1242,12 @@ public sealed class ImageViewer : Control
 
     private void UpdateCursor()
     {
-        Cursor = new Cursor(CanPan ? StandardCursorType.Hand : StandardCursorType.Arrow);
+        Cursor = new Cursor(
+            IsPicking
+                ? StandardCursorType.Cross
+                : CanPan
+                    ? StandardCursorType.Hand
+                    : StandardCursorType.Arrow);
     }
 
     private double GetScaling()

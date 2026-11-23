@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirGlance · 分析菜单与抽屉 v1</title>
+<style>
+  :root {
+    --paper: #F1EEE7;
+    --surface: #FBFAF7;
+    --surface-alt: #F6F2EB;
+    --surface-hover: #F3EEE5;
+    --ink: #1D232C;
+    --muted: #69645C;
+    --faint: #9A9286;
+    --line: #E0D9CD;
+    --line-soft: rgba(29, 35, 44, .10);
+    --coral: #E3563B;
+    --coral-soft: #FFF3EF;
+    --coral-soft-text: #B23A2B;
+    --teal: #2E6F63;
+    --caution: #B26B1F;
+    --danger: #B23A2B;
+    --shadow-clip: #5C7CFA;
+    --highlight-clip: #E3563B;
+    --grid: rgba(29, 35, 44, .07);
+    --glass: rgba(18, 15, 12, .78);
+    --glass-strong: rgba(12, 10, 8, .88);
+    --glass-line: rgba(255, 255, 255, .10);
+    --glass-text: #F8F4EB;
+    --glass-muted: #BDB5A8;
+    --panel-shadow: 0 24px 70px rgba(66, 34, 12, .24), 0 2px 8px rgba(66, 34, 12, .07);
+    --photo-shadow: 0 22px 54px rgba(38, 30, 18, .24);
+    --menu-bg: #F9F9F9;
+    --menu-border: #E2E2E2;
+    --menu-text: #1B1B1B;
+    --menu-hover: #EDEDED;
+    --menu-sep: #E6E6E6;
+    --menu-muted: #6A6A6A;
+    --mono: "JetBrains Mono", "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace;
+    --ui: "Inter", "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  }
+
+  body[data-theme="dark"] {
+    --paper: #13171C;
+    --surface: #1C222A;
+    --surface-alt: #202831;
+    --surface-hover: #26313C;
+    --ink: #F3EFE6;
+    --muted: #ABA49A;
+    --faint: #8B857C;
+    --line: #2C343E;
+    --line-soft: rgba(255, 255, 255, .09);
+    --coral: #FF6B4E;
+    --coral-soft: #3A2620;
+    --coral-soft-text: #FFB4A4;
+    --teal: #69B3A4;
+    --caution: #D9A35A;
+    --danger: #FF8E79;
+    --shadow-clip: #7FA6FF;
+    --highlight-clip: #FF6B4E;
+    --grid: rgba(255, 255, 255, .075);
+    --glass: rgba(8, 11, 14, .80);
+    --glass-strong: rgba(5, 8, 11, .93);
+    --glass-line: rgba(255, 255, 255, .13);
+    --glass-text: #F3EFE6;
+    --glass-muted: #AAA398;
+    --panel-shadow: 0 26px 76px rgba(0, 0, 0, .52), 0 2px 10px rgba(0, 0, 0, .32);
+    --photo-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+    --menu-bg: #2B2B2B;
+    --menu-border: #3A3A3A;
+    --menu-text: #F0F0F0;
+    --menu-hover: #3A3A3A;
+    --menu-sep: #414141;
+    --menu-muted: #B8B8B8;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  body {
+    font-family: var(--ui);
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+  svg { display: block; }
+  .app { position: relative; width: 100vw; height: 100vh; overflow: hidden; isolation: isolate; }
+
+  /* ---------------- canvas ---------------- */
+  .canvas {
+    position: absolute;
+    inset: 70px 56px 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(900px 620px at 50% 34%, #F8F5EE 0%, #EDE7DC 58%, #E2DACE 100%);
+  }
+  body[data-theme="dark"] .canvas {
+    background: radial-gradient(900px 620px at 50% 34%, #1B232C 0%, #131A21 58%, #0D1116 100%);
+  }
+  .photo {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 2px;
+    box-shadow: var(--photo-shadow);
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+
+  .nav {
+    position: absolute;
+    z-index: 20;
+    top: 50%;
+    width: 36px;
+    height: 36px;
+    margin-top: -18px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    color: #F4EFE6;
+    background: rgba(26, 22, 18, .55);
+    border: 1px solid rgba(255, 255, 255, .14);
+    box-shadow: 0 8px 22px rgba(26, 18, 10, .16);
+    backdrop-filter: blur(10px);
+  }
+  body[data-theme="dark"] .nav { background: rgba(8, 11, 14, .62); }
+  .nav.prev { left: 18px; }
+  .nav.next { right: 18px; }
+  .nav svg { width: 15px; height: 15px; opacity: .9; }
+
+  /* ---------------- top bar ---------------- */
+  .topbar { position: absolute; z-index: 40; inset: 20px 20px auto; height: 34px; pointer-events: none; }
+  .topbar > * { pointer-events: auto; }
+  .folder-chip, .file-chip, .win-controls {
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    color: var(--glass-text);
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    box-shadow: 0 8px 24px rgba(30, 22, 14, .16);
+    backdrop-filter: blur(12px);
+    border-radius: 11px;
+  }
+  .folder-chip { left: 0; height: 34px; padding: 0 11px 0 9px; gap: 7px; }
+  .folder-chip svg { width: 16px; height: 16px; opacity: .82; }
+  .folder-chip b { font-size: 11.5px; font-weight: 600; letter-spacing: .01em; }
+  .folder-chip .count {
+    min-width: 17px; height: 17px; padding: 0 5px;
+    display: grid; place-items: center;
+    border-radius: 5px;
+    color: var(--glass-muted);
+    background: rgba(255, 255, 255, .08);
+    font: 9px/1 var(--mono);
+  }
+  .file-chip {
+    left: 50%;
+    transform: translateX(-50%);
+    height: 34px;
+    max-width: 380px;
+    padding: 0 12px;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .file-chip .name { font-size: 11.5px; font-weight: 600; }
+  .file-chip .meta { color: var(--glass-muted); font: 9.5px var(--mono); }
+  .file-chip .page { color: var(--coral); font: 9.5px var(--mono); letter-spacing: .02em; }
+  .win-controls { right: 0; height: 34px; padding: 0 5px; gap: 1px; }
+  .win-controls button {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    color: #D8D2C7;
+  }
+  .win-controls button:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+  .win-controls button.close:hover { background: rgba(227, 86, 59, .85); }
+  .win-controls svg { width: 14px; height: 14px; }
+
+  /* ---------------- dock ---------------- */
+  .dock {
+    position: absolute;
+    z-index: 42;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    height: 44px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    color: #F4EFE6;
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    border-radius: 22px;
+    box-shadow: 0 12px 34px rgba(28, 20, 12, .22);
+    backdrop-filter: blur(14px);
+  }
+  .dock .tool {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    border-radius: 12px;
+    color: rgba(248, 244, 235, .82);
+  }
+  .dock .tool:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+  .dock .tool.active { color: #fff; background: var(--coral); box-shadow: 0 6px 16px rgba(227, 86, 59, .32); }
+  .dock svg { width: 17px; height: 17px; }
+  .dock .zoom-value { min-width: 38px; text-align: center; color: #F8F4EB; font: 10px var(--mono); }
+  .dock .one-one { font: 9.5px var(--mono); letter-spacing: .02em; }
+  .dock .sep { width: 1px; height: 18px; margin: 0 5px; background: rgba(255, 255, 255, .14); }
+
+  /* ---------------- drawer ---------------- */
+  .drawer {
+    position: absolute;
+    z-index: 36;
+    top: 82px;
+    right: 22px;
+    bottom: 92px;
+    width: 334px;
+    display: flex;
+    flex-direction: column;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--panel-shadow);
+    overflow: hidden;
+  }
+  body[data-tab="none"] .drawer { display: none; }
+
+  .drawer-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 17px 14px 7px 20px;
+  }
+  .drawer-title { color: var(--faint); font-size: 10.5px; font-weight: 600; letter-spacing: .14em; }
+  .drawer-close {
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    color: var(--faint);
+  }
+  .drawer-close:hover { color: var(--ink); background: var(--surface-hover); }
+  .drawer-close svg { width: 13px; height: 13px; }
+
+  .tabs {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 18px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    position: relative;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: .01em;
+  }
+  .tab.on { color: var(--ink); }
+  .tab.on::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--coral);
+  }
+
+  .drawer-body { flex: 1 1 auto; overflow: auto; padding: 15px 20px 6px; scrollbar-width: none; }
+  .drawer-body::-webkit-scrollbar { display: none; }
+  .pane { display: none; }
+  body[data-tab="histogram"] .pane-histogram,
+  body[data-tab="color"] .pane-color,
+  body[data-tab="quality"] .pane-quality,
+  body[data-tab="data"] .pane-data { display: block; }
+
+  .drawer-foot {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 20px 14px;
+    color: var(--faint);
+    font-size: 9.5px;
+    letter-spacing: .01em;
+  }
+  .drawer-foot .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--faint); opacity: .7; }
+
+  /* ---------------- shared panel bits ---------------- */
+  .section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 0 8px;
+    color: var(--faint);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .11em;
+  }
+  .section-label .aside { color: var(--faint); font-weight: 400; letter-spacing: .02em; }
+  .hairline { height: 1px; background: var(--line); margin: 14px 0; }
+
+  /* ---------------- histogram ---------------- */
+  .modes { display: flex; gap: 5px; margin-bottom: 10px; }
+  .mode {
+    padding: 5px 9px;
+    border-radius: 7px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: .01em;
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+  .mode:hover { color: var(--ink); background: var(--surface-hover); }
+  .mode.on {
+    color: var(--coral-soft-text);
+    background: var(--coral-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 22%, transparent);
+  }
+
+  .chart-card {
+    position: relative;
+    padding: 10px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .chart { width: 100%; height: auto; overflow: visible; }
+  .chart .area-luma { fill: var(--ink); opacity: .74; }
+  .chart .area-r { fill: #D94B31; opacity: .26; }
+  .chart .area-g { fill: #2E6B4F; opacity: .24; }
+  .chart .area-b { fill: #3B63C4; opacity: .24; }
+  .chart .line-r { fill: none; stroke: #C9402A; stroke-width: 1.1; }
+  .chart .line-g { fill: none; stroke: #2E6B4F; stroke-width: 1.1; }
+  .chart .line-b { fill: none; stroke: #3B63C4; stroke-width: 1.1; }
+  body[data-theme="dark"] .chart .area-r { fill: #FF7A5F; opacity: .22; }
+  body[data-theme="dark"] .chart .area-g { fill: #6FD39B; opacity: .20; }
+  body[data-theme="dark"] .chart .area-b { fill: #7FA6FF; opacity: .22; }
+  body[data-theme="dark"] .chart .line-r { stroke: #FF8A70; }
+  body[data-theme="dark"] .chart .line-g { stroke: #7FE0AC; }
+  body[data-theme="dark"] .chart .line-b { stroke: #8FB2FF; }
+  body[data-state="rgb"] .chart-luma { display: none; }
+  body[data-state="rgb"] .chart-rgb { display: block; }
+  body[data-state="rgb"] .chart-scale { display: none; }
+  .chart-rgb { display: none; }
+
+  .chart-legend { display: none; gap: 10px; margin-top: 7px; color: var(--muted); font: 8.5px var(--mono); }
+  body[data-state="rgb"] .chart-legend { display: flex; }
+  .chart-legend span { display: flex; align-items: center; gap: 4px; }
+  .chart-legend i { width: 5px; height: 5px; border-radius: 50%; }
+  .chart-legend .r i { background: #D94B31; }
+  .chart-legend .g i { background: #2E6B4F; }
+  .chart-legend .b i { background: #3B63C4; }
+  body[data-theme="dark"] .chart-legend .r i { background: #FF7A5F; }
+  body[data-theme="dark"] .chart-legend .g i { background: #6FD39B; }
+  body[data-theme="dark"] .chart-legend .b i { background: #7FA6FF; }
+
+  .chart-tip {
+    position: absolute;
+    z-index: 3;
+    top: 24px;
+    left: 38px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 7px;
+    color: #F8F4EB;
+    background: rgba(18, 15, 12, .84);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 6px;
+    font: 8.5px var(--mono);
+    pointer-events: none;
+  }
+  body[data-state="histogram"] .chart-tip { display: flex; }
+  .chart-tip b { font-weight: 500; }
+  .chart-tip span { color: #C9C1B4; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    padding: 15px 0 12px;
+  }
+  .stat .k { display: block; margin-bottom: 4px; color: var(--faint); font-size: 9.5px; letter-spacing: .02em; }
+  .stat .v { font: 16px var(--mono); letter-spacing: -.01em; }
+
+  .clips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .clip-card {
+    padding: 8px 10px 9px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  .clip-card .k { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+  .clip-card .k i { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
+  .clip-card .v { margin-top: 4px; font: 14px var(--mono); }
+  .clip-card .v small { margin-left: 3px; color: var(--faint); font-size: 8.5px; }
+  .clip-card.hit { border-color: color-mix(in srgb, var(--shadow-clip) 30%, var(--line)); background: color-mix(in srgb, var(--shadow-clip) 8%, var(--surface-alt)); }
+  .clip-card.hit .k i { background: var(--shadow-clip); }
+  .clip-card.low .k i { background: var(--highlight-clip); opacity: .4; }
+
+  .zones { padding-top: 15px; }
+  .zones-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .zones-head .label { color: var(--faint); font-size: 10px; letter-spacing: .02em; }
+  .zones-head .range { color: var(--faint); font: 8.5px var(--mono); }
+  .zone-bars { display: flex; align-items: flex-end; gap: 6px; height: 42px; }
+  .zone-bars i { flex: 1 1 0; min-height: 2px; border-radius: 2px 2px 1px 1px; }
+  .zone-scale { display: flex; justify-content: space-between; margin-top: 5px; color: var(--faint); font-size: 8px; }
+  .chart-scale { display: flex; justify-content: space-between; margin-top: 6px; color: var(--faint); font: 8px var(--mono); }
+  .caption { margin-top: 8px; color: var(--faint); font-size: 9.5px; line-height: 1.5; }
+
+  /* ---------------- color ---------------- */
+  .palette { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .swatch-cell { min-width: 0; }
+  .swatch-cell .sw {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, .14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+  }
+  body[data-theme="dark"] .swatch-cell .sw { border-color: rgba(255, 255, 255, .14); }
+  .swatch-cell .hx { margin-top: 5px; color: var(--muted); font: 8.5px var(--mono); letter-spacing: -.02em; }
+  .swatch-cell .pc { margin-top: 1px; color: var(--faint); font: 8.5px var(--mono); }
+
+  .average { display: flex; align-items: center; gap: 9px; }
+  .average .sw { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .16); }
+  .average .hx { font: 11px var(--mono); }
+  .average .tag {
+    margin-left: auto;
+    padding: 2px 6px;
+    color: var(--muted);
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-size: 8.5px;
+  }
+  .average .sat { color: var(--faint); font-size: 9px; }
+
+  .pick-head { display: flex; align-items: center; gap: 6px; }
+  .pick-head .live { width: 5px; height: 5px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 3px color-mix(in srgb, var(--coral) 16%, transparent); }
+  .pick-head .hint { margin-left: auto; color: var(--faint); font-size: 8.5px; }
+
+  .readout {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .readout .big-sw { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 9px; border: 1px solid rgba(0, 0, 0, .16); }
+  .readout .head { min-width: 0; }
+  .readout .hx { font: 13px var(--mono); letter-spacing: .01em; }
+  .readout .pos { margin-top: 4px; color: var(--faint); font: 8.5px var(--mono); }
+  .readout .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 10px;
+    margin-top: 9px;
+    padding-top: 9px;
+    border-top: 1px solid var(--line);
+  }
+  .readout .grid div { min-width: 0; }
+  .readout .grid .k { display: block; color: var(--faint); font-size: 8px; letter-spacing: .04em; }
+  .readout .grid .v { display: block; margin-top: 2px; font: 9.5px var(--mono); white-space: nowrap; }
+
+  .pins { margin-top: 7px; }
+  .pin { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+  .pin:last-child { border-bottom: 0; }
+  .pin .idx { width: 15px; height: 15px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); background: var(--surface-alt); border: 1px solid var(--line); font: 7.5px var(--mono); }
+  .pin .sw { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(0, 0, 0, .16); }
+  .pin .hx { font: 9.5px var(--mono); }
+  .pin .pos { margin-left: auto; color: var(--faint); font: 8.5px var(--mono); }
+
+  /* ---------------- quality ---------------- */
+  .quality-list { display: flex; flex-direction: column; gap: 10px; }
+  .q-card {
+    padding: 13px 14px;
+    background: var(--surface-alt);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+  }
+  .q-top { display: flex; align-items: center; gap: 7px; }
+  .q-top .k { color: var(--muted); font-size: 11px; letter-spacing: .01em; }
+  .q-top .grade {
+    padding: 1px 5px;
+    color: var(--coral-soft-text);
+    background: var(--coral-soft);
+    border-radius: 4px;
+    font-size: 8.5px;
+  }
+  .q-top .grade.muted { color: var(--muted); background: var(--surface); }
+  .q-top .grade.warn { color: var(--caution); background: color-mix(in srgb, var(--caution) 12%, transparent); }
+  .q-top .v { margin-left: auto; font: 17px var(--mono); }
+  .q-top .v small { color: var(--faint); font-size: 9.5px; }
+  .q-sub { display: flex; justify-content: space-between; gap: 8px; margin-top: 5px; color: var(--faint); font-size: 9.5px; line-height: 1.45; }
+  .q-sub .mono { font-family: var(--mono); }
+  .q-bar { height: 3px; margin-top: 9px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .q-bar i { display: block; height: 100%; border-radius: 2px; background: var(--coral); }
+  .q-bar.teal i { background: var(--teal); }
+  .q-bar.caution i { background: var(--caution); }
+  .seg3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-top: 9px; }
+  .seg3 i { height: 3px; border-radius: 2px; background: var(--line); }
+  .seg3 i.on { background: var(--teal); }
+  .seg3 i.on.warn { background: var(--caution); }
+  .tone-bar {
+    position: relative;
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #111418 0%, #6E6A64 50%, #F3EFE6 100%);
+    border: 1px solid var(--line);
+  }
+  .tone-bar i {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    left: 10.6%;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--coral);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .55);
+  }
+  .notes { margin: 0; padding: 0 0 0 14px; color: var(--faint); font-size: 9.5px; line-height: 1.65; }
+  .notes li { margin-bottom: 5px; }
+  .notes li:last-child { margin-bottom: 0; }
+
+  /* ---------------- data ---------------- */
+  .data-section { margin-bottom: 20px; }
+  .data-rows { display: grid; grid-template-columns: 78px 1fr; gap: 9px 10px; align-items: baseline; }
+  .data-rows .k { color: var(--muted); font-size: 10.5px; }
+  .data-rows .v { font: 10.5px var(--mono); line-height: 1.55; color: var(--ink); word-break: break-word; }
+  .data-rows .v.muted { color: var(--faint); }
+
+  /* ---------------- context menu (Fluent default) ---------------- */
+  .ctx-layer { display: none; }
+  body[data-tab="none"] .ctx-layer { display: block; }
+  .ctx, .sub {
+    position: absolute;
+    z-index: 60;
+    padding: 4px;
+    color: var(--menu-text);
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .18), 0 1px 3px rgba(0, 0, 0, .08);
+    font-size: 12.5px;
+    user-select: none;
+  }
+  .ctx { left: 500px; top: 208px; width: 236px; }
+  .sub { left: 740px; top: 405px; width: 196px; }
+  body[data-theme="dark"] .ctx, body[data-theme="dark"] .sub {
+    box-shadow: 0 12px 34px rgba(0, 0, 0, .52), 0 1px 3px rgba(0, 0, 0, .4);
+  }
+  .mi {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .mi.hover { background: var(--menu-hover); }
+  .mi .arrow { margin-left: auto; color: var(--menu-muted); font-size: 13px; line-height: 1; }
+  .mi.disabled { color: var(--faint); opacity: .55; }
+  .sep-line { height: 1px; margin: 4px 6px; background: var(--menu-sep); }
+  .sub .mi { padding-left: 28px; }
+  .sub .mi .check {
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--coral);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .ctx-ring {
+    position: absolute;
+    z-index: 55;
+    left: 492px;
+    top: 200px;
+    width: 13px;
+    height: 13px;
+    border: 2px solid var(--coral);
+    border-radius: 50%;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--coral) 15%, transparent);
+    opacity: 0;
+  }
+  body[data-tab="none"] .ctx-ring { opacity: 1; }
+
+  /* ---------------- eyedropper layer ---------------- */
+  .pick-layer { position: absolute; inset: 0; z-index: 34; display: none; pointer-events: none; }
+  body[data-state="color"] .pick-layer { display: block; }
+  .crosshair { position: absolute; width: 23px; height: 23px; margin: -12px 0 0 -12px; }
+  .crosshair::before, .crosshair::after {
+    content: "";
+    position: absolute;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .55);
+  }
+  .crosshair::before { left: 11px; top: 0; width: 1px; height: 23px; }
+  .crosshair::after { top: 11px; left: 0; width: 23px; height: 1px; }
+  .pick-chip {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    color: #F8F4EB;
+    background: rgba(16, 14, 12, .82);
+    border: 1px solid rgba(255, 255, 255, .13);
+    border-radius: 7px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .24);
+    font: 8.5px var(--mono);
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+  }
+  .pick-chip i { width: 9px; height: 9px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, .35); }
+  .marker {
+    position: absolute;
+    width: 19px;
+    height: 19px;
+    margin: -10px 0 0 -10px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), 0 4px 10px rgba(0, 0, 0, .3);
+    color: #fff;
+    font: 8px/1 var(--mono);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .7);
+  }
+
+  /* ---------------- state switch ---------------- */
+  .state-switch {
+    position: absolute;
+    z-index: 80;
+    left: 18px;
+    bottom: 18px;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 10px;
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-line);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+  }
+  body[data-ui="0"] .state-switch { display: none; }
+  .state-switch a {
+    padding: 6px 8px;
+    border-radius: 6px;
+    color: var(--glass-muted);
+    font: 9px var(--mono);
+    text-decoration: none;
+  }
+  .state-switch a:hover, .state-switch a.on { color: #FFF9EF; background: rgba(255, 255, 255, .1); }
+  .state-switch .sep { width: 1px; margin: 3px 2px; background: var(--glass-line); }
+</style>
+</head>
+<body data-state="histogram" data-theme="light" data-tab="histogram" data-ui="1">
+<div class="app">
+
+  <!-- canvas -->
+  <div class="canvas">
+    <img class="photo" src="analysis-demo.jpg" alt="深空星场示例">
+  </div>
+  <button class="nav prev" aria-label="上一张">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <button class="nav next" aria-label="下一张">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+
+  <!-- top bar -->
+  <div class="topbar">
+    <div class="folder-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.2a1.8 1.8 0 0 1 1.8-1.8h4l2 2h7.4a1.8 1.8 0 0 1 1.8 1.8v8.6a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/></svg>
+      <b>Astro</b><span class="count">2</span>
+    </div>
+    <div class="file-chip">
+      <span class="name">andromeda.jpg</span>
+      <span class="meta">1600 × 1067 · 75%</span>
+      <span class="page">01 / 02</span>
+    </div>
+    <div class="win-controls">
+      <button aria-label="主题"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.1"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4l1.4-1.4M17 7l1.4-1.4"/></svg></button>
+      <button aria-label="最小化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12h14"/></svg></button>
+      <button aria-label="最大化"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="6" width="12" height="12" rx="1.4"/></svg></button>
+      <button class="close" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+  </div>
+
+  <!-- eyedropper layer -->
+  <div class="pick-layer" aria-hidden="true">
+    <div class="crosshair" style="left: 439px; top: 673px;"></div>
+    <div class="pick-chip" style="left: 459px; top: 646px;"><i style="background:#4C71C9"></i>X 411 · Y 833</div>
+    <div class="marker" style="left: 674px; top: 370px; background:#FCC487; color:#231F1A;">1</div>
+    <div class="marker" style="left: 743px; top: 246px; background:#F8FDFF; color:#1B232C;">2</div>
+  </div>
+
+  <!-- analysis drawer -->
+  <aside class="drawer" aria-label="分析面板">
+    <div class="drawer-head">
+      <span class="drawer-title">分析</span>
+      <button class="drawer-close" aria-label="关闭分析">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <nav class="tabs" aria-label="分析页签">
+      <button class="tab" data-tab="histogram">直方图</button>
+      <button class="tab" data-tab="color">色彩</button>
+      <button class="tab" data-tab="quality">画质</button>
+      <button class="tab" data-tab="data">数据</button>
+    </nav>
+
+    <div class="drawer-body">
+
+      <!-- HISTOGRAM -->
+      <section class="pane pane-histogram">
+        <div class="modes">
+          <button class="mode on" data-mode="luma">亮度</button>
+          <button class="mode" data-mode="rgb">RGB</button>
+          <button class="mode">色相</button>
+          <button class="mode">饱和度</button>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-tip"><b>级别 18</b><span>2.5%</span></div>
+          <svg class="chart chart-luma" id="chart-luma" viewBox="0 0 294 190" preserveAspectRatio="none" aria-label="亮度直方图"></svg>
+          <svg class="chart chart-rgb" id="chart-rgb" viewBox="0 0 294 190" preserveAspectRatio="none" aria-label="RGB 直方图"></svg>
+          <div class="chart-legend">
+            <span class="r"><i></i>R</span>
+            <span class="g"><i></i>G</span>
+            <span class="b"><i></i>B</span>
+            <span style="margin-left:auto;color:var(--faint)">0 – 255</span>
+          </div>
+          <div class="chart-scale"><span>0</span><span>128</span><span>255</span></div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><span class="k">平均</span><span class="v">36.3</span></div>
+          <div class="stat"><span class="k">中位</span><span class="v">27</span></div>
+          <div class="stat"><span class="k">标准差</span><span class="v">31.7</span></div>
+        </div>
+
+        <div class="clips">
+          <div class="clip-card hit">
+            <div class="k"><i></i>阴影裁切</div>
+            <div class="v">2.1%<small>≤ 2</small></div>
+          </div>
+          <div class="clip-card low">
+            <div class="k"><i></i>高光裁切</div>
+            <div class="v">0.0%<small>≥ 253</small></div>
+          </div>
+        </div>
+
+        <div class="zones">
+          <div class="zones-head"><span class="label">影调分区</span><span class="range">0 → 10</span></div>
+          <div class="zone-bars" id="zone-bars"></div>
+          <div class="zone-scale"><span>0 暗</span><span>5 中</span><span>10 亮</span></div>
+        </div>
+
+        <p class="caption">硬裁切：0 级 0.38% · 255 级 0.00%</p>
+        <p class="caption">低饱和像素不计入色相。亮度按 sRGB 编码值统计，不转线性。</p>
+      </section>
+
+      <!-- COLOR -->
+      <section class="pane pane-color">
+        <div class="section-label"><span>主色板</span><span class="aside">按占比</span></div>
+        <div class="palette">
+          <div class="swatch-cell"><div class="sw" style="background:#16161C"></div><div class="hx">#16161C</div><div class="pc">31.7%</div></div>
+          <div class="swatch-cell"><div class="sw" style="background:#25252C"></div><div class="hx">#25252C</div><div class="pc">23.8%</div></div>
+          <div class="swatch-cell"><div class="sw" style="background:#09090E"></div><div class="hx">#09090E</div><div class="pc">22.6%</div></div>
+          <div class="swatch-cell"><div class="sw" style="background:#3D3C43"></div><div class="hx">#3D3C43</div><div class="pc">13.8%</div></div>
+          <div class="swatch-cell"><div class="sw" style="background:#696566"></div><div class="hx">#696566</div><div class="pc">5.9%</div></div>
+          <div class="swatch-cell"><div class="sw" style="background:#B8A797"></div><div class="hx">#B8A797</div><div class="pc">2.2%</div></div>
+        </div>
+
+        <div class="hairline"></div>
+
+        <div class="section-label"><span>平均色</span></div>
+        <div class="average">
+          <div class="sw" style="background:#242429"></div>
+          <span class="hx">#242429</span>
+          <span class="sat">饱和度 26.8%</span>
+          <span class="tag">中性</span>
+        </div>
+
+        <div class="hairline"></div>
+
+        <div class="section-label">
+          <span class="pick-head"><i class="live"></i>取色器</span>
+          <span class="aside">预览坐标</span>
+        </div>
+        <div class="readout">
+          <div class="big-sw" style="background:#4C71C9"></div>
+          <div style="flex:1;min-width:0">
+            <div class="head">
+              <div class="hx">#4C71C9</div>
+              <div class="pos">X 411 · Y 833</div>
+            </div>
+            <div class="grid">
+              <div><span class="k">RGB</span><span class="v">76 113 201</span></div>
+              <div><span class="k">HSL</span><span class="v">222° 62% 79%</span></div>
+              <div><span class="k">LAB</span><span class="v">49 12 −52</span></div>
+              <div><span class="k">ALPHA</span><span class="v">255</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:14px"><span>钉住样本</span><span class="aside">2 / 4</span></div>
+        <div class="pins">
+          <div class="pin"><span class="idx">1</span><span class="sw" style="background:#FCC487"></span><span class="hx">#FCC487</span><span class="pos">X 737 · Y 415</span></div>
+          <div class="pin"><span class="idx">2</span><span class="sw" style="background:#F8FDFF"></span><span class="hx">#F8FDFF</span><span class="pos">X 832 · Y 243</span></div>
+        </div>
+        <p class="caption">在画布上单击钉住样本；再次单击已钉位置移除。</p>
+      </section>
+
+      <!-- QUALITY -->
+      <section class="pane pane-quality">
+        <div class="quality-list">
+          <div class="q-card">
+            <div class="q-top"><span class="k">清晰度</span><span class="grade">清晰</span><span class="v">87<small>/100</small></span></div>
+            <div class="q-sub"><span>Laplacian 方差 · 长边 1024</span><span class="mono">相对</span></div>
+            <div class="q-bar"><i style="width:87%"></i></div>
+          </div>
+          <div class="q-card">
+            <div class="q-top"><span class="k">噪声</span><span class="grade warn">高</span><span class="v">σ 5.3</span></div>
+            <div class="q-sub"><span>Immerkær 估算 · 受纹理和锐化影响</span><span class="mono">估算</span></div>
+            <div class="seg3"><i></i><i></i><i class="on warn"></i></div>
+          </div>
+          <div class="q-card">
+            <div class="q-top"><span class="k">JPEG 压缩</span><span class="grade muted">4:2:0 · 基线</span><span class="v">~92</span></div>
+            <div class="q-sub"><span>量化表反推</span><span class="mono">0.41 B/px</span></div>
+          </div>
+          <div class="q-card">
+            <div class="q-top"><span class="k">曝光</span><span class="grade muted">偏暗</span><span class="v">P99 164</span></div>
+            <div class="q-sub"><span>阴影 2.1% · 高光 0.0%</span><span class="mono">影调重心</span></div>
+            <div class="tone-bar"><i></i></div>
+          </div>
+        </div>
+        <div class="hairline"></div>
+        <div class="section-label"><span>口径</span></div>
+        <ul class="notes">
+          <li>清晰度、噪声是像素统计，不是审美判断；低纹理场景的清晰度天然偏低。</li>
+          <li>JPEG 质量由量化表反推，误差约 ±5；子采样、基线/渐进是确定值。</li>
+          <li>曝光只报告裁切和影调重心，不给 EV 建议。</li>
+        </ul>
+      </section>
+
+      <!-- DATA -->
+      <section class="pane pane-data">
+        <div class="data-section">
+          <div class="section-label"><span>图像</span></div>
+          <div class="data-rows">
+            <span class="k">尺寸</span><span class="v">1600 × 1067 · 1.7 MP · 3:2</span>
+            <span class="k">格式</span><span class="v">JPEG · 显示 8 位 · sRGB</span>
+            <span class="k">分析分辨率</span><span class="v muted">基于 1328 × 800 预览</span>
+          </div>
+        </div>
+        <div class="data-section">
+          <div class="section-label"><span>文件</span></div>
+          <div class="data-rows">
+            <span class="k">大小</span><span class="v">691 KB · 0.41 B/px</span>
+          </div>
+        </div>
+        <div class="data-section">
+          <div class="section-label"><span>透明与颜色</span></div>
+          <div class="data-rows">
+            <span class="k">Alpha</span><span class="v">不透明</span>
+            <span class="k">唯一颜色</span><span class="v">56,280</span>
+            <span class="k">熵</span><span class="v">6.49 bit</span>
+          </div>
+        </div>
+        <div class="data-section">
+          <div class="section-label"><span>动图</span></div>
+          <div class="data-rows">
+            <span class="k">帧数</span><span class="v">1 · 静态图片</span>
+            <span class="k">时长</span><span class="v muted">—</span>
+            <span class="k">循环</span><span class="v muted">—</span>
+          </div>
+        </div>
+        <p class="caption">尺寸取文件元数据；不含会话内旋转/翻转。裁剪是导出区域，不参与分析。</p>
+      </section>
+
+    </div>
+
+    <div class="drawer-foot"><span class="dot"></span><span>基于 1328 × 800 预览</span></div>
+  </aside>
+
+  <!-- context menu -->
+  <div class="ctx-layer">
+    <div class="ctx-ring"></div>
+    <div class="ctx" role="menu">
+      <div class="mi">打开图片…</div>
+      <div class="mi">打开文件夹…</div>
+      <div class="sep-line"></div>
+      <div class="mi">复制图片</div>
+      <div class="mi">复制路径</div>
+      <div class="mi">在文件夹中显示</div>
+      <div class="mi">打开方式…</div>
+      <div class="sep-line"></div>
+      <div class="mi hover">分析<span class="arrow">›</span></div>
+      <div class="sep-line"></div>
+      <div class="mi">设置</div>
+      <div class="mi">快捷键</div>
+    </div>
+    <div class="sub" role="menu">
+      <div class="mi" data-goto="histogram">直方图…</div>
+      <div class="mi" data-goto="color">色彩分析…</div>
+      <div class="mi" data-goto="quality">画质分析…</div>
+      <div class="mi" data-goto="data">图像数据…</div>
+      <div class="sep-line"></div>
+      <div class="mi" data-goto="color"><span class="check">✓</span>取色器</div>
+    </div>
+  </div>
+
+  <!-- dock -->
+  <div class="dock">
+    <button class="tool" aria-label="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+    <span class="zoom-value">75%</span>
+    <button class="tool" aria-label="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <span class="sep"></span>
+    <button class="tool" aria-label="适应窗口"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></button>
+    <button class="tool one-one" aria-label="实际大小">1:1</button>
+    <span class="sep"></span>
+    <button class="tool" aria-label="旋转"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2 6"/><path d="M20 5v6h-6"/></svg></button>
+    <button class="tool" aria-label="信息"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.2"/><path d="M12 11v5M12 8h.01"/></svg></button>
+    <button class="tool" aria-label="胶片条"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 6v12M16 6v12"/></svg></button>
+    <button class="tool" aria-label="幻灯片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M8 5.5l10 6.5-10 6.5z"/></svg></button>
+    <span class="sep"></span>
+    <button class="tool" aria-label="全屏"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <button class="tool" aria-label="设置"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.1"/><circle cx="8" cy="17" r="2.1"/></svg></button>
+  </div>
+
+  <!-- prototype state switch -->
+  <nav class="state-switch" aria-label="原型状态">
+    <a href="?state=menu&ui=1" data-state-link="menu">菜单</a>
+    <a href="?state=histogram&ui=1" data-state-link="histogram">直方图</a>
+    <a href="?state=rgb&ui=1" data-state-link="rgb">RGB</a>
+    <a href="?state=color&ui=1" data-state-link="color">色彩</a>
+    <a href="?state=quality&ui=1" data-state-link="quality">画质</a>
+    <a href="?state=data&ui=1" data-state-link="data">数据</a>
+    <span class="sep"></span>
+    <a href="?state=dark&ui=1" data-state-link="dark">暗色</a>
+    <a href="?state=menu-dark&ui=1" data-state-link="menu-dark">暗色菜单</a>
+  </nav>
+
+</div>
+
+<script>
+  (() => {
+    const params = new URLSearchParams(location.search);
+    const state = params.get("state") || "histogram";
+    const theme = params.get("theme") || ((state === "dark" || state === "menu-dark") ? "dark" : "light");
+    const ui = params.get("ui") || "1";
+    const tab = (state === "histogram" || state === "rgb" || state === "dark")
+      ? "histogram"
+      : (state === "color" || state === "quality" || state === "data" ? state : "none");
+
+    document.body.dataset.state = state;
+    document.body.dataset.theme = theme;
+    document.body.dataset.tab = tab;
+    document.body.dataset.ui = ui;
+
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.tab === tab));
+    const activeLink = document.querySelector('.state-switch a[data-state-link="' + state + '"]');
+    if (activeLink) activeLink.classList.add("on");
+
+    const luma = [48405,73953,115966,147388,166476,163095,142711,122320,110181,88561,76114,62809,51085,43966,36704,31157,27470,22743,18816,16555,14155,12184,11001,9427,8096,7782,6995,6156,5782,5118,4870,4640,4272,3849,3579,2917,3043,2661,2331,2358,2070,1830,1606,1431,1325,1236,1097,947,940,885,787,790,715,562,546,516,401,438,328,288,220,197,198,156];
+    const R = [56611,80750,121287,151830,168281,158618,138326,124352,104948,86339,73833,59885,50065,42504,35166,30500,26393,21622,18479,15806,13331,11831,10227,9196,7910,6980,6450,5799,5284,4768,4461,4217,3674,3508,3406,3030,2915,2628,2458,2225,2201,2034,1944,1700,1676,1519,1450,1327,1327,1111,1005,1055,887,811,718,685,635,616,532,521,494,522,546,1991];
+    const G = [56315,78727,119561,149770,166158,160906,140931,119684,108123,87398,74667,61323,50522,43083,36051,30801,27013,22340,18625,16430,13834,12136,10820,9387,8080,7829,6881,6305,5639,5212,5066,4702,4369,3890,3316,3126,2976,2500,2546,2127,1954,1654,1496,1341,1338,1119,1035,934,919,820,778,673,564,521,496,397,385,328,281,253,169,158,177,241];
+    const B = [12873,36982,65878,101711,131762,149983,155637,145603,129665,112734,96826,81755,68432,57087,47614,40568,34393,29705,25773,21682,18778,16350,14518,13280,12615,11560,10110,8421,6839,6085,4734,4151,3365,3068,2653,2452,2259,1982,1792,1602,1459,1359,1201,1082,1001,992,895,767,751,593,594,489,388,376,284,253,237,197,165,140,135,125,126,314];
+
+    const W = 294, H = 190, TOP = 5;
+    function stepPath(values, max, cls) {
+      const step = W / values.length;
+      let d = "M0," + H;
+      values.forEach((v, i) => {
+        const y = (H - (v / max) * (H - TOP)).toFixed(2);
+        const x0 = (i * step).toFixed(2);
+        const x1 = ((i + 1) * step).toFixed(2);
+        d += "L" + x0 + "," + y + "L" + x1 + "," + y;
+      });
+      d += "L" + W + "," + H + "Z";
+      return '<path class="' + cls + '" d="' + d + '"/>';
+    }
+    function stepLine(values, max, cls) {
+      const step = W / values.length;
+      let d = "";
+      values.forEach((v, i) => {
+        const x = ((i + 0.5) * step).toFixed(2);
+        const y = (H - (v / max) * (H - TOP)).toFixed(2);
+        d += (i ? "L" : "M") + x + "," + y;
+      });
+      return '<path class="' + cls + '" d="' + d + '"/>';
+    }
+    function grid() {
+      const v = [0.25, 0.5, 0.75];
+      return v.map(f => '<line x1="' + (W * f) + '" y1="0" x2="' + (W * f) + '" y2="' + H + '" stroke="var(--grid)" stroke-width="1"/>').join("") +
+             v.map(f => '<line x1="0" y1="' + (H * f) + '" x2="' + W + '" y2="' + (H * f) + '" stroke="var(--grid)" stroke-width="1"/>').join("");
+    }
+    const baseline = '<line x1="0" y1="' + (H - 0.5) + '" x2="' + W + '" y2="' + (H - 0.5) + '" stroke="var(--line)" stroke-width="1"/>';
+
+    const maxLuma = Math.max(...luma);
+    const guide = state === "histogram"
+      ? '<line x1="20.8" y1="0" x2="20.8" y2="' + H + '" stroke="var(--coral)" stroke-width="1.3" stroke-dasharray="2 3" opacity=".9"/>'
+      : "";
+    document.getElementById("chart-luma").innerHTML = grid() + baseline + stepPath(luma, maxLuma, "area-luma") + guide;
+
+    const maxRGB = Math.max(...R, ...G, ...B);
+    document.getElementById("chart-rgb").innerHTML = grid() + baseline +
+      stepPath(R, maxRGB, "area-r") + stepPath(G, maxRGB, "area-g") + stepPath(B, maxRGB, "area-b") +
+      stepLine(R, maxRGB, "line-r") + stepLine(G, maxRGB, "line-g") + stepLine(B, maxRGB, "line-b");
+
+    const zones = [41.9, 34.47, 12.69, 5.16, 2.38, 1.47, 0.87, 0.51, 0.29, 0.17, 0.08];
+    const zoneColors = theme === "dark"
+      ? ["#56616B", "#626C74", "#6F787F", "#7D858B", "#8C9398", "#9CA2A6", "#ADB2B5", "#BEC2C3", "#D0D2CF", "#E2E0D7", "#F1E8D8"]
+      : ["#2A3137", "#3A4249", "#4B545B", "#5D666D", "#70797F", "#858D92", "#9BA2A5", "#B2B7B8", "#C9CCCA", "#E0DFD6", "#F1E8D8"];
+    const maxZone = Math.max(...zones);
+    document.getElementById("zone-bars").innerHTML = zones.map((p, i) => {
+      const h = (3 + (p / maxZone) * 34).toFixed(1);
+      return '<i title="' + i + ' 区 · ' + p.toFixed(2) + '%" style="height:' + h + 'px;background:' + zoneColors[i] + '"></i>';
+    }).join("");
+
+    document.querySelectorAll(".mode[data-mode]").forEach(m => {
+      m.classList.toggle("on", m.dataset.mode === (state === "rgb" ? "rgb" : "luma"));
+    });
+
+    document.querySelectorAll(".tab").forEach(t => {
+      t.addEventListener("click", () => {
+        location.search = "?state=" + t.dataset.tab + "&ui=" + ui;
+      });
+    });
+    document.querySelectorAll(".sub .mi[data-goto]").forEach(item => {
+      item.addEventListener("click", () => {
+        location.search = "?state=" + item.dataset.goto + "&ui=" + ui;
+      });
+    });
+  })();
+</script>
+</body>
+</html>

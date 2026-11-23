@@ -106,6 +106,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _isLoadingFull;
     private bool _fullLoaded;
     private DecodedBitmap? _rawDecoded;
+    private DecodedBitmap? _displayDecoded;
     private WriteableBitmap? _currentBitmap;
     private AnimatedImage? _currentAnimation;
     private TiledImageSource? _tiledSource;
@@ -129,6 +130,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _appliedSort = services.Settings.Sort;
         CheckerboardEnabled = services.Settings.Checkerboard;
         SlideshowSeconds = services.Settings.SlideshowSeconds;
+        Analysis = new AnalysisViewModel(services.Localization);
 
         _messageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _messageTimer.Tick += (_, _) =>
@@ -158,6 +160,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     public event EventHandler? CurrentItemChanged;
 
     public ObservableCollection<ImageItemViewModel> Images { get; } = [];
+
+    public AnalysisViewModel Analysis { get; }
 
     public string? CurrentFilePath => _currentPath;
 
@@ -235,6 +239,9 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private bool _filmstripVisible;
 
     [ObservableProperty]
+    private bool _analysisVisible;
+
+    [ObservableProperty]
     private bool _isDragOver;
 
     [ObservableProperty]
@@ -306,6 +313,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         : _services.Localization.Format("L.FilmstripSummary", Images.Count);
 
     public bool InfoShown => InfoVisible && !IsFullscreen;
+
+    public bool AnalysisShown => AnalysisVisible && !IsFullscreen;
 
     public string CacheSizeText =>
         _services.Localization.Format(
@@ -692,6 +701,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
         _editAtSessionStart = _edit;
         _crop = CropRegion.Full;
+        CloseAnalysis();
         IsEditing = true;
         return true;
     }
@@ -764,6 +774,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (!InfoVisible)
         {
             FilmstripVisible = false;
+            CloseAnalysis();
         }
 
         InfoVisible = !InfoVisible;
@@ -774,9 +785,97 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         if (!FilmstripVisible)
         {
             InfoVisible = false;
+            CloseAnalysis();
         }
 
         FilmstripVisible = !FilmstripVisible;
+    }
+
+    public void OpenAnalysis(AnalysisTab tab)
+    {
+        if (!HasImage || IsEditing || IsLoading)
+        {
+            return;
+        }
+
+        Analysis.SelectTab(tab);
+        if (!AnalysisVisible)
+        {
+            InfoVisible = false;
+            FilmstripVisible = false;
+            AnalysisVisible = true;
+            StopSlideshow();
+        }
+
+        RefreshAnalysis();
+    }
+
+    public void CloseAnalysis()
+    {
+        if (!AnalysisVisible)
+        {
+            return;
+        }
+
+        AnalysisVisible = false;
+        Analysis.SetEyedropper(false);
+        Analysis.ClearSamples();
+        Analysis.Cancel();
+    }
+
+    public void RefreshAnalysis()
+    {
+        if (!AnalysisVisible)
+        {
+            return;
+        }
+
+        if (_currentPath is null || _metadata is null || _rawDecoded is null || _displayDecoded is null)
+        {
+            Analysis.SetUnavailable();
+            return;
+        }
+
+        var frameCount = _currentAnimation?.FrameCount ?? 1;
+        var duration = _currentAnimation is null
+            ? 0
+            : _currentAnimation.DelaysMilliseconds.Sum() / 1000.0;
+        var loop = _currentAnimation?.RepetitionCount ?? 1;
+        _ = Analysis.LoadAsync(
+            new AnalysisRequest(
+                _currentPath,
+                _rawDecoded,
+                _displayDecoded,
+                _metadata,
+                frameCount,
+                duration,
+                loop));
+    }
+
+    public bool TryGetDisplayedPixel(int x, int y, out RgbColor color, out byte alpha)
+    {
+        color = default;
+        alpha = 0;
+        var image = _displayDecoded;
+        if (image is null || x < 0 || y < 0 || x >= image.Width || y >= image.Height)
+        {
+            return false;
+        }
+
+        var offset = y * image.Stride + x * 4;
+        var b = image.Pixels[offset];
+        var g = image.Pixels[offset + 1];
+        var r = image.Pixels[offset + 2];
+        alpha = image.Pixels[offset + 3];
+        if (alpha != 0 && alpha != 255)
+        {
+            b = Unpremultiply(b, alpha);
+            g = Unpremultiply(g, alpha);
+            r = Unpremultiply(r, alpha);
+        }
+
+        color = new RgbColor(r, g, b);
+        return true;
     }
 
     public void SetFullscreen(bool fullscreen) => IsFullscreen = fullscreen;
@@ -923,6 +1022,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _currentBitmap = null;
         _currentAnimation?.Dispose();
         _currentAnimation = null;
+        Analysis.Dispose();
         DisposeTiled();
     }
 
@@ -1313,6 +1413,11 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            if (AnalysisVisible)
+            {
+                Analysis.ClearSamples();
+            }
+
             Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
             if (IsEditing)
             {
@@ -1420,6 +1525,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             _currentBitmap = null;
             _currentAnimation = animatedImage;
             _rawDecoded = source;
+            _displayDecoded = source;
             _metadata = metadata;
             HasImage = true;
             HasError = false;
@@ -1459,6 +1565,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         oldBitmap?.Dispose();
         oldAnimation?.Dispose();
         oldTiles?.Dispose();
+        RefreshAnalysis();
     }
 
     private void Present(
@@ -1475,6 +1582,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         var bitmap = BitmapFactory.FromDecoded(display);
         var old = _currentBitmap;
         _currentBitmap = bitmap;
+        if (AnalysisVisible &&
+            _displayDecoded is not null &&
+            (_displayDecoded.Width != display.Width || _displayDecoded.Height != display.Height))
+        {
+            Analysis.ClearSamples();
+        }
+
+        _displayDecoded = display;
         HasImage = true;
         HasError = false;
         OverlayVisible = false;
@@ -1502,6 +1617,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         old?.Dispose();
         oldAnimation?.Dispose();
         oldTiles?.Dispose();
+        RefreshAnalysis();
     }
 
     private async Task<ImageMetadata> GetMetadataAsync(string path, CancellationToken cancellationToken)
@@ -1734,8 +1850,14 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _tiledSource = null;
         HasImage = false;
         _rawDecoded = null;
+        _displayDecoded = null;
         _metadata = null;
         _edit = EditTransform.None;
+        if (AnalysisVisible)
+        {
+            Analysis.SetUnavailable();
+        }
+
         ImagePresented?.Invoke(
             this,
             new ImagePresentedEventArgs(null, 0, 0, 1, true, false, false));
@@ -1867,6 +1989,22 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         return seconds >= 1
             ? $"{seconds:0.0} s"
             : $"1/{Math.Round(1 / seconds.Value):0} s";
+    }
+
+    private static byte Unpremultiply(byte value, byte alpha)
+    {
+        if (alpha == 0)
+        {
+            return 0;
+        }
+
+        if (alpha == 255)
+        {
+            return value;
+        }
+
+        var result = (value * 255 + alpha / 2) / alpha;
+        return result > 255 ? (byte)255 : (byte)result;
     }
 
     private static string FormatBytes(long bytes)
@@ -2066,6 +2204,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     partial void OnInfoVisibleChanged(bool value) => OnPropertyChanged(nameof(InfoShown));
 
+    partial void OnAnalysisVisibleChanged(bool value) => OnPropertyChanged(nameof(AnalysisShown));
+
     partial void OnFilmstripVisibleChanged(bool value) => OnPropertyChanged(nameof(FilmstripShown));
 
     partial void OnIsFullscreenChanged(bool value)
@@ -2074,6 +2214,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowTitleBar));
         OnPropertyChanged(nameof(FilmstripShown));
         OnPropertyChanged(nameof(InfoShown));
+        OnPropertyChanged(nameof(AnalysisShown));
     }
 
     partial void OnCurrentIndexChanged(int value)

@@ -67,6 +67,197 @@ public sealed class MainWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Analysis_drawer_loads_and_escape_closes_it()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Histogram);
+        Assert.True(viewModel.AnalysisVisible);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+        Assert.NotEmpty(viewModel.Analysis.Display.Luma);
+        Assert.True(viewModel.Analysis.Display.Luma.Sum() > 0);
+        Assert.Equal("Analysis", viewModel.Analysis.Labels.Title);
+
+        window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+        await WaitUntilAsync(() => !viewModel.AnalysisVisible);
+        Assert.False(viewModel.Analysis.IsEyedropperActive);
+    }
+
+    [AvaloniaFact]
+    public async Task Dual_view_closes_the_analysis_drawer()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Quality);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+        Assert.True(viewModel.AnalysisVisible);
+
+        window.KeyPressQwerty(PhysicalKey.D, RawInputModifiers.None);
+        await WaitUntilAsync(() => !viewModel.AnalysisVisible);
+        Assert.False(viewModel.AnalysisVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task Analysis_switches_tabs_and_quality_values()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Histogram);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+
+        viewModel.Analysis.SelectTab(AnalysisTab.Color);
+        Assert.True(viewModel.Analysis.IsColorTab);
+        Assert.False(viewModel.Analysis.IsHistogramTab);
+
+        viewModel.Analysis.SelectTab(AnalysisTab.Data);
+        Assert.True(viewModel.Analysis.IsDataTab);
+        Assert.NotEmpty(viewModel.Analysis.Display.DataSections);
+
+        Assert.InRange(viewModel.Analysis.Display.SharpnessFraction, 0, 1);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.Analysis.Display.NoiseText));
+    }
+
+    [AvaloniaFact]
+    public void Analysis_labels_switch_with_the_language()
+    {
+        using var fixture = new WindowFixture();
+        var viewModel = Assert.IsType<MainWindowViewModel>(fixture.Window.DataContext);
+        var before = viewModel.Analysis.Labels.Title;
+
+        fixture.Services.SetLanguage(LocalizationService.ChineseSimplified);
+
+        Assert.NotEqual(before, viewModel.Analysis.Labels.Title);
+        Assert.False(string.IsNullOrWhiteSpace(viewModel.Analysis.Labels.Title));
+    }
+
+    [AvaloniaFact]
+    public async Task Fullscreen_hides_and_restores_the_analysis_drawer()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Histogram);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+
+        window.KeyPressQwerty(PhysicalKey.F11, RawInputModifiers.None);
+        await WaitUntilAsync(() => viewModel.IsFullscreen);
+        Assert.True(viewModel.AnalysisVisible);
+        Assert.False(viewModel.AnalysisShown);
+
+        window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+        await WaitUntilAsync(() => !viewModel.IsFullscreen);
+        Assert.True(viewModel.AnalysisShown);
+    }
+
+    [AvaloniaFact]
+    public async Task Information_panel_replaces_the_analysis_drawer()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Histogram);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+
+        window.KeyPressQwerty(PhysicalKey.I, RawInputModifiers.None);
+        await WaitUntilAsync(() => viewModel.InfoVisible);
+        Assert.True(viewModel.InfoShown);
+        Assert.False(viewModel.AnalysisVisible);
+    }
+
+    [AvaloniaFact]
+    public async Task Eyedropper_samples_can_be_pinned_and_cleared()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Color);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+        viewModel.Analysis.SetEyedropper(true);
+        Assert.True(viewModel.Analysis.ShowNoSampleActive);
+
+        Assert.True(viewModel.TryGetDisplayedPixel(20, 20, out var color, out var alpha));
+        viewModel.Analysis.HoverSample(20, 20, color, alpha);
+        Assert.True(viewModel.Analysis.HasLiveSample);
+        viewModel.Analysis.PinSample(20, 20, color, alpha);
+
+        Assert.Single(viewModel.Analysis.Pins);
+        Assert.Equal("1", viewModel.Analysis.Pins[0].IndexText);
+        Assert.Equal("1 / 4", viewModel.Analysis.PinnedCountText);
+
+        viewModel.Analysis.PinSample(20, 20, color, alpha);
+        Assert.Empty(viewModel.Analysis.Pins);
+        Assert.Equal("0 / 4", viewModel.Analysis.PinnedCountText);
+    }
+
+    [AvaloniaFact]
+    public async Task Analysis_menu_contains_the_tab_items_and_eyedropper()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => window.IsVisible && viewModel.HasImage);
+        Dispatcher.UIThread.RunJobs();
+
+        var canvas = window.GetVisualDescendants()
+            .OfType<Border>()
+            .First(border => border.Classes.Contains("canvas"));
+        window.MouseDown(new Point(300, 260), MouseButton.Right);
+        window.MouseUp(new Point(300, 260), MouseButton.Right);
+        Dispatcher.UIThread.RunJobs();
+
+        var menu = canvas.ContextMenu;
+        Assert.NotNull(menu);
+        var analyze = menu!.Items
+            .OfType<MenuItem>()
+            .FirstOrDefault(item => item.Header as string == "Analyze");
+        Assert.NotNull(analyze);
+        Assert.Equal(5, analyze!.Items.OfType<MenuItem>().Count());
+        Assert.Contains(analyze.Items.OfType<MenuItem>(), item => item.ToggleType == MenuItemToggleType.CheckBox);
+
+        window.KeyPressQwerty(PhysicalKey.Escape, RawInputModifiers.None);
+    }
+
+    [AvaloniaFact]
+    public async Task Edit_mode_closes_the_analysis_drawer()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        viewModel.OpenAnalysis(AnalysisTab.Quality);
+        await WaitUntilAsync(() => viewModel.Analysis.HasResult);
+
+        window.KeyPressQwerty(PhysicalKey.E, RawInputModifiers.Control);
+        await WaitUntilAsync(() => viewModel.IsEditing);
+        Assert.False(viewModel.AnalysisVisible);
+        Assert.False(viewModel.Analysis.IsEyedropperActive);
+    }
+
+    [AvaloniaFact]
     public async Task Canvas_receives_pointer_hits_through_the_overlay_layers()
     {
         using var fixture = new WindowFixture();

@@ -98,6 +98,8 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 胶片条和信息面板是独立的视图（`FilmstripView`、`InfoPanelView`），在第一张图像绘制完成后的一帧加载。因此窗口会在这些面板存在之前就出现并显示像素；这符合“先窗口、后面板”的启动规则，并使它们的 XAML 不进入第一帧路径。上下文菜单同样在首次右键单击时构建，而不是在窗口构造期间构建。
 
+分析抽屉（`AnalysisPanelView`）沿用同样的延迟规则：首次打开分析页签时才创建，且只在单图视图使用。`ImageAnalyzer` 在后台任务里分析已经解码好的预览像素，返回的结果不保留像素缓冲；`AnalysisViewModel` 按文件缓存最近几条结果并格式化成抽屉内容。抽屉只读，进入双画布或编辑模式时关闭，全屏时隐藏但保留状态。
+
 `MainWindowViewModel` 持有：
 
 - `ImageNavigator` 和可观察的 `Images` 胶片条；

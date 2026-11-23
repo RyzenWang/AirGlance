@@ -1,0 +1,423 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AirGlance.App.ViewModels"
+             xmlns:controls="using:AirGlance.App.Controls"
+             x:Class="AirGlance.App.Views.AnalysisPanelView"
+             x:DataType="vm:AnalysisViewModel">
+  <Grid RowDefinitions="Auto,Auto,*,Auto">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="20,17,14,7">
+      <TextBlock Text="{Binding Labels.Title}" Classes="analysis-title" />
+      <Button Grid.Column="1" Classes="analysis-close" Click="OnCloseClick"
+              AutomationProperties.Name="{Binding Labels.Close}">
+        <controls:IconPath Data="{StaticResource IconClose}"
+                           Stroke="{DynamicResource InkTertiary}"
+                           StrokeThickness="1.7"
+                           Width="13"
+                           Height="13" />
+      </Button>
+    </Grid>
+
+    <Border Grid.Row="1" Classes="analysis-tabs" BorderThickness="0,0,0,1"
+            BorderBrush="{DynamicResource Border}">
+      <StackPanel Orientation="Horizontal" Margin="20,0,20,0">
+        <Button Classes="analysis-tab" Classes.active="{Binding IsHistogramTab}" Click="OnHistogramTab">
+          <StackPanel>
+            <TextBlock Text="{Binding Labels.Histogram}" />
+            <Border Classes="analysis-tab-line" IsVisible="{Binding IsHistogramTab}" />
+          </StackPanel>
+        </Button>
+        <Button Classes="analysis-tab" Classes.active="{Binding IsColorTab}" Click="OnColorTab">
+          <StackPanel>
+            <TextBlock Text="{Binding Labels.Color}" />
+            <Border Classes="analysis-tab-line" IsVisible="{Binding IsColorTab}" />
+          </StackPanel>
+        </Button>
+        <Button Classes="analysis-tab" Classes.active="{Binding IsQualityTab}" Click="OnQualityTab">
+          <StackPanel>
+            <TextBlock Text="{Binding Labels.Quality}" />
+            <Border Classes="analysis-tab-line" IsVisible="{Binding IsQualityTab}" />
+          </StackPanel>
+        </Button>
+        <Button Classes="analysis-tab" Classes.active="{Binding IsDataTab}" Click="OnDataTab">
+          <StackPanel>
+            <TextBlock Text="{Binding Labels.Data}" />
+            <Border Classes="analysis-tab-line" IsVisible="{Binding IsDataTab}" />
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
+
+    <Grid Grid.Row="2">
+      <ScrollViewer Classes="analysis-scroll"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto">
+        <Border Padding="20,15,20,8">
+          <Grid>
+
+            <!-- Histogram -->
+            <StackPanel IsVisible="{Binding IsHistogramTab}">
+              <StackPanel Orientation="Horizontal" Spacing="5" Margin="0,0,0,10">
+                <Button Classes="analysis-mode" Classes.active="{Binding IsLumaMode}"
+                        Content="{Binding Labels.Luma}" Click="OnLumaMode" />
+                <Button Classes="analysis-mode" Classes.active="{Binding IsRgbMode}"
+                        Content="{Binding Labels.Rgb}" Click="OnRgbMode" />
+                <Button Classes="analysis-mode" Classes.active="{Binding IsHueMode}"
+                        Content="{Binding Labels.Hue}" Click="OnHueMode" />
+                <Button Classes="analysis-mode" Classes.active="{Binding IsSaturationMode}"
+                        Content="{Binding Labels.Saturation}" Click="OnSaturationMode" />
+              </StackPanel>
+
+              <Border Classes="analysis-chart-card">
+                <StackPanel>
+                  <controls:HistogramChart Height="190"
+                                           Luma="{Binding Display.Luma}"
+                                           Red="{Binding Display.Red}"
+                                           Green="{Binding Display.Green}"
+                                           Blue="{Binding Display.Blue}"
+                                           Hue="{Binding Display.Hue}"
+                                           Saturation="{Binding Display.SaturationBins}"
+                                           Mode="{Binding ChartMode}"
+                                           InkBrush="{DynamicResource Ink}"
+                                           GridBrush="{DynamicResource Border}"
+                                           CoralBrush="{DynamicResource Coral}" />
+                  <Grid IsVisible="{Binding IsRgbMode}" Margin="0,7,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Border Width="5" Height="5" CornerRadius="3" Background="#D95A45" />
+                        <TextBlock Text="R" Classes="analysis-range" />
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Border Width="5" Height="5" CornerRadius="3" Background="#4C9A72" />
+                        <TextBlock Text="G" Classes="analysis-range" />
+                      </StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Border Width="5" Height="5" CornerRadius="3" Background="#5B7FD4" />
+                        <TextBlock Text="B" Classes="analysis-range" />
+                      </StackPanel>
+                    </StackPanel>
+                    <TextBlock Classes="analysis-range" Text="0 – 255" HorizontalAlignment="Right" />
+                  </Grid>
+                  <Grid IsVisible="{Binding !IsRgbMode}" Margin="0,7,0,0">
+                    <TextBlock Text="0" Classes="analysis-range" HorizontalAlignment="Left" />
+                    <TextBlock Text="128" Classes="analysis-range" HorizontalAlignment="Center" />
+                    <TextBlock Text="255" Classes="analysis-range" HorizontalAlignment="Right" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <Grid ColumnDefinitions="*,*,*" Margin="0,15,0,12">
+                <StackPanel>
+                  <TextBlock Text="{Binding Labels.Mean}" Classes="analysis-stat-label" />
+                  <TextBlock Text="{Binding Display.MeanText}" Classes="analysis-stat-value" />
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="{Binding Labels.Median}" Classes="analysis-stat-label" />
+                  <TextBlock Text="{Binding Display.MedianText}" Classes="analysis-stat-value" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="{Binding Labels.StdDev}" Classes="analysis-stat-label" />
+                  <TextBlock Text="{Binding Display.StdDevText}" Classes="analysis-stat-value" />
+                </StackPanel>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,*">
+                <Border Grid.Column="0" Classes="analysis-clip" Classes.hit="{Binding Display.ShadowClipHit}"
+                        Margin="0,0,4,0">
+                  <StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Border Classes="analysis-dot" Width="5" Height="5" CornerRadius="3" />
+                      <TextBlock Text="{Binding Labels.Shadows}" Classes="analysis-clip-label" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,4,0,0">
+                      <TextBlock Text="{Binding Display.ShadowClipText}" Classes="analysis-clip-value" />
+                      <TextBlock Text="≤ 2" Classes="analysis-clip-threshold" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Classes="analysis-clip low"
+                        Classes.hit="{Binding Display.HighlightClipHit}"
+                        Margin="4,0,0,0">
+                  <StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Border Classes="analysis-dot" Width="5" Height="5" CornerRadius="3" />
+                      <TextBlock Text="{Binding Labels.Highlights}" Classes="analysis-clip-label" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="3" Margin="0,4,0,0">
+                      <TextBlock Text="{Binding Display.HighlightClipText}" Classes="analysis-clip-value" />
+                      <TextBlock Text="≥ 253" Classes="analysis-clip-threshold" />
+                    </StackPanel>
+                  </StackPanel>
+                </Border>
+              </Grid>
+
+              <Grid ColumnDefinitions="*,Auto" Margin="0,15,0,6">
+                <TextBlock Text="{Binding Labels.ToneZones}" Classes="analysis-section-label" />
+                <TextBlock Grid.Column="1" Text="{Binding Labels.ToneZonesRange}" Classes="analysis-range" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Display.Zones}" Height="42">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Columns="11" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ZoneBarItem">
+                    <Border Height="{Binding Height}"
+                            Background="{Binding Brush}"
+                            CornerRadius="2,2,1,1"
+                            VerticalAlignment="Bottom"
+                            Margin="3,0"
+                            ToolTip.Tip="{Binding Tooltip}" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Grid ColumnDefinitions="*,*,*" Margin="0,5,0,0">
+                <TextBlock Text="{Binding Labels.ZoneDark}" Classes="analysis-zone-label" />
+                <TextBlock Grid.Column="1" Text="{Binding Labels.ZoneMid}" Classes="analysis-zone-label"
+                           TextAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="{Binding Labels.ZoneBright}" Classes="analysis-zone-label"
+                           TextAlignment="Right" />
+              </Grid>
+
+              <TextBlock Text="{Binding Display.HardClipText}" Classes="analysis-caption" Margin="0,8,0,0" />
+              <TextBlock Text="{Binding Labels.LowSaturationNote}" Classes="analysis-caption" />
+            </StackPanel>
+
+            <!-- Color -->
+            <StackPanel IsVisible="{Binding IsColorTab}">
+              <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <TextBlock Text="{Binding Labels.Palette}" Classes="analysis-section-label" />
+                <TextBlock Grid.Column="1" Text="{Binding Labels.ByShare}" Classes="analysis-range" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Display.Palette}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Columns="6" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PaletteSwatch">
+                    <StackPanel Margin="0,0,4,0">
+                      <Border Height="44" CornerRadius="8"
+                              Background="{Binding Brush}"
+                              BorderBrush="{DynamicResource Border}"
+                              BorderThickness="1" />
+                      <TextBlock Text="{Binding Hex}" Classes="analysis-swatch-hex" />
+                      <TextBlock Text="{Binding Share}" Classes="analysis-swatch-share" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Border Classes="analysis-hairline" />
+
+              <TextBlock Text="{Binding Labels.AverageColor}" Classes="analysis-section-label" />
+              <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+                <Border Width="24" Height="24" CornerRadius="12" Background="{Binding Display.AverageBrush}"
+                        BorderBrush="{DynamicResource Border}" BorderThickness="1" />
+                <TextBlock Grid.Column="1" Text="{Binding Display.AverageHex}" Classes="analysis-hex"
+                           Margin="9,0,0,0" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Display.AverageSaturationText}" Classes="analysis-pos" />
+                  <Border Classes="analysis-tag">
+                    <TextBlock Text="{Binding Display.WarmthText}" />
+                  </Border>
+                </StackPanel>
+              </Grid>
+
+              <Border Classes="analysis-hairline" />
+
+              <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Border Classes="analysis-live-dot" Width="5" Height="5" CornerRadius="3" />
+                  <TextBlock Text="{Binding Labels.Eyedropper}" Classes="analysis-section-label" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding Labels.PreviewCoordinates}" Classes="analysis-range" />
+              </Grid>
+
+              <Border Classes="analysis-readout" IsVisible="{Binding HasLiveSample}">
+                <Grid ColumnDefinitions="Auto,*">
+                  <Border Width="44" Height="44" CornerRadius="9" Background="{Binding LiveSample.Brush}"
+                          BorderBrush="{DynamicResource Border}" BorderThickness="1" />
+                  <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                    <TextBlock Text="{Binding LiveSample.Hex}" Classes="analysis-hex" />
+                    <TextBlock Text="{Binding LiveSample.PositionText}" Classes="analysis-pos" Margin="0,3,0,0" />
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Labels.RgbLabel}" Classes="analysis-readout-label" />
+                        <TextBlock Text="{Binding LiveSample.RgbText}" Classes="analysis-readout-value" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="{Binding Labels.HslLabel}" Classes="analysis-readout-label" />
+                        <TextBlock Text="{Binding LiveSample.HslText}" Classes="analysis-readout-value" />
+                      </StackPanel>
+                      <StackPanel Grid.Row="1" Margin="0,6,0,0">
+                        <TextBlock Text="{Binding Labels.LabLabel}" Classes="analysis-readout-label" />
+                        <TextBlock Text="{Binding LiveSample.LabText}" Classes="analysis-readout-value" />
+                      </StackPanel>
+                      <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,6,0,0">
+                        <TextBlock Text="{Binding Labels.AlphaLabel}" Classes="analysis-readout-label" />
+                        <TextBlock Text="{Binding LiveSample.AlphaText}" Classes="analysis-readout-value" />
+                      </StackPanel>
+                    </Grid>
+                  </StackPanel>
+                </Grid>
+              </Border>
+              <TextBlock Text="{Binding Labels.NoSampleActive}" Classes="analysis-caption"
+                         IsVisible="{Binding ShowNoSampleActive}" />
+              <TextBlock Text="{Binding Labels.NoSample}" Classes="analysis-caption"
+                         IsVisible="{Binding ShowNoSampleInactive}" />
+
+              <Grid ColumnDefinitions="*,Auto" Margin="0,14,0,0">
+                <TextBlock Text="{Binding Labels.PinnedSamples}" Classes="analysis-section-label" />
+                <TextBlock Grid.Column="1" Text="{Binding PinnedCountText}" Classes="analysis-range" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Pins}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AnalysisSampleView">
+                    <Border Classes="analysis-pin">
+                      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                        <Border Classes="analysis-pin-index">
+                          <TextBlock Text="{Binding IndexText}" />
+                        </Border>
+                        <Border Grid.Column="1" Width="18" Height="18" CornerRadius="5"
+                                Background="{Binding Brush}" Margin="8,0" />
+                        <TextBlock Grid.Column="2" Text="{Binding Hex}" Classes="analysis-mono" />
+                        <TextBlock Grid.Column="3" Text="{Binding PositionText}" Classes="analysis-pos" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding Labels.PinHint}" Classes="analysis-caption" />
+            </StackPanel>
+
+            <!-- Quality -->
+            <StackPanel IsVisible="{Binding IsQualityTab}">
+              <Border Classes="analysis-q-card" Margin="0,0,0,8">
+                <StackPanel>
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Text="{Binding Labels.Sharpness}" Classes="analysis-q-title" />
+                    <Border Grid.Column="1" Classes="analysis-chip" Margin="7,0,0,0">
+                      <TextBlock Text="{Binding Display.SharpnessGrade}" />
+                    </Border>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                      <TextBlock Text="{Binding Display.SharpnessText}" Classes="analysis-q-value" />
+                      <TextBlock Text="/100" Classes="analysis-q-unit" />
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,9">
+                    <TextBlock Text="{Binding Labels.SharpMethod}" Classes="analysis-q-sub" />
+                    <TextBlock Grid.Column="1" Text="{Binding Labels.Relative}" Classes="analysis-q-sub" />
+                  </Grid>
+                  <controls:MeterBar Height="3"
+                                     Value="{Binding Display.SharpnessFraction}"
+                                     Fill="{DynamicResource Coral}"
+                                     Track="{DynamicResource Border}" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="analysis-q-card" Margin="0,0,0,8">
+                <StackPanel>
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Text="{Binding Labels.Noise}" Classes="analysis-q-title" />
+                    <Border Grid.Column="1" Classes="analysis-chip" Margin="7,0,0,0">
+                      <TextBlock Text="{Binding Display.NoiseGrade}" />
+                    </Border>
+                    <TextBlock Grid.Column="3" Text="{Binding Display.NoiseText}" Classes="analysis-q-value" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,9">
+                    <TextBlock Text="{Binding Labels.NoiseMethod}" Classes="analysis-q-sub" />
+                    <TextBlock Grid.Column="1" Text="{Binding Labels.Estimate}" Classes="analysis-q-sub" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*,*">
+                    <Border Classes="analysis-seg" Classes.on="{Binding Display.NoiseLow}" Margin="0,0,3,0" />
+                    <Border Grid.Column="1" Classes="analysis-seg" Classes.on="{Binding Display.NoiseMedium}"
+                            Margin="3,0" />
+                    <Border Grid.Column="2" Classes="analysis-seg" Classes.on="{Binding Display.NoiseHigh}"
+                            Classes.warn="{Binding Display.NoiseHigh}" Margin="3,0,0,0" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="analysis-q-card" Margin="0,0,0,8" IsVisible="{Binding Display.HasJpeg}">
+                <StackPanel>
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Text="{Binding Labels.Compression}" Classes="analysis-q-title" />
+                    <TextBlock Grid.Column="3" Text="{Binding Display.JpegQualityText}" Classes="analysis-q-value" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
+                    <TextBlock Text="{Binding Labels.JpegMethod}" Classes="analysis-q-sub" />
+                    <TextBlock Grid.Column="1" Text="{Binding Display.JpegDetailText}" Classes="analysis-q-sub" />
+                  </Grid>
+                  <TextBlock Text="{Binding Display.BytesPerPixelText}" Classes="analysis-q-sub" Margin="0,4,0,0" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="analysis-q-card" Margin="0,0,0,8">
+                <StackPanel>
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <TextBlock Text="{Binding Labels.Exposure}" Classes="analysis-q-title" />
+                    <Border Grid.Column="1" Classes="analysis-chip" Margin="7,0,0,0">
+                      <TextBlock Text="{Binding Display.ToneGrade}" />
+                    </Border>
+                    <TextBlock Grid.Column="3" Text="{Binding Display.P99Text}" Classes="analysis-q-value" />
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" Margin="0,5,0,0">
+                    <TextBlock Text="{Binding Display.ExposureClipsText}" Classes="analysis-q-sub" />
+                    <TextBlock Grid.Column="1" Text="{Binding Labels.ToneCenter}" Classes="analysis-q-sub" />
+                  </Grid>
+                  <controls:ToneBar Height="4" Margin="0,10,0,0"
+                                    Value="{Binding Display.ToneMarker}"
+                                    Marker="{DynamicResource Coral}" />
+                </StackPanel>
+              </Border>
+
+              <Border Classes="analysis-hairline" />
+              <TextBlock Text="{Binding Labels.Methodology}" Classes="analysis-section-label" />
+              <TextBlock Text="{Binding Labels.QualityNote1}" Classes="analysis-note" />
+              <TextBlock Text="{Binding Labels.QualityNote2}" Classes="analysis-note" />
+              <TextBlock Text="{Binding Labels.QualityNote3}" Classes="analysis-note" />
+            </StackPanel>
+
+            <!-- Data -->
+            <StackPanel IsVisible="{Binding IsDataTab}">
+              <ItemsControl ItemsSource="{Binding Display.DataSections}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:InfoSection">
+                    <StackPanel Margin="0,0,0,17">
+                      <TextBlock Text="{Binding Title}" Classes="analysis-data-section" />
+                      <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:InfoRow">
+                            <Grid ColumnDefinitions="104,*" Margin="0,0,0,7">
+                              <TextBlock Text="{Binding Label}" Classes="analysis-data-label" />
+                              <TextBlock Grid.Column="1" Text="{Binding Value}" Classes="analysis-data-value" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding Labels.DataNote}" Classes="analysis-caption" />
+            </StackPanel>
+
+          </Grid>
+        </Border>
+      </ScrollViewer>
+
+      <Border Classes="analysis-loading" IsVisible="{Binding IsAnalyzing}">
+        <TextBlock Text="{Binding Labels.Analyzing}" Classes="analysis-status" />
+      </Border>
+      <Border Classes="analysis-loading" IsVisible="{Binding HasError}">
+        <TextBlock Text="{Binding ErrorText}" Classes="analysis-status" TextWrapping="Wrap"
+                   MaxWidth="260" TextAlignment="Center" />
+      </Border>
+    </Grid>
+
+    <TextBlock Grid.Row="3" Text="{Binding ResolutionText}" Classes="analysis-foot"
+               IsVisible="{Binding HasResult}" />
+  </Grid>
+</UserControl>

@@ -97,6 +97,8 @@ Mouse input is split by modifier: the wheel zooms at the pointer (no accumulated
 
 The filmstrip and information panel are separate views (`FilmstripView`, `InfoPanelView`) loaded one frame after the first image is painted. The window therefore appears and shows pixels before those panels exist; this matches the "window first, panels later" startup rule and keeps their XAML out of the first-frame path. The context menu is also built on the first right-click instead of during window construction.
 
+The analysis drawer (`AnalysisPanelView`) follows the same lazy rule: it is created the first time an analysis tab is opened, only in single-image view. `ImageAnalyzer` runs on a background task over the already-decoded preview and returns a result that never retains a pixel buffer; `AnalysisViewModel` caches the last few results per file and formats them for the drawer. The drawer is read-only, closes when dual view or edit mode starts, and is hidden (state kept) in fullscreen.
+
 `MainWindowViewModel` holds:
 
 - the `ImageNavigator` and the observable `Images` filmstrip;

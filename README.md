@@ -32,6 +32,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - Applies the EXIF orientation before the first pixel is shown, and converts embedded ICC profiles (Display P3, Adobe RGB) to sRGB for display.
 - Rotates, flips and crops non-destructively in the Edit drawer (`Ctrl+E`); Cancel restores the previous view and the original file is never written. Export a copy as JPEG, PNG or WebP with quality and resize options, or copy the image to the clipboard.
 - Fullscreen, a 3 / 5 / 10 second slideshow, and an information panel with file, image, ICC and EXIF fields.
+- Right-click → Analyze opens a read-only drawer with luminance/RGB/hue/saturation histograms, clipping and tone zones, a palette and eyedropper samples, sharpness/noise/JPEG estimates and image data. Single images only; nothing is exported.
 - English and Chinese switch at runtime. Light, dark and follow-system themes; the system high-contrast setting is honoured.
 - Settings and thumbnails stay on your machine. There is no account, no telemetry, and no network code.
 
@@ -44,6 +45,10 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 | Info panel | Empty state |
 | --- | --- |
 | ![Information drawer](docs/design/implemented-info.png) | ![Empty state card](docs/design/implemented-empty.png) |
+
+| Analysis | Analysis — colour |
+| --- | --- |
+| ![Histogram, clipping and tone zones](docs/design/implemented-analysis-histogram.png) | ![Palette, average colour and eyedropper samples](docs/design/implemented-analysis-color.png) |
 
 | Dark theme | Fullscreen |
 | --- | --- |

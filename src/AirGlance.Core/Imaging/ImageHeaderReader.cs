@@ -13,6 +13,8 @@ public sealed class ImageHeader
     public byte[]? IccProfile { get; init; }
 
     public int? BitDepth { get; init; }
+
+    public JpegInfo? Jpeg { get; init; }
 }
 
 /// <summary>
@@ -73,6 +75,11 @@ public static class ImageHeaderReader
     {
         byte[]? exif = null;
         var iccChunks = new Dictionary<int, (int Count, byte[] Data)>();
+        int? estimatedQuality = null;
+        var subsampling = string.Empty;
+        var progressive = false;
+        var baseline = false;
+        int? restartInterval = null;
         stream.Position = 2;
 
         var header = new byte[4];
@@ -117,6 +124,47 @@ public static class ImageHeaderReader
             }
 
             var payload = length - 2;
+
+            // Quantization tables, frame header and restart interval are all small
+            // fixed-shape segments; read them instead of skipping so the analysis
+            // panel can report JPEG coding details without a second decode.
+            if (marker == 0xDB && payload is > 0 and <= 512)
+            {
+                var data = new byte[payload];
+                if (stream.Read(data, 0, data.Length) != data.Length)
+                {
+                    break;
+                }
+
+                estimatedQuality ??= EstimateJpegQuality(data);
+                continue;
+            }
+
+            if (marker is 0xC0 or 0xC1 or 0xC2 && payload is >= 6 and <= 512)
+            {
+                var data = new byte[payload];
+                if (stream.Read(data, 0, data.Length) != data.Length)
+                {
+                    break;
+                }
+
+                subsampling = ReadSubsampling(data);
+                progressive = marker == 0xC2;
+                baseline = marker == 0xC0;
+                continue;
+            }
+
+            if (marker == 0xDD && payload == 2)
+            {
+                var data = new byte[2];
+                if (stream.Read(data, 0, data.Length) != data.Length)
+                {
+                    break;
+                }
+
+                restartInterval = (data[0] << 8) | data[1];
+                continue;
+            }
 
             if (marker == 0xE1 && exif is null && payload is > 6 and <= MaxExifBytes)
             {
@@ -182,7 +230,140 @@ public static class ImageHeaderReader
         {
             Exif = exif is null ? ExifDetails.Empty : ExifReader.Read(exif),
             IccProfile = icc,
-            BitDepth = 8
+            BitDepth = 8,
+            Jpeg = estimatedQuality is null && subsampling.Length == 0 &&
+                   !progressive && !baseline && restartInterval is null
+                ? null
+                : new JpegInfo
+                {
+                    EstimatedQuality = estimatedQuality,
+                    Subsampling = subsampling,
+                    Progressive = progressive,
+                    Baseline = baseline,
+                    RestartInterval = restartInterval
+                }
+        };
+    }
+
+    private static readonly byte[] JpegLumaQuantization =
+    [
+        16, 11, 10, 16, 24, 40, 51, 61,
+        12, 12, 14, 19, 26, 58, 60, 55,
+        14, 13, 16, 24, 40, 57, 69, 56,
+        14, 17, 22, 29, 51, 87, 80, 62,
+        18, 22, 37, 56, 68, 109, 103, 77,
+        24, 35, 55, 64, 81, 104, 113, 92,
+        49, 64, 78, 87, 103, 121, 120, 101,
+        72, 92, 95, 98, 112, 100, 103, 99
+    ];
+
+    /// <summary>
+    /// Walks the DQT segment and estimates the IJG quality of the first 8-bit table.
+    /// The result is an approximation (roughly +/- 5), not a stored metadata value.
+    /// </summary>
+    private static int? EstimateJpegQuality(byte[] data)
+    {
+        var position = 0;
+        int? quality = null;
+        while (position < data.Length)
+        {
+            var info = data[position++];
+            var precision = info >> 4;
+            var size = precision == 0 ? 64 : 128;
+            if (position + size > data.Length)
+            {
+                break;
+            }
+
+            if (precision == 0)
+            {
+                quality ??= CompareJpegTable(data.AsSpan(position, 64));
+            }
+
+            position += size;
+        }
+
+        return quality;
+    }
+
+    private static int CompareJpegTable(ReadOnlySpan<byte> table)
+    {
+        var bestQuality = 0;
+        var bestError = double.MaxValue;
+        for (var quality = 1; quality <= 100; quality++)
+        {
+            var scale = quality < 50 ? 5000.0 / quality : 200 - 2 * quality;
+            double error = 0;
+            for (var i = 0; i < JpegLumaQuantization.Length; i++)
+            {
+                var scaled = (int)Math.Floor((JpegLumaQuantization[i] * scale + 50) / 100);
+                scaled = Math.Clamp(scaled, 1, 255);
+                error += Math.Abs(scaled - table[i]);
+            }
+
+            if (error < bestError)
+            {
+                bestError = error;
+                bestQuality = quality;
+            }
+        }
+
+        return bestQuality;
+    }
+
+    /// <summary>Reads the component sampling factors from a SOF segment.</summary>
+    private static string ReadSubsampling(byte[] data)
+    {
+        if (data.Length < 6)
+        {
+            return string.Empty;
+        }
+
+        var components = data[5];
+        if (components is < 1 or > 4 || data.Length < 6 + components * 3)
+        {
+            return string.Empty;
+        }
+
+        var maxH = 1;
+        var maxV = 1;
+        for (var i = 0; i < components; i++)
+        {
+            var sampling = data[6 + i * 3 + 1];
+            var h = sampling >> 4;
+            var v = sampling & 0x0F;
+            if (h == 0 || v == 0)
+            {
+                return string.Empty;
+            }
+
+            maxH = Math.Max(maxH, h);
+            maxV = Math.Max(maxV, v);
+        }
+
+        var firstSampling = data[7];
+        if ((firstSampling >> 4) != maxH || (firstSampling & 0x0F) != maxV)
+        {
+            return string.Empty;
+        }
+
+        for (var i = 1; i < components; i++)
+        {
+            var sampling = data[6 + i * 3 + 1];
+            if ((sampling >> 4) != 1 || (sampling & 0x0F) != 1)
+            {
+                return string.Empty;
+            }
+        }
+
+        return (maxH, maxV) switch
+        {
+            (1, 1) => "4:4:4",
+            (2, 1) => "4:2:2",
+            (2, 2) => "4:2:0",
+            (4, 1) => "4:1:1",
+            (1, 2) => "4:4:0",
+            _ => $"{maxH}x{maxV}"
         };
     }
 
