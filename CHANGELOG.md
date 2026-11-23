@@ -26,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previous `1.0.0.0` (app 0.4.1) submission. It is x64-only and includes the
   AVIF decoder; see `packaging/msix/STORE-UPDATE-0.6.0.md`.
 
+### Documentation
+
+- The five analysis screenshots (histogram, RGB, colour, dark and the context
+  menu) were recaptured. They were the only screenshots of the set made from
+  `andromeda.jpg`, a photograph, while every other screenshot uses
+  `docs/design/assets/sample-photo.jpg`; that mismatch is also why each file was
+  1.4-1.7 MB against 53-185 KB for the rest. They now use the standard sample
+  image and match the set at 166-198 KB each, which takes the five from 7.1 MB to
+  931 KB and the README image payload from 3.7 MB to 1.3 MB.
+
 ## [0.6.0] - 2026-11-20
 
 ### Added
