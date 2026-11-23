@@ -587,6 +587,9 @@ public sealed class MainWindowTests
         await WaitUntilAsync(() =>
             window.GetVisualDescendants().OfType<DualCanvasView>().Any(view => view.IsVisible));
         var dualView = window.GetVisualDescendants().OfType<DualCanvasView>().Single(view => view.IsVisible);
+        // IsVisible is set before DualCanvasView.InitializeAsync finishes; wait for the
+        // first pane's initial image so the next-pane button has something to page.
+        await WaitUntilAsync(() => Path.GetFileName(dualView.PanePath(0)) == "a.jpg");
 
         var buttons = dualView.GetVisualDescendants().OfType<Button>()
             .Where(button => button.Classes.Contains("dual-pane-nav-button"))
