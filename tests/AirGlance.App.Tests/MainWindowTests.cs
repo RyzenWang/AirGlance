@@ -521,6 +521,12 @@ public sealed class MainWindowTests
         await WaitUntilAsync(() =>
             window.GetVisualDescendants().OfType<DualCanvasView>().Any(view => view.IsVisible));
         var dualView = window.GetVisualDescendants().OfType<DualCanvasView>().Single(view => view.IsVisible);
+        // DualCanvasView is visible before InitializeAsync finishes; wait for both
+        // panes and the initial active state before exercising focus and Tab.
+        await WaitUntilAsync(() =>
+            Path.GetFileName(dualView.PanePath(0)) == "a.jpg" &&
+            Path.GetFileName(dualView.PanePath(1)) == "b.jpg" &&
+            dualView.ActiveIndex == 0);
 
         window.KeyPressQwerty(PhysicalKey.C, RawInputModifiers.None);
         await WaitUntilAsync(() => dualView.GetVisualDescendants().OfType<Border>()
