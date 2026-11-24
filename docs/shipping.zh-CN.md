@@ -16,10 +16,10 @@
 | macOS x64 | `AirGlance-0.7.0-osx-x64.zip`（包含 `AirGlance.app`） | 无 | `macos-15-intel` 上的 `packaging/scripts/pack.sh` | GitHub release |
 | Linux x64 | `AirGlance-0.7.0-linux-x64.tar.gz` | 无 | `ubuntu-22.04` 上的 `packaging/scripts/pack.sh` | GitHub release |
 | Linux arm64 | `AirGlance-0.7.0-linux-arm64.tar.gz` | 无 | `ubuntu-24.04-arm` 上的 `packaging/scripts/pack.sh` | GitHub release |
-| Windows x64 MSIX | `AirGlance_1.0.1.0_x64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
-| Windows arm64 MSIX | `AirGlance_1.0.1.0_arm64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
+| Windows x64 MSIX | `AirGlance_1.0.2.0_x64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
+| Windows arm64 MSIX | `AirGlance_1.0.2.0_arm64.msix` | 仓库中无 | `packaging/msix/Build-Msix.ps1` / `store.yml` | Microsoft Store / Partner Center |
 
-归档文件名使用三段式产品版本 `0.7.0`。MSIX 文件名使用四段式包版本 `1.0.1.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
+归档文件名使用三段式产品版本 `0.7.0`。MSIX 文件名使用四段式包版本 `1.0.2.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
 
 发布工作流只发布六个便携归档：Windows 的 x64/arm64 zip、macOS 的 x64/arm64 zip 和 Linux 的 x64/arm64 tar.gz。它会拒绝 MSIX 文件，因此 Store 包绝不会出现在公开的 GitHub 发布中。MSIX 文件由 `store.yml` 构建，用于 Store 审核和 Partner Center。
 
@@ -159,13 +159,13 @@ icons/airglance-512.png
 
 ```powershell
 ./packaging/msix/Build-Msix.ps1 `
-  -Version 0.7.0 `
+  -Version 1.0.2 `
   -Architecture x64 `
   -PublishDir publish/win-x64 `
   -OutputDir artifacts/msix
 ```
 
-输出为 `AirGlance_1.0.1.0_x64.msix`，若指定 `-Architecture arm64` 则为 `AirGlance_1.0.1.0_arm64.msix`。arm64 包可在本地构建，但不在本次 Store 提交范围内，因此本次上传仅 x64。`store.yml` 会为两种架构运行此脚本。仓库中的包未签名；Store 会对交付的包签名。
+输出为 `AirGlance_1.0.2.0_x64.msix`，若指定 `-Architecture arm64` 则为 `AirGlance_1.0.2.0_arm64.msix`。arm64 包可在本地构建，但不在本次 Store 提交范围内，因此本次上传仅 x64。`store.yml` 会为两种架构运行此脚本。仓库中的包未签名；Store 会对交付的包签名。
 
 ## 冒烟测试
 
@@ -259,9 +259,9 @@ gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || tr
 
 MSIX 包仅用于 Microsoft Store 提交：
 
-- `AirGlance_1.0.1.0_x64.msix`
+- `AirGlance_1.0.2.0_x64.msix`
 
-Microsoft Store 包版本与 GitHub tag 独立：上一个 Store 包为 `1.0.0.0`（应用 0.4.1），0.6.0 提交使用 `1.0.1.0`。本次 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在本次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
+Microsoft Store 包版本与 GitHub tag 独立：上一个 Store 包为 `1.0.1.0`（应用 0.6.0），0.7.0 提交使用 `1.0.2.0`。本次 Store 提交仅提供 x64。现在 AVIF 解码器已支持 Windows ARM64，arm64 MSIX 可以在本地构建，但不在本次 Store 提交范围内。它们不是公开发布的资产。`store.yml` 按需构建 x64 包，并将其作为工作流产物上传。
 
 ### 包标识和发布者
 
@@ -271,7 +271,7 @@ Microsoft Store 包版本与 GitHub tag 独立：上一个 Store 包为 `1.0.0.0
 <Identity
   Name="RyzenWang.AirGlance"
   Publisher="CN=D87D6846-5A2B-4D82-BDB7-8E739EB3F35B"
-  Version="1.0.1.0"
+  Version="1.0.2.0"
   ProcessorArchitecture="x64" />
 ```
 
@@ -313,7 +313,7 @@ $appcert = Get-ChildItem `
 & $appcert.FullName reset
 
 & $appcert.FullName test `
-  -appxpackagepath (Resolve-Path '.\AirGlance_1.0.1.0_x64.msix').Path `
+  -appxpackagepath (Resolve-Path '.\AirGlance_1.0.2.0_x64.msix').Path `
   -reportoutputpath (Join-Path (Get-Location) 'wack-x64.xml')
 ```
 
