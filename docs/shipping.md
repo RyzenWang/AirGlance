@@ -165,7 +165,7 @@ The archive has no wrapper directory. The desktop entry uses `Exec=AirGlance %f`
   -OutputDir artifacts/msix
 ```
 
-The Store output is `AirGlance_1.0.2.0_x64.msix`; an arm64 package can be built locally but is not part of this Store submission, so the upload is x64-only. `store.yml` runs this for both architectures. The packages are unsigned in the repository; the Store signs the delivered package.
+The Store output is `AirGlance_1.0.2.0_x64.msix`; an arm64 package can be built locally but is not part of this Store submission, so the upload is x64-only. `store.yml` runs this for x64 only. The packages are unsigned in the repository; the Store signs the delivered package.
 
 ## Smoke test
 
@@ -350,7 +350,7 @@ The listing is live at https://apps.microsoft.com/detail/9p30h2pjg0f6. Submit up
 The listing needs:
 
 - the public privacy policy URL: https://ryzenwang.github.io/AirGlance/privacy/. The policy states that settings and thumbnails stay on the device and that no personal data is collected or transmitted;
-- at least one desktop screenshot, 1366 × 768 or larger, showing the viewer, filmstrip, info panel and settings;
+- the current Store screenshots in `packaging/msix/screenshots/1.0.2.0/`: 7 PNG files at 1440 × 900 (16:10), based on the README scenes and `docs/design/assets/sample-photo.jpg`; see `packaging/msix/STORE-UPDATE-0.7.0.md`;
 - the package, tile and Store logos already under `packaging/msix/Assets`;
 - system requirements: Windows 10/11 x64. Memory depends on the image; 100 MP at 100 percent needs a large full-resolution decode;
 - an age rating questionnaire. AirGlance has no user-generated content, accounts, ads or network features;

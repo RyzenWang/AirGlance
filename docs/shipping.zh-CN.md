@@ -165,7 +165,7 @@ icons/airglance-512.png
   -OutputDir artifacts/msix
 ```
 
-输出为 `AirGlance_1.0.2.0_x64.msix`，若指定 `-Architecture arm64` 则为 `AirGlance_1.0.2.0_arm64.msix`。arm64 包可在本地构建，但不在本次 Store 提交范围内，因此本次上传仅 x64。`store.yml` 会为两种架构运行此脚本。仓库中的包未签名；Store 会对交付的包签名。
+输出为 `AirGlance_1.0.2.0_x64.msix`，若指定 `-Architecture arm64` 则为 `AirGlance_1.0.2.0_arm64.msix`。arm64 包可在本地构建，但不在本次 Store 提交范围内，因此本次上传仅 x64。`store.yml` 只按 x64 运行此脚本。仓库中的包未签名；Store 会对交付的包签名。
 
 ## 冒烟测试
 
@@ -340,7 +340,7 @@ $appcert = Get-ChildItem `
 上架信息需要：
 
 - 一个公开的隐私政策 URL。即使应用不收集任何内容，Store 也要求提供政策。请说明设置和缩略图保留在设备上，且不收集或传输任何个人数据；
-- 至少一张桌面截图，尺寸 1366 × 768 或更大，展示查看器、缩略图条、信息面板和设置；
+- `packaging/msix/screenshots/1.0.2.0/` 中的当前 Store 截图：7 张 1440 × 900（16:10）PNG，基于 README 场景和 `docs/design/assets/sample-photo.jpg`；见 `packaging/msix/STORE-UPDATE-0.7.0.md`；
 - 已位于 `packaging/msix/Assets` 下的包、磁贴和 Store 徽标；
 - 系统要求：Windows 10/11 x64。内存需求取决于图像；在 100% 缩放下查看 100 MP 图像需要大尺寸的全分辨率解码；
 - 年龄分级问卷。AirGlance 没有用户生成内容、账户、广告或网络功能；

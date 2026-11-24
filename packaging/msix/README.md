@@ -6,6 +6,9 @@ application model: it executes the normal `AirGlance.exe` with the
 `Windows.FullTrustApplication` entry point and declares the `runFullTrust`
 restricted capability.
 
+The current Store submission is documented in
+[STORE-UPDATE-0.7.0.md](STORE-UPDATE-0.7.0.md).
+
 ## Layout
 
 | File | Purpose |
