@@ -70,7 +70,7 @@
 
 ## Store 截图（1440 × 900，16:10）
 
-截图来自 0.7.0 源码的 Windows AOT 构建，使用 `docs/design/assets/sample-photo.jpg` 和 `sample-photo-b.jpg`，与 README 截图同一组示例照片。Store 要求至少 1366 × 768，16:9 或 16:10；本组为 1440 × 900。
+截图来自 0.7.0 源码的 Windows AOT 构建，使用 `docs/design/assets/sample-photo.jpg` 和 `sample-photo-b.jpg`，与 README 截图同一组示例照片。Microsoft Store 的桌面截图下限是 1366 × 768；本组为 1440 × 900（16:10），远高于下限且文件均小于 1 MB。
 
 ### 1. 查看界面
 
