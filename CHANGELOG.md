@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   README images and `docs/design/assets/sample-photo.jpg`; see
   `packaging/msix/STORE-UPDATE-0.7.0.md`.
 
+### Removed
+
+- The high-contrast theme, which never applied. `HighContrast.axaml` had no
+  `x:Class`, so `HighContrastPalette`'s `AvaloniaXamlLoader.Load(this)` could not
+  resolve the compiled XAML, `ThemeService` swallowed the failure, and
+  `IsHighContrast` had writers but no readers. The palette, its class and the
+  `ThemeService` bookkeeping are gone, and the README no longer claims the system
+  contrast setting is honoured. Light, dark and follow-system are unchanged.
+
 ### Fixed
 
 - The window caption no longer shows two garbled characters where the em dash
@@ -26,18 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the `clap` crop while the native decoder writes the whole coded frame and
   requires capacity for it, so every such file paid for a full AV1 decode and
   then reported itself as corrupt. `CropManaged`/`CropUnmanaged` were unreachable
-  behind that failure and now trim the frame as intended. There is still no
-  `clap` fixture, so the path is fixed but unverified.
+  behind that failure and now trim the frame as intended. The new
+  `tests/Assets/clap.avif` fixture (1440 × 900 coded, 1438 × 898 displayed) covers
+  the path and compares the crop against the uncropped frame.
 - The information panel no longer claims a colour conversion for TIFF. LibTiff
   returns the stored samples, but `IccAppliedToPixels` defaulted to true, so an
   Adobe RGB or Display P3 TIFF was labelled `… → sRGB` without any conversion.
   Both TIFF metadata paths now report the profile name alone, as the AVIF path
   already did.
-- High-contrast mode applies. `HighContrast.axaml` had no `x:Class`, so
-  `HighContrastPalette`'s `AvaloniaXamlLoader.Load(this)` could not resolve the
-  compiled XAML; `ThemeService` swallowed the failure and the palette silently
-  never loaded. The `x:Class` is declared now. This needs one manual check with a
-  Windows contrast theme enabled.
 - The dual-view chrome timer stops when the chrome fades instead of firing every
   2.5 s for the rest of the session against a hidden control.
 - `DecodedBitmap` validates its pixel buffer with long arithmetic, so an image
