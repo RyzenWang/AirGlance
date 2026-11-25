@@ -348,7 +348,7 @@ if (-not (Test-Path -LiteralPath $outputDirectory -PathType Container))
 
 $shimBatch = Join-Path $cacheDirectory "build-shim.cmd"
 New-BuildBatch $shimBatch @(
-    "cl /nologo /O2 /MT /LD /D_CRT_SECURE_NO_WARNINGS /I `"$prefixInclude`" /I `"$scriptDirectory`" `"$scriptDirectory\airglance_avif.c`" /Fe:`"$outputPath`" /link `"$prefixLib\avif.lib`" `"$prefixLib\libdav1d.a`""
+    "cl /nologo /O2 /MT /LD /D_CRT_SECURE_NO_WARNINGS /I `"$prefixInclude`" /I `"$scriptDirectory`" `"$scriptDirectory\airglance_avif.c`" /Fo:`"$(Join-Path $cacheDirectory 'airglance_avif.obj')`" /Fe:`"$outputPath`" /link `"$prefixLib\avif.lib`" `"$prefixLib\libdav1d.a`""
 ) $pathPrefix
 Invoke-Batch $shimBatch
 
