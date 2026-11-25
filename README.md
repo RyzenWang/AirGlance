@@ -40,23 +40,23 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 
 | Viewer | Filmstrip |
 | --- | --- |
-| ![Viewer with floating controls](docs/design/implemented-hover.png) | ![Filmstrip drawer](docs/design/implemented-browse.png) |
+| ![Viewer with floating controls](docs/design/implemented-hover.webp) | ![Filmstrip drawer](docs/design/implemented-browse.webp) |
 
 | Info panel | Empty state |
 | --- | --- |
-| ![Information drawer](docs/design/implemented-info.png) | ![Empty state card](docs/design/implemented-empty.png) |
+| ![Information drawer](docs/design/implemented-info.webp) | ![Empty state card](docs/design/implemented-empty.webp) |
 
 | Analysis | Analysis — colour |
 | --- | --- |
-| ![Histogram, clipping and tone zones](docs/design/implemented-analysis-histogram.png) | ![Palette, average colour and eyedropper samples](docs/design/implemented-analysis-color.png) |
+| ![Histogram, clipping and tone zones](docs/design/implemented-analysis-histogram.webp) | ![Palette, average colour and eyedropper samples](docs/design/implemented-analysis-color.webp) |
 
 | Dark theme | Fullscreen |
 | --- | --- |
-| ![Dark theme](docs/design/implemented-dark.png) | ![Fullscreen with Esc hint](docs/design/implemented-fullscreen.png) |
+| ![Dark theme](docs/design/implemented-dark.webp) | ![Fullscreen with Esc hint](docs/design/implemented-fullscreen.webp) |
 
 | Dual canvas |
 | --- |
-| ![Two independent canvases with 30 px A/B badges and an active border](docs/design/implemented-dual.png) |
+| ![Two independent canvases with 30 px A/B badges and an active border](docs/design/implemented-dual.webp) |
 
 ## Image formats
 

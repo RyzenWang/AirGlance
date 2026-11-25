@@ -17,7 +17,7 @@
 
 ## 1. 当前画布感知
 
-![当前画布 A](dual-v2-same.png)
+![当前画布 A](dual-v2-same.webp)
 
 ### 1.1 三层提示
 
@@ -49,7 +49,7 @@
 
 ## 2. 画布右键菜单
 
-![B 画布右键菜单](dual-v2-menu.png)
+![B 画布右键菜单](dual-v2-menu.webp)
 
 ### 2.1 触发规则
 
@@ -85,7 +85,7 @@
 
 ## 3. 左右分割胶片条
 
-![左右分割胶片条](dual-v2-filmstrip.png)
+![左右分割胶片条](dual-v2-filmstrip.webp)
 
 ### 3.1 布局
 
@@ -114,7 +114,7 @@
 
 ### 3.3 空半区
 
-![空的胶片条半区](dual-v2-filmstrip-empty.png)
+![空的胶片条半区](dual-v2-filmstrip-empty.webp)
 
 
 - 当 B 没有打开图片或文件夹时，右半区仍保留固定 50% 宽度，但**只保留 30×30 的 B 徽标**。
@@ -238,9 +238,9 @@
 
 实现截图：
 
-- [双画布（当前画布边框、30 px 徽标）](implemented-dual.png)
-- [左右分割胶片条](implemented-dual-filmstrip.png)
-- [空胶片条半区（实现）](implemented-dual-filmstrip-empty.png)
+- [双画布（当前画布边框、30 px 徽标）](implemented-dual.webp)
+- [左右分割胶片条](implemented-dual-filmstrip.webp)
+- [空胶片条半区（实现）](implemented-dual-filmstrip-empty.webp)
 
 原型：
 
@@ -255,8 +255,8 @@
 
 更多截图：
 
-- [当前画布 A](dual-v2-same.png)
-- [B 画布右键菜单](dual-v2-menu.png)
-- [左右分割胶片条](dual-v2-filmstrip.png)
-- [空胶片条半区设计](dual-v2-filmstrip-empty.png)
-- [暗色](dual-v2-dark.png)
+- [当前画布 A](dual-v2-same.webp)
+- [B 画布右键菜单](dual-v2-menu.webp)
+- [左右分割胶片条](dual-v2-filmstrip.webp)
+- [空胶片条半区设计](dual-v2-filmstrip-empty.webp)
+- [暗色](dual-v2-dark.webp)

@@ -15,7 +15,7 @@
 
 ## 1. Filmstrip header centring
 
-![Filmstrip header and per-pane navigation](dual-v3-filmstrip.png)
+![Filmstrip header and per-pane navigation](dual-v3-filmstrip.webp)
 
 ### 1.1 Specification
 
@@ -45,9 +45,9 @@ The current implementation gives the header StackPanel a 30 px height, but the f
 
 ## 2. Per-canvas previous/next controls
 
-![A active, with one navigation pair on each side](dual-v3-same.png)
+![A active, with one navigation pair on each side](dual-v3-same.webp)
 
-![B active, with B’s pair highlighted](dual-v3-folders.png)
+![B active, with B’s pair highlighted](dual-v3-folders.webp)
 
 ### 2.1 Layout
 
@@ -177,7 +177,7 @@ Added:
 
 Screenshots:
 
-- [A active](dual-v3-same.png)
-- [B active](dual-v3-folders.png)
-- [Filmstrip and paging buttons](dual-v3-filmstrip.png)
-- [Empty canvas hides B pair](dual-v3-empty.png)
+- [A active](dual-v3-same.webp)
+- [B active](dual-v3-folders.webp)
+- [Filmstrip and paging buttons](dual-v3-filmstrip.webp)
+- [Empty canvas hides B pair](dual-v3-empty.webp)

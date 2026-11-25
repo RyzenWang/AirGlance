@@ -47,7 +47,7 @@ Rules:
 
 ## 2. Default 1240 px
 
-![Right header at 1240 px](dual-v5-header-1240-v2.png)
+![Right header at 1240 px](dual-v5-header-1240-v2.webp)
 
 Width budget:
 
@@ -170,8 +170,8 @@ B  [📁 Saved Pictu…  2]  [this-is-a-…jpg  1600 × 1067  02 / 02]
 ## 9. Prototype and screenshot
 
 - [HTML prototype](dual-view-v5.html) (default `?state=same&ui=0`)
-- [1240 px screenshot](dual-v5-header-1240-v2.png)
-- [Implementation screenshot](implemented-dual-pagecount.png)
+- [1240 px screenshot](dual-v5-header-1240-v2.webp)
+- [Implementation screenshot](implemented-dual-pagecount.webp)
 
 State parameters:
 

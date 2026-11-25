@@ -2,7 +2,7 @@
 
 > 状态：等待确认，尚未实现。  
 > 原型：[crop-immersive-v2.html](crop-immersive-v2.html)  
-> 静态稿：[沉浸式裁剪](crop-immersive-v2-crop.png) · [中文裁剪](crop-immersive-v2-crop-zh.png) · [裁剪后的导出预览](crop-immersive-v2-export.png)
+> 静态稿：[沉浸式裁剪](crop-immersive-v2-crop.webp) · [中文裁剪](crop-immersive-v2-crop-zh.webp) · [裁剪后的导出预览](crop-immersive-v2-export.webp)
 
 ## 本次要解决的两件事
 

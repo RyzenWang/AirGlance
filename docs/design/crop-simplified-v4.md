@@ -2,7 +2,7 @@
 
 > 状态：等待确认，尚未实现。  
 > 原型：[crop-simplified-v4.html](crop-simplified-v4.html)  
-> 静态稿：[简化后的编辑面板](crop-simplified-v4-edit.png) · [完成裁剪后直接导出](crop-simplified-v4-export.png)
+> 静态稿：[简化后的编辑面板](crop-simplified-v4-edit.webp) · [完成裁剪后直接导出](crop-simplified-v4-export.webp)
 
 ## 本次调整
 
@@ -29,7 +29,7 @@
 
 # 一、简化后的编辑面板
 
-![简化后的编辑面板](crop-simplified-v4-edit.png)
+![简化后的编辑面板](crop-simplified-v4-edit.webp)
 
 裁剪区块变成：
 
@@ -90,7 +90,7 @@
       → 直接打开导出副本
 ```
 
-![完成裁剪后直接导出](crop-simplified-v4-export.png)
+![完成裁剪后直接导出](crop-simplified-v4-export.webp)
 
 在导出窗口取消：
 

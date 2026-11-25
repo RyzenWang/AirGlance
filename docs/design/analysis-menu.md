@@ -9,11 +9,11 @@
 
 交互视觉稿：[analysis-menu.html](analysis-menu.html)（浏览器打开，左下角切换状态；`?ui=0` 隐藏状态条）
 
-![分析直方图](analysis-v1-histogram.png)
+![分析直方图](analysis-v1-histogram.webp)
 
-设计截图：[菜单](analysis-v1-menu.png) · [直方图](analysis-v1-histogram.png) · [RGB](analysis-v1-rgb.png) · [色彩](analysis-v1-color.png) · [画质](analysis-v1-quality.png) · [数据](analysis-v1-data.png) · [暗色](analysis-v1-dark.png) · [暗色菜单](analysis-v1-menu-dark.png)
+设计截图：[菜单](analysis-v1-menu.webp) · [直方图](analysis-v1-histogram.webp) · [RGB](analysis-v1-rgb.webp) · [色彩](analysis-v1-color.webp) · [画质](analysis-v1-quality.webp) · [数据](analysis-v1-data.webp) · [暗色](analysis-v1-dark.webp) · [暗色菜单](analysis-v1-menu-dark.webp)
 
-实际应用截图：[菜单](implemented-analysis-menu.png) · [直方图](implemented-analysis-histogram.png) · [RGB](implemented-analysis-rgb.png) · [色彩](implemented-analysis-color.png) · [暗色](implemented-analysis-dark.png)
+实际应用截图：[菜单](implemented-analysis-menu.webp) · [直方图](implemented-analysis-histogram.webp) · [RGB](implemented-analysis-rgb.webp) · [色彩](implemented-analysis-color.webp) · [暗色](implemented-analysis-dark.webp)
 
 视觉稿使用 [`analysis-demo.jpg`](analysis-demo.jpg)（`crop-demo-bg.jpg` 的裁切与分级）作为示例图片，只用于设计稿，不进入应用资源。
 

@@ -2,7 +2,7 @@
 
 > 状态：等待确认，尚未实现。  
 > 原型：[crop-done-export-v3.html](crop-done-export-v3.html)  
-> 静态稿：[紧凑编辑面板](crop-done-export-v3-edit.png) · [裁剪完成后直接导出](crop-done-export-v3-export.png)
+> 静态稿：[紧凑编辑面板](crop-done-export-v3-edit.webp) · [裁剪完成后直接导出](crop-done-export-v3-export.webp)
 
 ## 已按确认调整
 
@@ -15,7 +15,7 @@
 
 # 一、紧凑编辑面板
 
-![紧凑编辑面板](crop-done-export-v3-edit.png)
+![紧凑编辑面板](crop-done-export-v3-edit.webp)
 
 调整：
 
@@ -54,7 +54,7 @@
         → 立即打开导出副本窗口
 ```
 
-![裁剪完成后直接导出](crop-done-export-v3-export.png)
+![裁剪完成后直接导出](crop-done-export-v3-export.webp)
 
 完成后：
 

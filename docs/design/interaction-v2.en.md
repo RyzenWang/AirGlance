@@ -16,7 +16,7 @@ Vertical space allocation in the current window (1240 × 860):
 180 px  Fixed chrome, about 21% of the window height
 ```
 
-![Current interface](assets/current.png)
+![Current interface](assets/current.webp)
 
 Main problems:
 
@@ -42,7 +42,7 @@ Main problems:
 
 ### 3.1 Default / hover: image + floating controls
 
-![Default state](mockup-01-hover.png)
+![Default state](mockup-01-hover.webp)
 
 - Top left: current folder + count; center: file name, dimensions/zoom, `04 / 27`; right: light/dark toggle and window buttons.
 - Bottom center: zoom −/percentage/+, fit to window, 1:1, rotate, info, filmstrip, slideshow, fullscreen, settings.
@@ -52,7 +52,7 @@ Main problems:
 
 ### 3.2 Filmstrip expanded
 
-![Filmstrip state](mockup-02-browse.png)
+![Filmstrip state](mockup-02-browse.webp)
 
 - The filmstrip slides out from the bottom, 138 px high, on a semi-transparent dark background, covering the image rather than squeezing it.
 - Thumbnails are 92 × 56; the selected item gets a coral outline; hovering lifts it by 2 px.
@@ -61,7 +61,7 @@ Main problems:
 
 ### 3.3 Info panel
 
-![Info panel](mockup-03-info.png)
+![Info panel](mockup-03-info.webp)
 
 - A 334 px overlay on the right; toggle with `I`, close by clicking or with `I`.
 - Three sections: file, camera, color; values use a monospace font, and long paths can wrap.
@@ -70,7 +70,7 @@ Main problems:
 
 ### 3.4 Empty state
 
-![Empty state](mockup-04-empty.png)
+![Empty state](mockup-04-empty.webp)
 
 - The empty state keeps only the brand, the window buttons, and one clear entry card.
 - Primary button "Open Folder" (打开文件夹), secondary button "Open Image" (打开图片); drag-and-drop and keyboard shortcut hints at the bottom.
@@ -78,21 +78,21 @@ Main problems:
 
 ### 3.5 Fullscreen
 
-![Fullscreen](mockup-05-fullscreen.png)
+![Fullscreen](mockup-05-fullscreen.webp)
 
 - The canvas turns pure black and the image fills it; apart from the `Esc` hint in the bottom-right corner, there is no persistent chrome.
 - The dock rises from the bottom again when the mouse moves; after 2.5 s of inactivity it is gone entirely.
 
 ### 3.6 Dark theme
 
-![Dark theme](mockup-06-dark.png)
+![Dark theme](mockup-06-dark.webp)
 
 - Reuse the existing warm + coral brand colors; only the canvas and surfaces switch to dark.
 - Overlays use dark semi-transparent surfaces, avoiding an abruptly light dock on a black background.
 
 ### 3.7 Idle state
 
-![Idle state](mockup-07-idle.png)
+![Idle state](mockup-07-idle.webp)
 
 - Once the mouse stops moving, only the image remains; a very faint hint in the bottom-left says that moving the mouse restores the controls.
 - This is "viewing mode", not another page.
@@ -250,15 +250,15 @@ Known differences from the mockups:
 
 Implementation screenshots (1240 × 860; fullscreen 1240 × 698):
 
-![Default state after implementation](implemented-hover.png)
+![Default state after implementation](implemented-hover.webp)
 
-![Filmstrip after implementation](implemented-browse.png)
+![Filmstrip after implementation](implemented-browse.webp)
 
-![Info panel after implementation](implemented-info.png)
+![Info panel after implementation](implemented-info.webp)
 
-![Empty state after implementation](implemented-empty.png)
+![Empty state after implementation](implemented-empty.webp)
 
-![Dark theme after implementation](implemented-dark.png)
+![Dark theme after implementation](implemented-dark.webp)
 
-![Fullscreen after implementation](implemented-fullscreen.png)
+![Fullscreen after implementation](implemented-fullscreen.webp)
 

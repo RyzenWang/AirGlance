@@ -9,11 +9,11 @@
 
 Interaction board: [analysis-menu.html](analysis-menu.html) (open in a browser, switch states at the bottom left; `?ui=0` hides the state bar)
 
-![Analysis histogram](analysis-v1-histogram.png)
+![Analysis histogram](analysis-v1-histogram.webp)
 
-Design screenshots: [menu](analysis-v1-menu.png) · [histogram](analysis-v1-histogram.png) · [RGB](analysis-v1-rgb.png) · [color](analysis-v1-color.png) · [quality](analysis-v1-quality.png) · [data](analysis-v1-data.png) · [dark](analysis-v1-dark.png) · [dark menu](analysis-v1-menu-dark.png)
+Design screenshots: [menu](analysis-v1-menu.webp) · [histogram](analysis-v1-histogram.webp) · [RGB](analysis-v1-rgb.webp) · [color](analysis-v1-color.webp) · [quality](analysis-v1-quality.webp) · [data](analysis-v1-data.webp) · [dark](analysis-v1-dark.webp) · [dark menu](analysis-v1-menu-dark.webp)
 
-Application screenshots: [menu](implemented-analysis-menu.png) · [histogram](implemented-analysis-histogram.png) · [RGB](implemented-analysis-rgb.png) · [color](implemented-analysis-color.png) · [dark](implemented-analysis-dark.png)
+Application screenshots: [menu](implemented-analysis-menu.webp) · [histogram](implemented-analysis-histogram.webp) · [RGB](implemented-analysis-rgb.webp) · [color](implemented-analysis-color.webp) · [dark](implemented-analysis-dark.webp)
 
 The board uses [`analysis-demo.jpg`](analysis-demo.jpg) (a crop and grade of `crop-demo-bg.jpg`) as a sample image; it is design-only and is not shipped with the app.
 

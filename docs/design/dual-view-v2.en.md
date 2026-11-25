@@ -17,7 +17,7 @@
 
 ## 1. Active-canvas perception
 
-![Active canvas A](dual-v2-same.png)
+![Active canvas A](dual-v2-same.webp)
 
 ### 1.1 Three simultaneous cues
 
@@ -49,7 +49,7 @@ The canvas **no longer has a full-width identity line at its top edge**. The ina
 
 ## 2. Pane context menu
 
-![Right-click menu on canvas B](dual-v2-menu.png)
+![Right-click menu on canvas B](dual-v2-menu.webp)
 
 ### 2.1 Opening
 
@@ -85,7 +85,7 @@ The canvas **no longer has a full-width identity line at its top edge**. The ina
 
 ## 3. Split filmstrip
 
-![Split filmstrip](dual-v2-filmstrip.png)
+![Split filmstrip](dual-v2-filmstrip.webp)
 
 ### 3.1 Layout
 
@@ -114,7 +114,7 @@ The filmstrip changes from one global strip to two halves:
 
 ### 3.3 Empty half
 
-![Empty filmstrip half](dual-v2-filmstrip-empty.png)
+![Empty filmstrip half](dual-v2-filmstrip-empty.webp)
 
 
 - If B has no image or folder, its half keeps the fixed 50% width but shows **only the 30×30 B badge**.
@@ -238,9 +238,9 @@ These were landed in the local 0.4.0 build:
 
 Implementation screenshots:
 
-- [Dual canvas with the active frame and 30 px badges](implemented-dual.png)
-- [Split filmstrip](implemented-dual-filmstrip.png)
-- [Empty filmstrip half (implemented)](implemented-dual-filmstrip-empty.png)
+- [Dual canvas with the active frame and 30 px badges](implemented-dual.webp)
+- [Split filmstrip](implemented-dual-filmstrip.webp)
+- [Empty filmstrip half (implemented)](implemented-dual-filmstrip-empty.webp)
 
 Prototype:
 
@@ -255,8 +255,8 @@ Prototype:
 
 More screenshots:
 
-- [Active canvas A](dual-v2-same.png)
-- [Right-click menu on B](dual-v2-menu.png)
-- [Split filmstrip](dual-v2-filmstrip.png)
-- [Empty filmstrip half design](dual-v2-filmstrip-empty.png)
-- [Dark theme](dual-v2-dark.png)
+- [Active canvas A](dual-v2-same.webp)
+- [Right-click menu on B](dual-v2-menu.webp)
+- [Split filmstrip](dual-v2-filmstrip.webp)
+- [Empty filmstrip half design](dual-v2-filmstrip-empty.webp)
+- [Dark theme](dual-v2-dark.webp)

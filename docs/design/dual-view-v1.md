@@ -6,9 +6,9 @@
 >
 > **已确认（2026-11-18）**：同窗口左右双画布；同文件夹进入时右画布默认下一张；v1 不做成对前进；双 100 MP 同时 100% 不是验收要求。
 >
-> **实现状态（0.4.0 本地构建，待你确认后推送）**：Phase 1 已落地。实现截图见 [implemented-dual.png](implemented-dual.png)。
+> **实现状态（0.4.0 本地构建，待你确认后推送）**：Phase 1 已落地。实现截图见 [implemented-dual.webp](implemented-dual.webp)。
 
-![同文件夹双画布](dual-view-same.png)
+![同文件夹双画布](dual-view-same.webp)
 
 ## 0. 范围与假设
 
@@ -69,7 +69,7 @@ Window
 
 ## 3. 同文件夹查看
 
-![同文件夹：Burst-2026 的相邻两张](dual-view-same.png)
+![同文件夹：Burst-2026 的相邻两张](dual-view-same.webp)
 
 - 两个画布共用同一个文件夹列表，但**各自维护当前图片**。
 - 进入时的默认组合：左 `N`，右 `N+1`。
@@ -88,7 +88,7 @@ Window
 
 ## 4. 不同文件夹对比
 
-![不同文件夹：左 Trip-2026，右 Studio-B](dual-view-folders.png)
+![不同文件夹：左 Trip-2026，右 Studio-B](dual-view-folders.webp)
 
 - 每个画布有独立的文件夹 chip，显示自己的文件夹名和图片数量。
 - 左、右文件夹可以完全不同；退出双画布时只保留 active pane 的文件夹。
@@ -105,7 +105,7 @@ Window
 
 ## 5. 布局与视觉
 
-![双画布默认状态](dual-view-same.png)
+![双画布默认状态](dual-view-same.webp)
 
 ### 画布
 
@@ -175,7 +175,7 @@ Window
 
 ### 右画布为空
 
-![右画布空状态](dual-view-empty.png)
+![右画布空状态](dual-view-empty.webp)
 
 - 右画布显示 dashed card：把 B 文件夹拖进来 / 打开文件夹 / 打开图片。
 - 右画布标题变为 `B · 选择 B 文件夹`，不再显示无关的文件 chip。

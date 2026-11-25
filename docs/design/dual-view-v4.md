@@ -15,9 +15,9 @@
 
 ## 1. 顶部翻页按钮
 
-![A 当前：两块画布各自顶部的翻页组](dual-v4-same.png)
+![A 当前：两块画布各自顶部的翻页组](dual-v4-same.webp)
 
-![B 当前：B 组高亮，A 组降低不透明度](dual-v4-folders.png)
+![B 当前：B 组高亮，A 组降低不透明度](dual-v4-folders.webp)
 
 ### 1.1 位置
 
@@ -78,7 +78,7 @@
 
 ## 2. 胶片条标题垂直居中
 
-![胶片条标题与顶部翻页组](dual-v4-filmstrip.png)
+![胶片条标题与顶部翻页组](dual-v4-filmstrip.webp)
 
 延续 v3 的规格：
 
@@ -90,7 +90,7 @@
 
 ## 3. 空画布
 
-![右侧空画布：B 翻页组隐藏](dual-v4-empty.png)
+![右侧空画布：B 翻页组隐藏](dual-v4-empty.webp)
 
 - B 为空时，B 的翻页组整体隐藏。
 - A 的翻页组仍保留，即使 A 不是当前画布也可见。
@@ -166,12 +166,12 @@ v4 的主要取舍是：**用一点顶部覆盖，换取两侧更干净、A/B �
 
 实现截图：
 
-- [双画布顶部翻页（实现）](implemented-dual.png)
-- [胶片条标题与顶部翻页（实现）](implemented-dual-filmstrip.png)
+- [双画布顶部翻页（实现）](implemented-dual.webp)
+- [胶片条标题与顶部翻页（实现）](implemented-dual-filmstrip.webp)
 
 设计截图：
 
-- [A 当前](dual-v4-same.png)
-- [B 当前](dual-v4-folders.png)
-- [胶片条与顶部翻页](dual-v4-filmstrip.png)
-- [空画布隐藏 B 组](dual-v4-empty.png)
+- [A 当前](dual-v4-same.webp)
+- [B 当前](dual-v4-folders.webp)
+- [胶片条与顶部翻页](dual-v4-filmstrip.webp)
+- [空画布隐藏 B 组](dual-v4-empty.webp)

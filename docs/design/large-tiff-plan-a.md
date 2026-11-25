@@ -47,9 +47,9 @@ P0 实测：
 - 36 个视口 tile 约 0.25 秒；
 - 峰值内存约 295 MB。
 
-![区域 tile 加载提示](implemented-large-tiff-region-loading.png)
+![区域 tile 加载提示](implemented-large-tiff-region-loading.webp)
 
-![100% 区域模式](implemented-large-tiff-region.png)
+![100% 区域模式](implemented-large-tiff-region.webp)
 
 ## 本地验证
 
@@ -65,7 +65,7 @@ P0 实测：
 - 预览正常显示；
 - AOT 包启动正常。
 
-![Cosmic 大 TIFF 渐进预览](implemented-large-tiff-preview.png)
+![Cosmic 大 TIFF 渐进预览](implemented-large-tiff-preview.webp)
 
 ### Trifid & Lagoon
 
@@ -79,7 +79,7 @@ P0 实测：
 - 应用不再崩溃，显示“图片尺寸过大，当前解码器无法生成预览”；
 - 可打开同目录的 preview JPG。
 
-![Trifid 预览失败提示](implemented-large-tiff-error.png)
+![Trifid 预览失败提示](implemented-large-tiff-error.webp)
 
 ## 包
 

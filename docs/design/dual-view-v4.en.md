@@ -15,9 +15,9 @@
 
 ## 1. Top paging controls
 
-![A active: one pair at the top of each canvas](dual-v4-same.png)
+![A active: one pair at the top of each canvas](dual-v4-same.webp)
 
-![B active: B’s pair highlighted, A’s pair dimmed](dual-v4-folders.png)
+![B active: B’s pair highlighted, A’s pair dimmed](dual-v4-folders.webp)
 
 ### 1.1 Position
 
@@ -78,7 +78,7 @@
 
 ## 2. Filmstrip header centring
 
-![Filmstrip header and top paging](dual-v4-filmstrip.png)
+![Filmstrip header and top paging](dual-v4-filmstrip.webp)
 
 Carried over from v3:
 
@@ -90,7 +90,7 @@ Carried over from v3:
 
 ## 3. Empty canvas
 
-![Empty right canvas: B’s paging group hidden](dual-v4-empty.png)
+![Empty right canvas: B’s paging group hidden](dual-v4-empty.webp)
 
 - If B is empty, B’s paging group is hidden.
 - A’s group remains visible even when A is not active.
@@ -166,12 +166,12 @@ The trade-off: **a little top coverage for cleaner sides and a more symmetric A/
 
 Implementation screenshots:
 
-- [Top paging (implemented)](implemented-dual.png)
-- [Filmstrip header and top paging (implemented)](implemented-dual-filmstrip.png)
+- [Top paging (implemented)](implemented-dual.webp)
+- [Filmstrip header and top paging (implemented)](implemented-dual-filmstrip.webp)
 
 Design screenshots:
 
-- [A active](dual-v4-same.png)
-- [B active](dual-v4-folders.png)
-- [Filmstrip and top paging](dual-v4-filmstrip.png)
-- [Empty canvas hides B group](dual-v4-empty.png)
+- [A active](dual-v4-same.webp)
+- [B active](dual-v4-folders.webp)
+- [Filmstrip and top paging](dual-v4-filmstrip.webp)
+- [Empty canvas hides B group](dual-v4-empty.webp)

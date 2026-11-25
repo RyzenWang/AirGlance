@@ -40,23 +40,23 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 
 | 浏览 | 胶片条 |
 | --- | --- |
-| ![浮动控件的浏览界面](docs/design/implemented-hover.png) | ![胶片条抽屉](docs/design/implemented-browse.png) |
+| ![浮动控件的浏览界面](docs/design/implemented-hover.webp) | ![胶片条抽屉](docs/design/implemented-browse.webp) |
 
 | 信息面板 | 空状态 |
 | --- | --- |
-| ![信息抽屉](docs/design/implemented-info.png) | ![空状态卡片](docs/design/implemented-empty.png) |
+| ![信息抽屉](docs/design/implemented-info.webp) | ![空状态卡片](docs/design/implemented-empty.webp) |
 
 | 分析 | 分析 · 色彩 |
 | --- | --- |
-| ![直方图、裁切与影调分区](docs/design/implemented-analysis-histogram.png) | ![主色板、平均色与取色器样本](docs/design/implemented-analysis-color.png) |
+| ![直方图、裁切与影调分区](docs/design/implemented-analysis-histogram.webp) | ![主色板、平均色与取色器样本](docs/design/implemented-analysis-color.webp) |
 
 | 暗色主题 | 全屏 |
 | --- | --- |
-| ![暗色主题](docs/design/implemented-dark.png) | ![带 Esc 提示的全屏](docs/design/implemented-fullscreen.png) |
+| ![暗色主题](docs/design/implemented-dark.webp) | ![带 Esc 提示的全屏](docs/design/implemented-fullscreen.webp) |
 
 | 双画布 |
 | --- |
-| ![带 30 px A/B 徽标和当前画布边框的两块画布](docs/design/implemented-dual.png) |
+| ![带 30 px A/B 徽标和当前画布边框的两块画布](docs/design/implemented-dual.webp) |
 
 ## 图片格式
 

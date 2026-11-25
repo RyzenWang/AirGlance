@@ -15,7 +15,7 @@
 
 ## 1. 胶片条标题垂直居中
 
-![胶片条标题与双画布翻页按钮](dual-v3-filmstrip.png)
+![胶片条标题与双画布翻页按钮](dual-v3-filmstrip.webp)
 
 ### 1.1 规格
 
@@ -45,9 +45,9 @@
 
 ## 2. 每块画布自己的上一张/下一张
 
-![A 画布当前，A/B 各有一组翻页按钮](dual-v3-same.png)
+![A 画布当前，A/B 各有一组翻页按钮](dual-v3-same.webp)
 
-![B 画布当前，B 的一组翻页按钮高亮](dual-v3-folders.png)
+![B 画布当前，B 的一组翻页按钮高亮](dual-v3-folders.webp)
 
 ### 2.1 布局
 
@@ -177,7 +177,7 @@ A 画布                               B 画布
 
 截图：
 
-- [A 当前](dual-v3-same.png)
-- [B 当前](dual-v3-folders.png)
-- [胶片条与翻页按钮](dual-v3-filmstrip.png)
-- [空画布隐藏 B 组](dual-v3-empty.png)
+- [A 当前](dual-v3-same.webp)
+- [B 当前](dual-v3-folders.webp)
+- [胶片条与翻页按钮](dual-v3-filmstrip.webp)
+- [空画布隐藏 B 组](dual-v3-empty.webp)

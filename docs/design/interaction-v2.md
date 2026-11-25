@@ -16,7 +16,7 @@
 180 px  固定 chrome，约占窗口高度的 21%
 ```
 
-![当前界面](assets/current.png)
+![当前界面](assets/current.webp)
 
 主要问题：
 
@@ -42,7 +42,7 @@
 
 ### 3.1 默认 / hover：图片 + 浮动控制
 
-![默认状态](mockup-01-hover.png)
+![默认状态](mockup-01-hover.webp)
 
 - 顶部左侧：当前文件夹 + 数量；中间：文件名、尺寸/缩放、`04 / 27`；右侧：明暗切换和窗口按钮。
 - 底部中央：缩放 −/百分比/+、适应窗口、1:1、旋转、信息、胶片条、幻灯片、全屏、设置。
@@ -52,7 +52,7 @@
 
 ### 3.2 胶片条展开
 
-![胶片条状态](mockup-02-browse.png)
+![胶片条状态](mockup-02-browse.webp)
 
 - 胶片条从底部滑出，高 138 px，半透明深色底，覆盖图片而不是挤压图片。
 - 缩略图 92 × 56，选中项用 coral 描边；hover 上浮 2 px。
@@ -61,7 +61,7 @@
 
 ### 3.3 信息面板
 
-![信息面板](mockup-03-info.png)
+![信息面板](mockup-03-info.webp)
 
 - 右侧浮层 334 px；`I` 切换，点击关闭或 `I` 关闭。
 - 文件、相机、色彩三段；值使用等宽字体，长路径可换行。
@@ -70,7 +70,7 @@
 
 ### 3.4 空状态
 
-![空状态](mockup-04-empty.png)
+![空状态](mockup-04-empty.webp)
 
 - 空状态只保留品牌、窗口按钮和一张明确的入口卡片。
 - 主按钮“打开文件夹”，次按钮“打开图片”，底部给出拖放和快捷键提示。
@@ -78,21 +78,21 @@
 
 ### 3.5 全屏
 
-![全屏](mockup-05-fullscreen.png)
+![全屏](mockup-05-fullscreen.webp)
 
 - 画布变为纯黑，图片铺满；除了右下角的 `Esc` 提示，没有常驻 chrome。
 - 鼠标移动时再从底部浮现 dock；离开 2.5 秒后完全退场。
 
 ### 3.6 暗色主题
 
-![暗色主题](mockup-06-dark.png)
+![暗色主题](mockup-06-dark.webp)
 
 - 沿用现有暖色 + coral 的品牌色，只把画布和表面切到深色。
 - 浮层使用深色半透明表面，避免在黑底上出现一块突兀的浅色 dock。
 
 ### 3.7 空闲状态
 
-![空闲状态](mockup-07-idle.png)
+![空闲状态](mockup-07-idle.webp)
 
 - 鼠标停止移动后只留下图片；左下角有非常淡的提示，移动鼠标即可恢复控制。
 - 这是“看图模式”，不是另一个页面。
@@ -250,15 +250,15 @@
 
 实现截图（1240 × 860；全屏为 1240 × 698）：
 
-![实现后的默认状态](implemented-hover.png)
+![实现后的默认状态](implemented-hover.webp)
 
-![实现后的胶片条](implemented-browse.png)
+![实现后的胶片条](implemented-browse.webp)
 
-![实现后的信息面板](implemented-info.png)
+![实现后的信息面板](implemented-info.webp)
 
-![实现后的空状态](implemented-empty.png)
+![实现后的空状态](implemented-empty.webp)
 
-![实现后的暗色主题](implemented-dark.png)
+![实现后的暗色主题](implemented-dark.webp)
 
-![实现后的全屏](implemented-fullscreen.png)
+![实现后的全屏](implemented-fullscreen.webp)
 

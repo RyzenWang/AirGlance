@@ -15,7 +15,7 @@ Windows x64 的 NetVips.Native 包包含 libheif + AOM，可以直接解码 AVIF
 - 元数据、预览和 1:1 缩放走 NetVips；
 - 动画 AVIF 目前只显示第一帧。
 
-![AVIF 在 AirGlance 中显示](implemented-avif.png)
+![AVIF 在 AirGlance 中显示](implemented-avif.webp)
 
 ## 集成
 

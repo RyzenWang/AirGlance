@@ -47,7 +47,7 @@ B  [📁 Saved Pictu… 2]  [this-is-a-…jpg  1600 × 1067  02 / 02]
 
 ## 2. 默认 1240 px
 
-![1240 px 下的右屏标题](dual-v5-header-1240-v2.png)
+![1240 px 下的右屏标题](dual-v5-header-1240-v2.webp)
 
 宽度预算：
 
@@ -170,8 +170,8 @@ B  [📁 Saved Pictu…  2]  [this-is-a-…jpg  1600 × 1067  02 / 02]
 ## 9. 原型与截图
 
 - [HTML 原型](dual-view-v5.html)（默认 `?state=same&ui=0`）
-- [1240 px 设计截图](dual-v5-header-1240-v2.png)
-- [实现截图](implemented-dual-pagecount.png)
+- [1240 px 设计截图](dual-v5-header-1240-v2.webp)
+- [实现截图](implemented-dual-pagecount.webp)
 
 状态参数：
 

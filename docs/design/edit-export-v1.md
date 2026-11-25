@@ -2,7 +2,7 @@
 
 > 状态：v1 已实现（`feature/basic-edit-export` / `d25cdec`）。  
 > 原型：[edit-export-v1.html](edit-export-v1.html)  
-> 静态稿：[入口与 dock](edit-export-v1-closed.png) · [编辑面板](edit-export-v1-edit.png) · [裁剪](edit-export-v1-crop.png) · [导出](edit-export-v1-export.png) · [代理图禁用](edit-export-v1-proxy.png)
+> 静态稿：[入口与 dock](edit-export-v1-closed.webp) · [编辑面板](edit-export-v1-edit.webp) · [裁剪](edit-export-v1-crop.webp) · [导出](edit-export-v1-export.webp) · [代理图禁用](edit-export-v1-proxy.webp)
 
 ## 目标
 

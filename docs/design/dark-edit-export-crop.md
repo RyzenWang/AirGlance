@@ -5,7 +5,7 @@
 > 日期：2026-11-20  
 > 基线：现有 `Colors.axaml` 深色 token + 0.6.x 布局尺寸
 
-![深色模式设计板](dark-edit-export-crop.png)
+![深色模式设计板](dark-edit-export-crop.webp)
 
 设计板源文件：[dark-edit-export-crop.html](dark-edit-export-crop.html)（可直接用浏览器打开、放大查看）
 

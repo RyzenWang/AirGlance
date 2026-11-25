@@ -29,11 +29,11 @@ v5 hid zoom at 1240 px. The new requirement is to keep **both dimensions and zoo
 - Wider windows leave empty space to the right instead of stretching the chip.
 - The page counter remains fixed at 46 px.
 
-![1920 px: file chip capped at 340 px](dual-v6-1920.png)
+![1920 px: file chip capped at 340 px](dual-v6-1920.webp)
 
 ## 2. 1240 px: keep dimensions + zoom
 
-![1240 px: dimensions, zoom, page counter and an 8-character file name](dual-v6-1240.png)
+![1240 px: dimensions, zoom, page counter and an 8-character file name](dual-v6-1240.webp)
 
 ### Recommended: 8-character file name
 
@@ -163,9 +163,9 @@ A/B badge → page counter → folder name → file name → zoom → dimensions
 ## 9. Prototype and screenshots
 
 - [HTML prototype](dual-view-v6.html) (default `?state=same&ui=0`)
-- [1240 px: dimensions + zoom + 8-character file name](dual-v6-1240.png)
-- [Implementation screenshot](implemented-dual-v6.png)
-- [1920 px: file chip capped at 340 px](dual-v6-1920.png)
+- [1240 px: dimensions + zoom + 8-character file name](dual-v6-1240.webp)
+- [Implementation screenshot](implemented-dual-v6.webp)
+- [1920 px: file chip capped at 340 px](dual-v6-1920.webp)
 
 State parameters:
 

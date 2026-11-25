@@ -6,9 +6,9 @@
 >
 > **Confirmed (2026-11-18):** two side-by-side canvases in one window; the right canvas shows the next image when entering from a folder; v1 does not include pair stepping; viewing two 100 MP images at 100% simultaneously is not an acceptance requirement.
 >
-> **Implementation status (0.4.0 local build, pending review and remote push):** Phase 1 is implemented. See [implemented-dual.png](implemented-dual.png).
+> **Implementation status (0.4.0 local build, pending review and remote push):** Phase 1 is implemented. See [implemented-dual.webp](implemented-dual.webp).
 
-![Same-folder dual canvas](dual-view-same.png)
+![Same-folder dual canvas](dual-view-same.webp)
 
 ## 0. Scope and assumptions
 
@@ -69,7 +69,7 @@ Opening a new folder never changes the other pane. Opening an image makes its pa
 
 ## 3. Same-folder viewing
 
-![Same folder: adjacent images in Burst-2026](dual-view-same.png)
+![Same folder: adjacent images in Burst-2026](dual-view-same.webp)
 
 - Both canvases share one folder list, but **each keeps its own current image**.
 - Default pair: left `N`, right `N+1`.
@@ -88,7 +88,7 @@ The filmstrip follows the active pane and shows `A · Burst-2026 · 27`. Thumbna
 
 ## 4. Different folders
 
-![Different folders: Trip-2026 on the left, Studio-B on the right](dual-view-folders.png)
+![Different folders: Trip-2026 on the left, Studio-B on the right](dual-view-folders.webp)
 
 - Each canvas has its own folder chip with its own name and count.
 - The folders are completely independent. Leaving dual view keeps only the active pane's folder.
@@ -173,7 +173,7 @@ Each pane's top-left contains:
 
 ### Empty right canvas
 
-![Empty right canvas](dual-view-empty.png)
+![Empty right canvas](dual-view-empty.webp)
 
 - The right canvas shows a dashed card: drop folder B, open a folder, or open an image.
 - Its header becomes `B · Choose folder B`; the file chip is hidden.
