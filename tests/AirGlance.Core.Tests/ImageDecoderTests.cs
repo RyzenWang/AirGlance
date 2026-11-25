@@ -272,6 +272,103 @@ public sealed class ImageDecoderTests
     }
 
     [Fact]
+    public void Png_exif_orientation_is_applied_to_pixels()
+    {
+        // The PNG codec reports no encoded origin, so the orientation has to come from
+        // the eXIf chunk that the managed reader parses. Stored 40 x 20, displayed 20 x 40.
+        var bitmap = ImageDecoder.DecodeFull(Asset("orientation-6.png"));
+
+        Assert.Equal(20, bitmap.Width);
+        Assert.Equal(40, bitmap.Height);
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("orientation-6.png"));
+        Assert.Equal(ImageOrientation.RightTop, metadata.Orientation);
+        Assert.Equal(20, metadata.DisplayWidth);
+        Assert.Equal(40, metadata.DisplayHeight);
+    }
+
+    [Fact]
+    public void Animated_webp_decodes_every_frame_and_delay()
+    {
+        var animation = ImageDecoder.DecodeAnimation(Asset("animated.webp"), 40, 40);
+
+        Assert.NotNull(animation);
+        Assert.Equal(3, animation!.FrameCount);
+        Assert.Equal([100, 200, 300], animation.DelaysMilliseconds);
+
+        var first = Pixel(animation.Frames[0], 20, 20);
+        Assert.True(first.R > 180 && first.G < 90 && first.B < 90, "frame 1 should be red");
+        var second = Pixel(animation.Frames[1], 20, 20);
+        Assert.True(second.G > 150 && second.R < 90, "frame 2 should be green");
+        var third = Pixel(animation.Frames[2], 20, 20);
+        Assert.True(third.B > 150 && third.R < 90, "frame 3 should be blue");
+    }
+
+    [Fact]
+    public void Animated_webp_metadata_reports_frame_count()
+    {
+        var metadata = ImageDecoder.ReadMetadata(Asset("animated.webp"));
+
+        Assert.Equal(3, metadata.FrameCount);
+        Assert.True(metadata.IsAnimated);
+    }
+
+    [Fact]
+    public void Webp_icc_and_exif_are_read()
+    {
+        var metadata = ImageDecoder.ReadMetadata(Asset("icc-exif.webp"));
+
+        Assert.NotNull(metadata.IccDescription);
+        Assert.Contains("P3", metadata.IccDescription, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("AirGlance Fixture Camera", metadata.Exif.Camera);
+        Assert.Equal("WebP", metadata.FormatName);
+    }
+
+    [Fact]
+    public void Bmp_decodes_its_quadrants()
+    {
+        var bitmap = ImageDecoder.DecodeFull(Asset("sample.bmp"));
+
+        Assert.Equal(32, bitmap.Width);
+        Assert.Equal(16, bitmap.Height);
+
+        var topLeft = Pixel(bitmap, 4, 4);
+        Assert.True(topLeft.R > 180 && topLeft.G < 90 && topLeft.B < 90, "top left should be red");
+        var bottomRight = Pixel(bitmap, 28, 12);
+        Assert.True(bottomRight.R > 200 && bottomRight.G > 170 && bottomRight.B < 120, "bottom right should be yellow");
+    }
+
+    [Fact]
+    public void Ico_decodes_with_alpha()
+    {
+        var bitmap = ImageDecoder.DecodeFull(Asset("sample.ico"));
+
+        Assert.Equal(32, bitmap.Width);
+        Assert.Equal(32, bitmap.Height);
+        Assert.Equal((byte)0, Pixel(bitmap, 2, 2).A);
+        Assert.Equal((byte)255, Pixel(bitmap, 20, 20).A);
+    }
+
+    [Fact]
+    public void Bigtiff_decodes()
+    {
+        // BigTIFF uses 64-bit offsets; the file is small, only the container differs.
+        var bitmap = ImageDecoder.DecodeFull(Asset("bigtiff-lzw.tif"));
+
+        Assert.Equal(64, bitmap.Width);
+        Assert.Equal(32, bitmap.Height);
+
+        var topLeft = Pixel(bitmap, 6, 6);
+        Assert.True(topLeft.R > 180 && topLeft.G < 90 && topLeft.B < 90, "top left should be red");
+        var bottomRight = Pixel(bitmap, 58, 26);
+        Assert.True(bottomRight.R > 200 && bottomRight.G > 170 && bottomRight.B < 120, "bottom right should be yellow");
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("bigtiff-lzw.tif"));
+        Assert.Equal(64, metadata.DisplayWidth);
+        Assert.Equal("TIFF", metadata.FormatName);
+    }
+
+    [Fact]
     public void Sixteen_bit_png_reports_its_source_bit_depth()
     {
         var metadata = ImageDecoder.ReadMetadata(Asset("gradient-16bit.png"));

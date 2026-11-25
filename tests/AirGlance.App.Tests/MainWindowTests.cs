@@ -345,6 +345,21 @@ public sealed class MainWindowTests
     }
 
     [AvaloniaFact]
+    public async Task Animated_webp_is_presented_as_an_animation()
+    {
+        using var fixture = new WindowFixture("animated.webp");
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        Assert.NotNull(viewer.Source);
+        var first = viewer.Source;
+        await WaitUntilAsync(() => !ReferenceEquals(first, viewer.Source), 3_000);
+    }
+
+    [AvaloniaFact]
     public async Task Svg_is_presented_as_an_image()
     {
         using var fixture = new WindowFixture("vector.svg");

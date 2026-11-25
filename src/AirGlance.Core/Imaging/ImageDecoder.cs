@@ -91,6 +91,13 @@ public static class ImageDecoder
                     Path.GetExtension(path));
 
             var orientation = GetOrientation(codec);
+            if (orientation == ImageOrientation.TopLeft)
+            {
+                // Skia reports no encoded origin for PNG (and some other codecs), so a
+                // stored eXIf orientation would otherwise leave the image sideways. The
+                // managed reader has already parsed it; use it only as a fallback.
+                orientation = ManagedOrientation(path);
+            }
             var (orientedWidth, orientedHeight) = orientation.OrientedSize(codec.Info.Width, codec.Info.Height);
             var fullResolution = maxWidth <= 0 || maxHeight <= 0;
             var targetScale = 1.0;
@@ -290,6 +297,13 @@ public static class ImageDecoder
                     Path.GetExtension(path));
 
             var orientation = GetOrientation(codec);
+            if (orientation == ImageOrientation.TopLeft)
+            {
+                // Skia reports no encoded origin for PNG (and some other codecs), so a
+                // stored eXIf orientation would otherwise leave the image sideways. The
+                // managed reader has already parsed it; use it only as a fallback.
+                orientation = ManagedOrientation(path);
+            }
             var (sourceWidth, sourceHeight) = orientation.OrientedSize(
                 codec.Info.Width,
                 codec.Info.Height);
@@ -487,11 +501,9 @@ public static class ImageDecoder
         Validate(path);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.Equals(Path.GetExtension(path), ".gif", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
+        // This used to gate on ".gif" because GIF was the only animated format when it was
+        // written. SKCodec exposes WebP frames through the same API, and a still image
+        // reports a frame count of one below, so the extension check is gone.
         try
         {
             using var stream = OpenRead(path);
@@ -1445,6 +1457,26 @@ public static class ImageDecoder
     {
         var origin = (int)codec.EncodedOrigin;
         return origin is >= 1 and <= 8 ? (ImageOrientation)origin : ImageOrientation.TopLeft;
+    }
+
+    /// <summary>
+    /// The orientation from the file's own EXIF block, for codecs that do not report an
+    /// encoded origin. Failures fall back to "no rotation" so a metadata problem can
+    /// never stop an image from opening.
+    /// </summary>
+    private static ImageOrientation ManagedOrientation(string path)
+    {
+        try
+        {
+            var header = ImageHeaderReader.Read(path);
+            return header.Exif.Orientation is >= 1 and <= 8
+                ? (ImageOrientation)header.Exif.Orientation.Value
+                : ImageOrientation.TopLeft;
+        }
+        catch
+        {
+            return ImageOrientation.TopLeft;
+        }
     }
 
     private static SKSizeI NormalizeScaled(SKSizeI scaled, SKImageInfo info)
