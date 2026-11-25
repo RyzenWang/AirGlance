@@ -261,7 +261,7 @@ Benchmark failures print `error=<message>` and exit with code 1. `tools/bench.ps
 
 `AIRGLANCE_STARTUP_TRACE=1` prints opt-in startup marks to stderr, including `main`, `app-init`, `xaml-loaded`, `framework-init`, `services-ready`, `window-created`, `window-opened` and `image-initialized`.
 
-AirGlance has no single-instance forwarding and no tray icon. Each launch is a separate process and window.
+`SingleInstance` claims a named mutex and listens on a named pipe, both keyed by a hash of the settings directory. A launch that cannot claim the mutex writes its path to the pipe and exits; the running instance opens it on the UI thread. The scope is the settings directory so an isolated test, benchmark or portable copy never forwards into a normal session. There is no tray icon.
 
 ## NativeAOT and trimming
 

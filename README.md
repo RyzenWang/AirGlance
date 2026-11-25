@@ -193,12 +193,12 @@ Measured on the published 0.7.0 Windows x64 binary, on Windows 10 Pro 22H2 (1904
 
 These are limitations, not a promise list.
 
-- HEIC/HEIF and camera RAW are not supported. AVIF is supported by the Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64 builds; the Windows arm64 decoder is cross-compiled without x86 SIMD.
+- HEIC/HEIF and camera RAW are not supported, and they are named rather than hidden: opening a folder reports how many such files it skipped, and dropping one says which decoder is missing. AVIF is supported by the Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64 builds; the Windows arm64 decoder is cross-compiled without x86 SIMD.
 - AVIF shows the first frame only; animated AVIF is not played. AVIF cannot be written by Save copy.
 - Animated GIFs and animated WebP play; APNG remains a still image. Video is not supported.
 - TIFF shows the first page only. BigTIFF is supported and fixture-tested; some exotic compression variants remain outside the support contract; the managed LibTiff path covers stripped, tiled, pyramidal and planar files, including 8/16-bit RGB, CMYK, RGBA, float and palette data.
 - No gallery, database, tags, ratings, search, batch conversion or rename, filters, layers, text, stitching, cloud sync or accounts.
-- No tabs. Dual view is one window with two explicit A/B canvases, not a tab strip. No tray icon and no single-instance forwarding.
+- No tabs. Dual view is one window with two explicit A/B canvases, not a tab strip. No tray icon. A second launch forwards its path to the running window instead of opening another process, scoped to the same settings directory.
 - Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.
 - Crop, rotate and flip are session edits. There is no lossless JPEG rotation, and the original file is never rewritten. Editing is disabled in dual view and for proxy-only or tiled images.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
@@ -271,7 +271,7 @@ A folder opens its first supported image. The first displayable path wins; other
 
 ## Privacy
 
-AirGlance contains no `HttpClient`, no sockets, no telemetry, no crash upload and no update check. The only outbound action is a link you click yourself: the GitHub entry in the status bar opens your browser. Settings live in the per-user settings folder; thumbnails live in the per-user cache and are removed after 30 days.
+AirGlance makes no network connections: no `HttpClient`, no network sockets, no telemetry, no crash upload and no update check. A second launch hands its path to the running window over a local named pipe scoped to the same settings directory, so it never leaves the machine. The only outbound action is a link you click yourself: the GitHub entry in the status bar opens your browser. Settings live in the per-user settings folder; thumbnails live in the per-user cache and are removed after 30 days.
 
 ## License
 

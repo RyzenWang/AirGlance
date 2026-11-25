@@ -4,7 +4,7 @@
 
 This is the release procedure for AirGlance 0.7.0 (2026-11-23). It covers the packaging scripts, NativeAOT builds, signing limits, the MSIX packages used for the Microsoft Store submission, WACK and the Store listing.
 
-The 0.7.0 release is a portable, unsigned desktop release. It has no installer, updater, tray icon or single-instance forwarding. The Windows x64 build is also live in the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); no signing certificate is stored in the repository.
+The 0.7.0 release is a portable, unsigned desktop release. It has no installer, updater or tray icon. A second launch forwards its path to the running window; see the [architecture](architecture.md) note. The Windows x64 build is also live in the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); no signing certificate is stored in the repository.
 
 ## Release matrix
 
@@ -366,9 +366,9 @@ The Store listing is live; screenshots and the privacy policy can be revised in 
 
 ## No network and no telemetry
 
-AirGlance contains no HTTP client, socket, analytics SDK, crash upload or update check. Settings and thumbnail data are local files. The only external navigation is an explicit click on the GitHub project link or the third-party notices link, which opens the default browser through the shell. That is a user action, not telemetry.
+AirGlance contains no HTTP client, network socket, analytics SDK, crash upload or update check. Settings and thumbnail data are local files. Single-instance forwarding is a local named pipe between two launches of the same settings directory, which is not network access. The only external navigation is an explicit click on the GitHub project link or the third-party notices link, which opens the default browser through the shell. That is a user action, not telemetry.
 
-This claim was checked against the source: there are no `HttpClient`, `WebRequest`, `Socket` or telemetry calls in `src/`. Keep it true when adding features. A Store privacy policy still needs to exist even when no data is collected.
+This claim was checked against the source: there are no `HttpClient`, `WebRequest`, `Socket` or telemetry calls in `src/`. The single `NamedPipeServerStream` and `NamedPipeClientStream` pair in `SingleInstance.cs` is the only IPC, and it carries paths between two launches of the same user profile. Keep it true when adding features. A Store privacy policy still needs to exist even when no data is collected.
 
 ## SHA256SUMS.txt
 
@@ -432,7 +432,7 @@ Three workflows are checked in:
 - The Windows zip, macOS app and Linux tar.gz do not include `LICENSE`, `THIRD-PARTY-NOTICES.md` or `README.md`. The repository contains these files, but the packaging scripts do not copy them into the archives.
 - The macOS `CFBundleVersion` is fixed at `1`; `pack.sh` stamps only `CFBundleShortVersionString`. There is no monotonic build number.
 - There is no Windows installer, Linux package format beyond tar.gz, auto-update, crash reporting or telemetry. The absence of telemetry is intentional.
-- There is no single-instance forwarding and no tray icon.
+- There is no tray icon. Single-instance forwarding hands a second launch's path to the running window through a local named pipe; there is no window activation, so the existing window is not raised.
 - The release checksum file is named `SHA256SUMS.txt`, not `SHA256SUMS`. The contents are standard `sha256sum` output.
 - The Store listing is live; screenshots and the privacy policy can be revised in Partner Center. The manifest `MinVersion` (Windows 10 build 19041) and macOS `LSMinimumSystemVersion` (12.0) are declarations, not a measured compatibility matrix.
 - There is no universal macOS binary. macOS x64 and arm64 are separate downloads.

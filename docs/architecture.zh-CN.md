@@ -264,7 +264,7 @@ peak_ws_mb=<megabytes>
 
 `AIRGLANCE_STARTUP_TRACE=1` 会向 stderr 打印需主动启用的启动标记，包括 `main`、`app-init`、`xaml-loaded`、`framework-init`、`services-ready`、`window-created`、`window-opened` 和 `image-initialized`。
 
-AirGlance 没有单实例转发，也没有托盘图标。每次启动都是一个独立的进程和窗口。
+`SingleInstance` 会占用一个命名互斥体并在命名管道上监听，两者都以设置目录的哈希作为键。拿不到互斥体的那次启动会把自己的路径写进管道然后退出；正在运行的实例在 UI 线程上打开它。作用域是设置目录，所以隔离的测试、基准测试或便携副本不会把文件转发进正常会话。没有托盘图标。
 
 ## NativeAOT 与裁剪
 

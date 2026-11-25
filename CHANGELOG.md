@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- HEIC and camera RAW files are no longer silently invisible. Supported formats still
+  drive the list, but opening a folder now says how many recognised-but-undecodable
+  files it skipped, and dropping one names the missing decoder (`HEIC`, `RAW`) instead
+  of reporting a generic unsupported format.
+
 - Prepared the Microsoft Store package `1.0.2.0` (app 0.7.0), replacing
   `1.0.1.0` (app 0.6.0). It is x64-only, includes the AVIF decoder and the
   analysis drawer, and has a refreshed Store screenshot set based on the
@@ -17,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Single-instance forwarding. A second launch hands its path to the running window
+  through a local named pipe and exits instead of opening another process. The mutex
+  and the pipe are keyed by a hash of the settings directory, so an isolated test,
+  benchmark or portable copy never forwards into a normal session; there is no window
+  activation, so the existing window is raised by the user.
 - Animated WebP plays and loops. `ImageDecoder.DecodeAnimation` gated on a `.gif`
   extension from a time when GIF was the only animated format, while `SKCodec`
   exposes WebP frames, disposal, blend rules and delays through the same API; the
