@@ -30,6 +30,18 @@ public static class SupportedFormats
     /// </summary>
     public static bool SupportsAvif => AvifNative.IsAvailable;
 
+    /// <summary>
+    /// Extensions AirGlance recognises but cannot decode. They are worth naming to the
+    /// user: a folder of iPhone photos or camera RAW files otherwise looks empty with no
+    /// explanation of where the files went.
+    /// </summary>
+    private static readonly string[] UnsupportedHeicExtensions = [".heic", ".heif", ".hif"];
+
+    private static readonly string[] UnsupportedRawExtensions =
+    [
+        ".dng", ".cr2", ".cr3", ".nef", ".arw", ".raf", ".orf", ".rw2"
+    ];
+
     public static readonly IReadOnlyList<string> Extensions = AllExtensions
         .Where(extension => extension != ".avif" || SupportsAvif)
         .ToArray();
@@ -86,5 +98,47 @@ public static class SupportedFormats
             ".tif" or ".tiff" => "TIFF",
             _ => extension is { Length: > 1 } ? extension[1..].ToUpperInvariant() : "Unknown"
         };
+    }
+
+    /// <summary>True for a format AirGlance knows it cannot decode, such as HEIC or RAW.</summary>
+    public static bool IsKnownUnsupported(string? path) =>
+        DescribeUnsupported(path) is not null;
+
+    public static bool IsKnownUnsupportedExtension(string? extension) =>
+        DescribeUnsupportedExtension(extension) is not null;
+
+    /// <summary>
+    /// The family name of a recognised but undecodable format, so the UI can say which
+    /// decoder is missing: "HEIC", "RAW", or null when the format is simply unknown.
+    /// </summary>
+    public static string? DescribeUnsupported(string? path) =>
+        DescribeUnsupportedExtension(Path.GetExtension(path));
+
+    public static string? DescribeUnsupportedExtension(string? extension)
+    {
+        if (string.IsNullOrEmpty(extension))
+        {
+            return null;
+        }
+
+        if (Matches(UnsupportedHeicExtensions, extension))
+        {
+            return "HEIC";
+        }
+
+        return Matches(UnsupportedRawExtensions, extension) ? "RAW" : null;
+    }
+
+    private static bool Matches(string[] extensions, string candidate)
+    {
+        foreach (var extension in extensions)
+        {
+            if (string.Equals(extension, candidate, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

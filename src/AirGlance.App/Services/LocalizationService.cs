@@ -35,6 +35,8 @@ public sealed class LocalizationService : IDisposable
 
             ["L.CantOpenTitle"] = ("Can't open this file", "打不开这张图"),
             ["L.ErrorUnsupportedFormat"] = ("Unsupported format ({0}).", "格式不支持（{0}）。"),
+            ["L.ErrorUnsupportedKnown"] = ("{0} needs an extra decoder, so it cannot be opened.", "{0} 需要额外的解码支持，无法打开。"),
+            ["L.HiddenUnsupported"] = ("{0} file(s) skipped: HEIC and camera RAW need an extra decoder.", "已跳过 {0} 个文件：HEIC 和相机 RAW 需要额外的解码支持。"),
             ["L.ErrorTooLarge"] = ("This image is too large to decode.", "图片尺寸过大，当前解码器无法生成预览。"),
             ["L.TooLargeHint"] = ("Try the preview image next to the original file.", "可以尝试打开原文件旁边的预览图。"),
             ["L.ErrorNotFound"] = ("The file no longer exists.", "文件已经不存在了。"),

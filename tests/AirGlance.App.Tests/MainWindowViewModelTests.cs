@@ -119,7 +119,21 @@ public sealed class MainWindowViewModelTests : IDisposable
         Assert.True(_viewModel.HasError);
         Assert.True(_viewModel.OverlayVisible);
         Assert.False(_viewModel.HasImage);
-        Assert.Contains(".heic", _viewModel.OverlayMessage);
+
+        // A format the viewer recognises by name says which decoder is missing.
+        Assert.Contains("HEIC", _viewModel.OverlayMessage);
+    }
+
+    [AvaloniaFact]
+    public async Task An_unknown_drop_keeps_the_generic_format_message()
+    {
+        var path = Path.Combine(_root, "photo.xyz");
+        File.WriteAllBytes(path, [1, 2, 3]);
+
+        await _viewModel.OpenDroppedPathAsync(path);
+
+        Assert.True(_viewModel.HasError);
+        Assert.Contains(".xyz", _viewModel.OverlayMessage);
     }
 
     [AvaloniaFact]

@@ -11,6 +11,30 @@ public static class FolderScanner
         bool descending = false,
         CancellationToken cancellationToken = default)
     {
+        var files = EnumerateMatching(folder, SupportedFormats.IsSupported, cancellationToken);
+        files.Sort(NaturalPathComparer.Instance);
+
+        if (descending)
+        {
+            files.Reverse();
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// Counts the files in the folder that AirGlance recognises but cannot decode, so the
+    /// viewer can say why a folder of HEIC or RAW files appears empty instead of leaving
+    /// the user to guess.
+    /// </summary>
+    public static int CountUnsupported(string folder, CancellationToken cancellationToken = default) =>
+        EnumerateMatching(folder, SupportedFormats.IsKnownUnsupported, cancellationToken).Count;
+
+    private static List<string> EnumerateMatching(
+        string folder,
+        Func<string, bool> predicate,
+        CancellationToken cancellationToken)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
 
         if (!Directory.Exists(folder))
@@ -37,7 +61,7 @@ public static class FolderScanner
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
-            if (SupportedFormats.IsSupported(file))
+            if (predicate(file))
             {
                 // On Unix a leading dot marks a hidden file. Windows reports the hidden
                 // attribute instead, and AttributesToSkip already removes it.
@@ -49,13 +73,6 @@ public static class FolderScanner
 
                 files.Add(file);
             }
-        }
-
-        files.Sort(NaturalPathComparer.Instance);
-
-        if (descending)
-        {
-            files.Reverse();
         }
 
         return files;

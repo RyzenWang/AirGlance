@@ -40,6 +40,30 @@ public sealed class FolderScannerTests : IDisposable
     }
 
     [Fact]
+    public void Known_but_undecodable_formats_are_counted_and_not_listed()
+    {
+        foreach (var name in new[]
+                 {
+                     "IMG_1.heic", "IMG_2.HEIF", "IMG_3.jpg", "shot.dng", "shot2.cr3", "notes.txt"
+                 })
+        {
+            File.WriteAllBytes(Path.Combine(_folder, name), [0]);
+        }
+
+        // The list stays displayable-only, which every navigation path relies on.
+        var files = FolderScanner.EnumerateImages(_folder);
+        Assert.Equal(new[] { "IMG_3.jpg" }, files.Select(Path.GetFileName));
+
+        // The count is what lets the viewer say why the folder is smaller than it looks.
+        Assert.Equal(4, FolderScanner.CountUnsupported(_folder));
+        Assert.Equal("HEIC", SupportedFormats.DescribeUnsupported("IMG_1.heic"));
+        Assert.Equal("RAW", SupportedFormats.DescribeUnsupported("shot.dng"));
+        Assert.Null(SupportedFormats.DescribeUnsupported("IMG_3.jpg"));
+        Assert.True(SupportedFormats.IsKnownUnsupportedExtension(".heic"));
+        Assert.False(SupportedFormats.IsKnownUnsupportedExtension(".jpg"));
+    }
+
+    [Fact]
     public void Descending_order_reverses_the_list()
     {
         foreach (var name in new[] { "img1.jpg", "img2.jpg", "img10.jpg" })

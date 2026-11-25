@@ -1027,6 +1027,19 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         DisposeTiled();
     }
 
+    private static int CountUnsupportedFiles(string folder)
+    {
+        try
+        {
+            return FolderScanner.CountUnsupported(folder);
+        }
+        catch
+        {
+            // The notice is a courtesy; a scan failure must not affect opening the folder.
+            return 0;
+        }
+    }
+
     /// <summary>
     /// Drops the filmstrip entries and their native thumbnails. Clearing first detaches
     /// them from the control so nothing renders a disposed bitmap.
@@ -1768,6 +1781,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             Images.Add(new ImageItemViewModel(file));
         }
 
+        // HEIC and camera RAW are not decodable, so they are not listed. Saying how many
+        // were left out is the difference between "this folder is empty" and "your photos
+        // need another decoder".
+        var unsupported = CountUnsupportedFiles(folder);
+        if (unsupported > 0)
+        {
+            ShowMessage(_services.Localization.Format("L.HiddenUnsupported", unsupported));
+        }
+
         CurrentIndex = index >= 0 && index < Images.Count ? index : 0;
         CurrentItem = Images.Count > 0 ? Images[CurrentIndex] : null;
         OnPropertyChanged(nameof(FilmstripSummary));
@@ -1875,6 +1897,12 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private string LocalizeFailure(ImageLoadFailure failure, string? extension)
     {
         var localization = _services.Localization;
+
+        if (failure == ImageLoadFailure.Unsupported &&
+            SupportedFormats.DescribeUnsupportedExtension(extension) is { } known)
+        {
+            return localization.Format("L.ErrorUnsupportedKnown", known);
+        }
 
         return failure switch
         {
