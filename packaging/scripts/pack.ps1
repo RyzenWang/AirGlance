@@ -13,7 +13,14 @@
     Relative -OutputDir paths resolve from the repository root.
 
 .PARAMETER Version
-    Application version used for MSBuild and the zip file name. Defaults to 0.1.0.
+    Application version used for MSBuild and the zip file name. Defaults to the
+    Version property in Directory.Build.props.
+
+.PARAMETER MsixVersion
+    Store package version for -Msix, in one to four numeric parts. Defaults to the
+    Identity version in packaging/msix/AppxManifest.xml. It is independent of
+    -Version, because the Store package version has its own history and must
+    increase with every submission.
 
 .PARAMETER Runtime
     .NET runtime identifier to publish: win-x64 or win-arm64.
@@ -45,7 +52,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "0.1.0",
+    [string]$Version = "",
 
     [ValidateSet("win-x64", "win-arm64")]
     [string]$Runtime = "win-x64",
@@ -55,6 +62,8 @@ param(
     [string]$OutputDir = "artifacts",
 
     [switch]$Msix,
+
+    [string]$MsixVersion = "",
 
     [string]$NasmDirectory = "",
 
@@ -139,6 +148,47 @@ function Format-Megabytes {
     return (($Bytes / 1MB).ToString("0.00", [Globalization.CultureInfo]::InvariantCulture) + " MB")
 }
 
+function Get-ProjectVersion {
+    $propsPath = Join-Path $repoRoot "Directory.Build.props"
+    if (-not (Test-Path -LiteralPath $propsPath -PathType Leaf)) {
+        throw "Directory.Build.props was not found at '$propsPath', so the version cannot be inferred. Pass -Version explicitly."
+    }
+
+    [xml]$props = Get-Content -LiteralPath $propsPath -Raw
+    foreach ($group in $props.Project.PropertyGroup) {
+        if (-not [string]::IsNullOrWhiteSpace($group.Version)) {
+            return $group.Version.Trim()
+        }
+    }
+
+    throw "Directory.Build.props declares no Version property. Pass -Version explicitly."
+}
+
+function Get-ManifestVersion {
+    $manifestPath = Join-Path $repoRoot "packaging\msix\AppxManifest.xml"
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        throw "The package manifest was not found at '$manifestPath', so the Store version cannot be inferred. Pass -MsixVersion explicitly."
+    }
+
+    [xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
+    $identity = $manifest.SelectSingleNode('/*[local-name()="Package"]/*[local-name()="Identity"]')
+    if ($null -eq $identity) {
+        throw "AppxManifest.xml does not contain a Package/Identity element. Pass -MsixVersion explicitly."
+    }
+
+    $value = $identity.GetAttribute("Version")
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        throw "AppxManifest.xml declares no Package/Identity@Version. Pass -MsixVersion explicitly."
+    }
+
+    return $value.Trim()
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = Get-ProjectVersion
+    Write-Host "Version from Directory.Build.props: $Version"
+}
+
 $Version = $Version.Trim()
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version cannot be empty."
@@ -158,10 +208,17 @@ $zipPath = Join-Path $outputPath ("AirGlance-{0}-{1}.zip" -f $Version, $Runtime)
 
 $msixArchitecture = $null
 $msixPath = $null
+$packageVersion = $null
 if ($Msix) {
     # Only the MSIX has a numeric four-part version requirement. Portable tags may
-    # carry a prerelease suffix.
-    $packageVersion = ConvertTo-PackageVersion -Value $Version
+    # carry a prerelease suffix. The Store version is independent of the application
+    # version, and defaults to what the manifest already declares.
+    if ([string]::IsNullOrWhiteSpace($MsixVersion)) {
+        $MsixVersion = Get-ManifestVersion
+        Write-Host "Store package version from AppxManifest.xml: $MsixVersion"
+    }
+
+    $packageVersion = ConvertTo-PackageVersion -Value $MsixVersion
 
     if ($Runtime -eq "win-x64") {
         $msixArchitecture = "x64"
@@ -288,7 +345,7 @@ try {
 
         Write-Host ""
         Write-Host "Building $msixArchitecture MSIX..."
-        & $msixScript -Version $Version -Architecture $msixArchitecture -PublishDir $publishPath -OutputDir $outputPath
+        & $msixScript -Version $packageVersion -Architecture $msixArchitecture -PublishDir $publishPath -OutputDir $outputPath
         if (-not (Test-Path -LiteralPath $msixPath -PathType Leaf)) {
             throw "MSIX packaging completed but '$msixPath' was not created."
         }

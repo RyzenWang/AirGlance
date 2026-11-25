@@ -10,8 +10,10 @@
     script never creates or invents a certificate or signature.
 
 .PARAMETER Version
-    Application version. It is normalized to the four-part MSIX version, for example
-    0.1.0 becomes 0.1.0.0.
+    Store package version, normalized to the four-part MSIX version, for example
+   1.0.2 becomes 1.0.2.0. Defaults to the version already declared by
+   AppxManifest.xml, so the checked-in manifest is the single source of the Store
+   package version.
 
 .PARAMETER Architecture
     Package architecture: x64 or arm64. The staged manifest Identity is updated to
@@ -31,7 +33,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "",
 
     [ValidateSet("x64", "arm64")]
     [string]$Architecture = "x64",
@@ -46,6 +48,7 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = $PSScriptRoot
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $scriptDir "..\.."))
+$manifestSource = Join-Path $scriptDir "AppxManifest.xml"
 
 function Resolve-FullPath {
     param(
@@ -139,6 +142,24 @@ function Find-MakeAppx {
     return ($candidates | Sort-Object -Property Version -Descending | Select-Object -First 1)
 }
 
+if ([string]::IsNullOrWhiteSpace($Version))
+{
+    if (-not (Test-Path -LiteralPath $manifestSource -PathType Leaf))
+    {
+        throw "No -Version was supplied and the package manifest is missing: '$manifestSource'."
+    }
+
+    [xml]$manifestForVersion = Get-Content -LiteralPath $manifestSource -Raw
+    $identityForVersion = $manifestForVersion.SelectSingleNode('/*[local-name()="Package"]/*[local-name()="Identity"]')
+    if ($null -eq $identityForVersion -or [string]::IsNullOrWhiteSpace($identityForVersion.GetAttribute("Version")))
+    {
+        throw "AppxManifest.xml declares no Package/Identity@Version, so the package version cannot be inferred. Pass -Version explicitly."
+    }
+
+    $Version = $identityForVersion.GetAttribute("Version")
+    Write-Host "Package version from AppxManifest.xml: $Version"
+}
+
 $packageVersion = ConvertTo-PackageVersion -Value $Version
 
 if ([string]::IsNullOrWhiteSpace($PublishDir)) {
@@ -155,7 +176,6 @@ else {
     $OutputDir = Resolve-FullPath -Path $OutputDir -BasePath (Get-Location).Path
 }
 
-$manifestSource = Join-Path $scriptDir "AppxManifest.xml"
 $assetsSource = Join-Path $scriptDir "Assets"
 
 if (-not (Test-Path -LiteralPath $manifestSource -PathType Leaf)) {

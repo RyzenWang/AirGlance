@@ -7,6 +7,8 @@
     <DebugType>portable</DebugType>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Single source of the application version. The packaging scripts read this
+         property instead of carrying their own default. -->
     <Version>0.7.0</Version>
     <Company>AirWorks</Company>
     <Product>AirGlance</Product>
