@@ -34,6 +34,37 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
+      # The gate that authorises a release must exercise the same tests as PR CI,
+      # which means the AVIF decoder has to be present or those tests return early.
+      - name: Cache the native AVIF build
+        uses: actions/cache@v4
+        with:
+          path: |
+            native/avif/.cache
+            native/avif/bin
+          key: avif-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/avif/build.ps1', 'native/avif/build.sh', 'native/avif/build-win-arm64.ps1', 'native/avif/airglance_avif.c', 'native/avif/airglance_avif.h') }}
+          restore-keys: |
+            avif-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install AVIF build dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build meson
+          if [[ "$(uname -m)" == "x86_64" ]]; then
+            sudo apt-get install -y --no-install-recommends nasm
+          fi
+
+      - name: Build AVIF decoder (Linux)
+        run: bash native/avif/build.sh
+
+      - name: Verify the AVIF decoder exists
+        run: |
+          if ! ls native/avif/bin/*/airglance_avif.* >/dev/null 2>&1; then
+            echo "::error::The AVIF decoder was not built, so the AVIF tests would silently pass."
+            exit 1
+          fi
+          ls -l native/avif/bin/*/
+
       - name: Restore
         run: dotnet restore AirGlance.sln
 
@@ -109,6 +140,16 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the native AVIF build
+        uses: actions/cache@v4
+        with:
+          path: |
+            native/avif/.cache
+            native/avif/bin
+          key: avif-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/avif/build.ps1', 'native/avif/build.sh', 'native/avif/build-win-arm64.ps1', 'native/avif/airglance_avif.c', 'native/avif/airglance_avif.h') }}
+          restore-keys: |
+            avif-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install Linux NativeAOT and AVIF build dependencies
         if: matrix.platform == 'linux'
