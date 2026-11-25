@@ -5,7 +5,7 @@
 <h1 align="center">AirGlance</h1>
 
 <p align="center">
-  <strong>Whole folders, one glance.</strong> &nbsp;·&nbsp; 「一个文件夹，一眼看完。」
+  <strong>Whole folders, one glance.</strong>
 </p>
 
 <p align="center">

@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- A corrupt image no longer takes the previous and next buttons with it. Navigation
-  was gated on the current file having loaded and on no overlay being visible, so the
-  error card for an unreadable file hid the only mouse route past it; the arrow keys
-  happened to keep working, which made the window look half-dead. The arrows now
-  follow the folder rather than the file, stay hit-testable above the card, and are
-  brought back when the chrome had already faded because the step came from the
-  keyboard. A single-image folder shows no arrows, since there is nowhere to go.
-
 ## [0.7.1] - 2026-11-25
 
 ### Changed
@@ -55,6 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A corrupt image no longer takes the previous and next buttons with it. Navigation
+  was gated on the current file having loaded and on no overlay being visible, so the
+  error card for an unreadable file hid the only mouse route past it; the arrow keys
+  happened to keep working, which made the window look half-dead. The arrows now
+  follow the folder rather than the file, stay hit-testable above the card, and are
+  brought back when the chrome had already faded because the step came from the
+  keyboard. A single-image folder shows no arrows, since there is nowhere to go.
 - PNG files with an `eXIf` orientation are no longer displayed sideways. Skia reports
   no encoded origin for PNG, and the decode path used only that origin; it now falls
   back to the orientation the managed reader parses. `orientation-6.png` covers it.
