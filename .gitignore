@@ -30,3 +30,8 @@ TestResults/
 native/avif/bin/
 native/avif/.cache/
 native/avif/tools/
+# MSVC writes the shim's object file, and any import library it links directly,
+# into the working directory the build is started from.
+*.obj
+*.lib
+*.exp
