@@ -60,9 +60,14 @@ internal static unsafe class LibAvifDecoder
             var data = ReadPayload(path);
             var (info, _, exif) = ReadInfo(data);
             var (width, height) = CropSize(info);
-            var byteCount = CheckedByteCount(width, height, path);
 
-            var pixels = GC.AllocateUninitializedArray<byte>(byteCount);
+            // The native decoder always writes the whole coded frame and exposes the
+            // clean aperture separately, so the buffer must be sized for the frame and
+            // then cropped; sizing it from the crop makes the shim reject every file
+            // that carries a real clap.
+            var frameByteCount = CheckedByteCount((int)info.Width, (int)info.Height, path);
+
+            var pixels = GC.AllocateUninitializedArray<byte>(frameByteCount);
             (uint Width, uint Height, int HasAlpha) decoded;
             fixed (byte* destination = pixels)
             {
@@ -100,12 +105,14 @@ internal static unsafe class LibAvifDecoder
             var data = ReadPayload(path);
             var (info, _, exif) = ReadInfo(data);
             var (width, height) = CropSize(info);
-            var byteCount = CheckedByteCount(width, height, path);
 
-            IntPtr pixels = (IntPtr)NativeMemory.Alloc((nuint)byteCount);
+            // See Decode: the buffer covers the coded frame, then CropUnmanaged trims it.
+            var frameByteCount = CheckedByteCount((int)info.Width, (int)info.Height, path);
+
+            IntPtr pixels = (IntPtr)NativeMemory.Alloc((nuint)frameByteCount);
             try
             {
-                var decoded = AvifNative.Decode(data, (byte*)pixels, byteCount);
+                var decoded = AvifNative.Decode(data, (byte*)pixels, frameByteCount);
                 if (decoded.Width != info.Width || decoded.Height != info.Height)
                 {
                     throw Failure(ImageLoadFailure.Corrupt, "The AVIF decoder returned unexpected dimensions.", path);

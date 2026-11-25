@@ -55,7 +55,10 @@ public static class TiffPreviewDecoder
                 FormatName = "TIFF",
                 FrameCount = 1,
                 BitDepth = bitDepth is > 0 and <= 32 ? bitDepth : 8,
-                IccDescription = IccProfile.ReadDescription(icc)
+                IccDescription = IccProfile.ReadDescription(icc),
+
+                // The tiled preview path copies stored samples; no conversion happens.
+                IccAppliedToPixels = false
             };
         }
         catch (ImageLoadException)

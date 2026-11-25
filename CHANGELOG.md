@@ -15,6 +15,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   README images and `docs/design/assets/sample-photo.jpg`; see
   `packaging/msix/STORE-UPDATE-0.7.0.md`.
 
+### Fixed
+
+- The window caption no longer shows two garbled characters where the em dash
+  belongs. Two of the five caption sites carried text damaged by a GBK round trip
+  (`U+95C2` followed by `?`); they all go through `L.WindowTitleFormat` now, a key
+  that existed but had no caller. The no-path error state also stops producing
+  `AirGlance — AirGlance`: it clears the file name like the empty states do.
+- AVIF files with a clean aperture can be opened. The decode buffer was sized
+  from the `clap` crop while the native decoder writes the whole coded frame and
+  requires capacity for it, so every such file paid for a full AV1 decode and
+  then reported itself as corrupt. `CropManaged`/`CropUnmanaged` were unreachable
+  behind that failure and now trim the frame as intended. There is still no
+  `clap` fixture, so the path is fixed but unverified.
+- The information panel no longer claims a colour conversion for TIFF. LibTiff
+  returns the stored samples, but `IccAppliedToPixels` defaulted to true, so an
+  Adobe RGB or Display P3 TIFF was labelled `… → sRGB` without any conversion.
+  Both TIFF metadata paths now report the profile name alone, as the AVIF path
+  already did.
+- High-contrast mode applies. `HighContrast.axaml` had no `x:Class`, so
+  `HighContrastPalette`'s `AvaloniaXamlLoader.Load(this)` could not resolve the
+  compiled XAML; `ThemeService` swallowed the failure and the palette silently
+  never loaded. The `x:Class` is declared now. This needs one manual check with a
+  Windows contrast theme enabled.
+- The dual-view chrome timer stops when the chrome fades instead of firing every
+  2.5 s for the rest of the session against a hidden control.
+- `DecodedBitmap` validates its pixel buffer with long arithmetic, so an image
+  above roughly 536 megapixels can no longer wrap `width * height * 4` past the
+  guard.
+
+### Documentation
+
+- Added `docs/optimization-backlog.md`: the result of a full static audit of the
+  code, tests, CI, packaging and docs, with priorities, evidence and acceptance
+  criteria. It records the fixes above and the work left behind them.
+
 ### Performance
 
 - Re-ran the full benchmark on the published 0.7.0 Windows x64 binary with an

@@ -1,9 +1,15 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    x:Class="AirGlance.App.Styles.HighContrastPalette">
   <!--
     High contrast is applied on top of the normal palette whenever the operating
     system reports a high-contrast preference. The system accent colour is injected
     by ThemeService at runtime; these are the fallbacks.
+
+    x:Class is required: HighContrastPalette loads this document with
+    AvaloniaXamlLoader.Load(this), which resolves the compiled XAML by type. Without
+    it the load throws, ThemeService swallows the exception, and high contrast
+    silently does nothing.
   -->
   <SolidColorBrush x:Key="Paper" Color="#000000" />
   <SolidColorBrush x:Key="PaperDeep" Color="#000000" />

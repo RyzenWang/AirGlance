@@ -1533,7 +1533,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             _folderEmpty = false;
 
             TitleFileName = metadata.FileName;
-            WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} — AirGlance";
+            WindowTitle = FormatWindowTitle();
             StatusDimensions = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0} × {1}",
@@ -1596,7 +1596,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _folderEmpty = false;
 
         TitleFileName = metadata?.FileName ?? Path.GetFileName(_currentPath) ?? string.Empty;
-        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} 闂?AirGlance";
+        WindowTitle = FormatWindowTitle();
         StatusDimensions = string.Format(
             CultureInfo.InvariantCulture,
             "{0} \u00D7 {1}",
@@ -1766,7 +1766,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayMessage = string.Empty;
         OverlayHint = _services.Localization.T("L.EmptyLimitations");
         TitleFileName = string.Empty;
-        WindowTitle = "AirGlance";
+        WindowTitle = FormatWindowTitle();
         StatusDimensions = string.Empty;
         StatusPosition = string.Empty;
         InfoSections = [];
@@ -1784,6 +1784,15 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         return string.IsNullOrEmpty(name) ? folder : name;
     }
 
+    /// <summary>
+    /// The window caption. <c>L.WindowTitleFormat</c> owns the separator, so no call
+    /// site has to repeat the em dash (and none can corrupt it).
+    /// </summary>
+    private string FormatWindowTitle() =>
+        string.IsNullOrEmpty(TitleFileName)
+            ? _services.Localization.T("L.AppName")
+            : _services.Localization.Format("L.WindowTitleFormat", TitleFileName);
+
     private void ShowFolderEmpty()
     {
         ClearPresentedImage();
@@ -1795,7 +1804,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayMessage = string.Empty;
         OverlayHint = _services.Localization.T("L.EmptyFolderHint");
         TitleFileName = string.Empty;
-        WindowTitle = "AirGlance";
+        WindowTitle = FormatWindowTitle();
         StatusDimensions = string.Empty;
         StatusPosition = string.Empty;
         InfoSections = [];
@@ -1813,8 +1822,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         OverlayHint = failure == ImageLoadFailure.TooLarge
             ? _services.Localization.T("L.TooLargeHint")
             : _services.Localization.T("L.EmptyLimitations");
-        TitleFileName = _currentPath is null ? "AirGlance" : Path.GetFileName(_currentPath);
-        WindowTitle = string.IsNullOrEmpty(TitleFileName) ? "AirGlance" : $"{TitleFileName} 闂?AirGlance";
+        TitleFileName = _currentPath is null ? string.Empty : Path.GetFileName(_currentPath) ?? string.Empty;
+        WindowTitle = FormatWindowTitle();
         _rawDecoded = null;
         _metadata = null;
         _folderEmpty = false;

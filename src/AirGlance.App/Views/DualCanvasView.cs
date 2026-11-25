@@ -1788,6 +1788,10 @@ public sealed class DualCanvasView : UserControl, IDisposable
         }
 
         _chromeVisible = false;
+        // Nothing is left to watch once the chrome has faded. Keeping the timer alive
+        // only while an overlay is open (the early return above) stops a hidden dual
+        // view from waking up every 2.5 s for the rest of the session.
+        _chromeTimer.Stop();
         ApplyChrome();
     }
 

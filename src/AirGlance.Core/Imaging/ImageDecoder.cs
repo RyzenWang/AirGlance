@@ -908,7 +908,11 @@ public static class ImageDecoder
                 FormatName = "TIFF",
                 FrameCount = 1,
                 BitDepth = info.BitsPerSample ?? 8,
-                IccDescription = IccProfile.ReadDescription(info.IccProfile)
+                IccDescription = IccProfile.ReadDescription(info.IccProfile),
+
+                // LibTiff hands back the stored samples. Nothing converts an embedded
+                // TIFF profile to sRGB, so the info panel must not claim it did.
+                IccAppliedToPixels = false
             };
         }
         catch (ImageLoadException)

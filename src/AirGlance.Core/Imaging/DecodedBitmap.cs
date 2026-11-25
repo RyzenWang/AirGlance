@@ -21,7 +21,9 @@ public sealed class DecodedBitmap
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceWidth);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceHeight);
 
-        if (pixels.Length < width * height * 4)
+        // Long arithmetic: width * height * 4 overflows int above roughly 536 megapixels
+        // and would let an undersized buffer pass the guard.
+        if (pixels.Length < (long)width * height * 4)
         {
             throw new ArgumentException("The pixel buffer is smaller than the image.", nameof(pixels));
         }
