@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using AirGlance.App.Imaging;
+using AirGlance.App.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -109,11 +110,26 @@ public sealed class ImageViewer : Control
     private double _zoomAnimDurationMs;
     private ViewerZoomMode _zoomAnimFinalMode;
 
+    /// <summary>
+    /// Shared cursors. A new <see cref="Cursor"/> per pointer move churned a platform
+    /// handle for every event; the platform object behind one is reusable, so a single
+    /// instance per shape is enough and lives for the process. They are deliberately
+    /// never disposed: one viewer disposing them would break every other viewer.
+    /// </summary>
+    private static class Cursors
+    {
+        public static readonly Cursor Arrow = new(StandardCursorType.Arrow);
+        public static readonly Cursor Hand = new(StandardCursorType.Hand);
+        public static readonly Cursor SizeAll = new(StandardCursorType.SizeAll);
+        public static readonly Cursor Cross = new(StandardCursorType.Cross);
+        public static readonly Cursor None = new(StandardCursorType.None);
+    }
+
     public ImageViewer()
     {
         ClipToBounds = true;
         Focusable = false;
-        Cursor = new Cursor(StandardCursorType.Arrow);
+        Cursor = Cursors.Arrow;
 
         _fadeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _fadeTimer.Tick += OnFadeTick;
@@ -554,7 +570,7 @@ public sealed class ImageViewer : Control
     public void HideCursor()
     {
         _cursorHidden = true;
-        Cursor = new Cursor(StandardCursorType.None);
+        Cursor = Cursors.None;
     }
 
     public void ShowCursor()
@@ -624,9 +640,14 @@ public sealed class ImageViewer : Control
         if (!_firstFrameRaised && opacity >= 0.99)
         {
             _firstFrameRaised = true;
+            // Trace the draw itself, so a startup trace brackets the render pass rather
+            // than only the load. The callback below is queued: Background would put it
+            // behind the panel construction that OnOpened also queues, which inflates
+            // the first-frame number by work that happens after the pixels.
+            StartupTrace.Mark("first-frame");
             Dispatcher.UIThread.Post(
                 () => FirstFramePresented?.Invoke(this, EventArgs.Empty),
-                DispatcherPriority.Background);
+                DispatcherPriority.Render);
         }
     }
 
@@ -801,7 +822,7 @@ public sealed class ImageViewer : Control
         _dragPanX = _panX;
         _dragPanY = _panY;
         e.Pointer.Capture(this);
-        Cursor = new Cursor(StandardCursorType.SizeAll);
+        Cursor = Cursors.SizeAll;
         e.Handled = true;
     }
 
@@ -853,7 +874,7 @@ public sealed class ImageViewer : Control
         base.OnPointerExited(e);
         if (!_isDragging && !_cursorHidden)
         {
-            Cursor = new Cursor(IsPicking ? StandardCursorType.Cross : StandardCursorType.Arrow);
+            Cursor = IsPicking ? Cursors.Cross : Cursors.Arrow;
         }
     }
 
@@ -1242,12 +1263,11 @@ public sealed class ImageViewer : Control
 
     private void UpdateCursor()
     {
-        Cursor = new Cursor(
-            IsPicking
-                ? StandardCursorType.Cross
-                : CanPan
-                    ? StandardCursorType.Hand
-                    : StandardCursorType.Arrow);
+        Cursor = IsPicking
+            ? Cursors.Cross
+            : CanPan
+                ? Cursors.Hand
+                : Cursors.Arrow;
     }
 
     private double GetScaling()

@@ -1202,6 +1202,7 @@ public partial class MainWindow : Window
 
     private void OnImagePresented(object? sender, ImagePresentedEventArgs e)
     {
+        StartupTrace.Mark("image-presented");
         if (e.Animation is { } animation)
         {
             Viewer.SetAnimation(animation, e.ResetView);
