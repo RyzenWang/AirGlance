@@ -152,6 +152,59 @@ function Get-Sha256([string]$Path)
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
 }
 
+function Get-ShimHash
+{
+    # This build links three sources: the shim pair plus ucrt.c.
+    $implementation = Get-Sha256 (Join-Path $scriptDirectory "airglance_avif.c")
+    $header = Get-Sha256 (Join-Path $scriptDirectory "airglance_avif.h")
+    $ucrt = Get-Sha256 (Join-Path $scriptDirectory "ucrt.c")
+    return "$implementation`:$header`:$ucrt"
+}
+
+function Test-UpToDate
+{
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf))
+    {
+        return $false
+    }
+
+    $infoPath = Join-Path $outputDirectory "build-info.txt"
+    if (-not (Test-Path -LiteralPath $infoPath -PathType Leaf))
+    {
+        return $false
+    }
+
+    $expected = @{
+        libavif        = $libavifVersion
+        dav1d          = $dav1dVersion
+        libavif_sha256 = $libavifHash
+        dav1d_sha256   = $dav1dHash
+        architecture   = "arm64"
+        dav1d_asm      = "false"
+        shim_sha256    = $shimHash
+    }
+
+    $recorded = @{}
+    foreach ($line in Get-Content -LiteralPath $infoPath)
+    {
+        $parts = $line.Split("=", 2)
+        if ($parts.Count -eq 2)
+        {
+            $recorded[$parts[0].Trim()] = $parts[1].Trim()
+        }
+    }
+
+    foreach ($key in $expected.Keys)
+    {
+        if (-not $recorded.ContainsKey($key) -or $recorded[$key] -ne $expected[$key])
+        {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Get-SourceArchive([string]$Url, [string]$Destination, [string]$ExpectedHash)
 {
     if (Test-Path -LiteralPath $Destination -PathType Leaf)
@@ -234,6 +287,18 @@ if ($Clean)
 }
 
 Write-Step "Locating the cross toolchain"
+$shimHash = Get-ShimHash
+
+# Nothing about this build changes between runs that the marker does not capture, so
+# a restored cache turns the whole cross build into a no-op. -Clean forces the rebuild.
+if (-not $Clean -and (Test-UpToDate))
+{
+    Write-Host "Up to date: $outputPath"
+    Write-Host "  libavif $libavifVersion, dav1d $dav1dVersion, architecture arm64"
+    Write-Host "  Use -Clean to force a rebuild."
+    return
+}
+
 $vsPath = Get-VisualStudioPath
 $llvmDirectory = Get-LlvmDirectory
 $clang = Join-Path $llvmDirectory "clang.exe"
@@ -446,6 +511,7 @@ $buildInfo = @(
     "dav1d_sha256=$dav1dHash",
     "architecture=arm64",
     "dav1d_asm=false",
+    "shim_sha256=$shimHash",
     "llvm=$llvmDirectory",
     "dll_bytes=$($dll.Length)",
     "built_utc=$([DateTime]::UtcNow.ToString('o'))"

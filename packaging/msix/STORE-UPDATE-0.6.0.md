@@ -78,29 +78,21 @@
 
 ## Store 截图（1920 × 1080）
 
-截图来自发布的 0.6.0 Windows x64 AOT 包，不是设计稿。
+截图来自发布的 0.6.0 Windows x64 AOT 包，不是设计稿。这四张 1920 × 1080 截图已被 1.0.2.0 的截图集取代并从仓库移除；当前提交使用的截图在 `screenshots/1.0.2.0/`，见 `STORE-UPDATE-0.7.0.md`。下面保留每张截图当时要展示的内容。
 
 ### 1. AVIF 继续支持
-
-![AVIF 信息面板](screenshots/01-avif-info.png)
 
 信息面板显示 `格式：AVIF`、`1600 × 1000`，暗色查看界面。
 
 ### 2. 深色编辑抽屉
 
-![深色编辑抽屉](screenshots/02-dark-edit.png)
-
 深色工具卡、裁剪入口、取消/导出主按钮。
 
 ### 3. 深色裁剪模式
 
-![深色裁剪模式](screenshots/03-dark-crop.png)
-
 1:1 裁剪、比例 chip、深色工具栏和选区手柄。
 
 ### 4. 深色导出副本
-
-![深色导出副本](screenshots/04-dark-export.png)
 
 深色模态、JPEG/PNG/WebP 分段、质量滑块和文件名输入。
 
