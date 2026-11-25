@@ -166,6 +166,43 @@ public sealed class MainWindowViewModelTests : IDisposable
     }
 
     [AvaloniaFact]
+    public async Task Thumbnails_arrive_and_are_released_with_the_folder()
+    {
+        await _viewModel.OpenPathAsync(Path.Combine(_images, "a.jpg"));
+
+        var items = _viewModel.Images.ToArray();
+        Assert.Equal(4, items.Length);
+
+        // The bitmap is built on the thumbnail worker and only handed over on the UI
+        // thread, so this also covers that decoding off the dispatcher produces a
+        // usable image.
+        await WaitUntilAsync(() => items.All(item => item.Thumbnail is not null));
+        foreach (var item in items)
+        {
+            Assert.NotNull(item.Thumbnail);
+            Assert.True(item.Thumbnail!.PixelSize.Width > 0);
+        }
+
+        // Replacing the folder must retire the entries: the old thumbnails are native
+        // bitmaps, and they used to be dropped to the finalizer instead.
+        await _viewModel.OpenPathAsync(Path.Combine(_images, "b.png"));
+        Assert.All(items, item => Assert.Null(item.Thumbnail));
+        Assert.Equal(4, _viewModel.Images.Count);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 10_000)
+    {
+        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
+        while (!condition() && DateTime.UtcNow < deadline)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+            await Task.Delay(20);
+        }
+
+        Assert.True(condition(), "Timed out waiting for the thumbnail queue.");
+    }
+
+    [AvaloniaFact]
     public async Task A_corrupt_file_reports_corrupt()
     {
         var path = Path.Combine(_images, "broken.jpg");

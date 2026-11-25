@@ -50,29 +50,32 @@ public sealed class ThumbnailService : IDisposable
 
             try
             {
-                var png = await Task.Run(() => LoadThumbnail(item.Path, cancellationToken), cancellationToken)
+                // Decoding the cached PNG into a bitmap used to happen inside the
+                // dispatcher callback, one decode per thumbnail on the UI thread.
+                // Avalonia's bitmap is an immutable decoded image with no dispatcher
+                // affinity, so it is built here and only handed over on the UI thread.
+                var bitmap = await Task.Run(() => LoadThumbnail(item.Path, cancellationToken), cancellationToken)
                     .ConfigureAwait(false);
-                if (png is null)
+                if (bitmap is null)
                 {
                     continue;
+                }
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    bitmap.Dispose();
+                    return;
                 }
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
+                        bitmap.Dispose();
                         return;
                     }
 
-                    try
-                    {
-                        using var stream = new MemoryStream(png);
-                        item.Thumbnail = new Bitmap(stream);
-                    }
-                    catch
-                    {
-                        item.ThumbnailFailed = true;
-                    }
+                    item.Thumbnail = bitmap;
                 });
             }
             catch (OperationCanceledException)
@@ -86,7 +89,7 @@ public sealed class ThumbnailService : IDisposable
         }
     }
 
-    private byte[]? LoadThumbnail(string path, CancellationToken cancellationToken)
+    private Bitmap? LoadThumbnail(string path, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -104,15 +107,20 @@ public sealed class ThumbnailService : IDisposable
             return null;
         }
 
+        byte[] png;
         if (_cache.TryRead(path, lastWrite, length, out var cached))
         {
-            return cached;
+            png = cached;
+        }
+        else
+        {
+            var decoded = ImageDecoder.Decode(path, ThumbnailSize, ThumbnailSize, cancellationToken);
+            png = ImageExporter.Encode(decoded, ExportFormat.Png);
+            _cache.Write(path, lastWrite, length, png);
         }
 
-        var decoded = ImageDecoder.Decode(path, ThumbnailSize, ThumbnailSize, cancellationToken);
-        var png = ImageExporter.Encode(decoded, ExportFormat.Png);
-        _cache.Write(path, lastWrite, length, png);
-        return png;
+        using var stream = new MemoryStream(png);
+        return new Bitmap(stream);
     }
 
     public void Dispose()

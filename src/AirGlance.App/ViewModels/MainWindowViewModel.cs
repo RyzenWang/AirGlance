@@ -1022,8 +1022,28 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         _currentBitmap = null;
         _currentAnimation?.Dispose();
         _currentAnimation = null;
+        ReleaseImageItems();
         Analysis.Dispose();
         DisposeTiled();
+    }
+
+    /// <summary>
+    /// Drops the filmstrip entries and their native thumbnails. Clearing first detaches
+    /// them from the control so nothing renders a disposed bitmap.
+    /// </summary>
+    private void ReleaseImageItems()
+    {
+        if (Images.Count == 0)
+        {
+            return;
+        }
+
+        var items = Images.ToArray();
+        Images.Clear();
+        foreach (var item in items)
+        {
+            item.Dispose();
+        }
     }
 
     private async Task NavigateToIndexAsync(int index, bool navigation, bool animate, bool forceReload = false)
@@ -1721,7 +1741,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
     private void ApplyFolder(string folder, IReadOnlyList<string> files, int index)
     {
         _navigator.Reset(files, index);
-        Images.Clear();
+        ReleaseImageItems();
 
         foreach (var file in files)
         {
