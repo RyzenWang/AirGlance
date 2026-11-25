@@ -177,17 +177,17 @@ Right-click the image for open, copy, show-in-folder, open-with and settings. In
 
 ## Performance
 
-Measured on the published 0.7.0 Windows x64 binary, on Windows 10 Pro 22H2 (19045), 2 × Intel Xeon E5-2697 v4 (16 cores), 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`, on 2026-11-24. The runs used an empty settings directory so they opened at the default fit window. Ten fresh processes for the 24 MP rows and five for the 100 MP row; median from `tools/bench.ps1`. The full method and raw values are in [docs/performance.md](docs/performance.md).
+Measured on the published Windows x64 binaries, on Windows 10 Pro 22H2 (19045), 2 × Intel Xeon E5-2697 v4 (16 cores), 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`. The runs used an empty settings directory so they opened at the default fit window. Ten fresh processes for the 24 MP rows and five for the 100 MP row; median from `tools/bench.ps1`. The 0.7.1 column is a **new series**: commit `e25739d` moved the first-frame mark into the render pass that draws the pixels, where it used to wait behind the filmstrip and panel construction, and the peak working set is read when that mark is reported. The two columns measure different points and must not be compared row by row. The full method and raw values are in [docs/performance.md](docs/performance.md).
 
-| Metric | Target | 0.7.0 |
-| --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 250.5 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 415.7 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 341.4 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 88.1 MB |
-| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB |
+| Metric | Target | 0.7.0 (old mark) | 0.7.1 (current mark) |
+| --- | --- | --- | --- |
+| Cold start to first window | ≤ 500 ms | 250.5 ms | 250.7 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 415.7 ms | 265.9 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 341.4 ms | 309.9 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 88.1 MB | 63.6 MB |
+| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB |
 
-0.7.0 meets the startup and first-frame targets on the reference machine: the window is up in about 251 ms and a 24 MP image is on screen in about 416 ms, with a peak working set of about 88 MB. The window now builds more chrome than 0.3.0 (`window-ctor-ui` about 46 ms versus 14 ms), which accounts for the later first window; first frame and memory remain within budget. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
+0.7.1 meets every target on the reference machine: the window is up in about 251 ms, a 24 MP image is on screen in about 266 ms and a 100 MP one in about 310 ms, with a peak working set of about 64 MB. Most of the first-frame and memory difference comes from the moved mark rather than from faster work, which is why the 0.7.0 column stays next to it; the window time, which the change did not touch, is the row that shows the machine is comparable. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 

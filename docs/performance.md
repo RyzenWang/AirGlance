@@ -13,6 +13,15 @@ number is not here, it was not measured; nothing in this file is projected.
 > the published `v0.7.0` zip. The 0.3.0 figures appear only where this file
 > compares the two runs.
 
+> **0.7.1 series (2026-11-25):** measured on the published `v0.7.1` zip
+> (`0.7.1+6802585`, Windows x64 NativeAOT, same machine). This is a new series:
+> commit `e25739d` moved `first_frame_ms` into the render pass that draws the
+> pixels, where it used to queue behind the filmstrip and panel construction, and
+> `peak_ws_mb` is read when that line is printed. The two series measure different
+> points, so compare rows across them only with that in mind. Medians and p95 were
+> captured; per-run lines were not, so the 0.7.0 raw blocks below remain the raw
+> reference.
+
 ## Machine and build
 
 | | |
@@ -71,6 +80,22 @@ console, so the script redirects stdout to a temporary file. A NativeAOT build i
 only comparable build; a normal Release build is a JIT app and is much slower.
 
 ## Results
+
+### 0.7.1, current mark
+
+10 runs for 24 MP and 5 for 100 MP, published `v0.7.1` Windows x64 build, median
+(p95 in brackets).
+
+| Metric | Target | 24 MP | 100 MP |
+| --- | --- | --- | --- |
+| First window | ≤ 500 ms | **250.7 ms** (550.3) | — |
+| First frame | ≤ 500 ms / ≤ 2.0 s | **265.9 ms** (575.0) | **309.9 ms** (334.0) |
+| Decode | — | **57.5 ms** (67.4) | **141.0 ms** (147.5) |
+| Peak working set | ≤ 250 MB | **63.6 MB** (68.2) | **77.4 MB** (77.7) |
+
+The p95 spread is wide on this session because the machine was also running the
+release build and a publish; the medians are the comparable numbers. The 100% zoom
+tile-cache figures were not re-measured for 0.7.1 and stay as published for 0.7.0.
 
 ### 24 MP JPEG, fit window
 
