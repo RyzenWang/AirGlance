@@ -59,11 +59,17 @@ jobs:
 
       - name: Verify the AVIF decoder exists
         run: |
-          if ! ls native/avif/bin/*/airglance_avif.* >/dev/null 2>&1; then
+          # The shared library carries a lib prefix on macOS and Linux, the Windows
+          # one does not, so match all three names rather than a single glob.
+          decoder=$(find native/avif/bin -type f \
+            \( -name 'airglance_avif.dll' -o -name 'libairglance_avif.dylib' -o -name 'libairglance_avif.so' \) \
+            -print -quit)
+          if [[ -z "$decoder" ]]; then
             echo "::error::The AVIF decoder was not built, so the AVIF tests would silently pass."
             exit 1
           fi
-          ls -l native/avif/bin/*/
+          echo "Decoder: $decoder"
+          ls -l "$(dirname "$decoder")"
 
       - name: Restore
         run: dotnet restore AirGlance.sln
