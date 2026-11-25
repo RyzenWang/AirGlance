@@ -107,7 +107,7 @@ The Windows portable build is not code-signed, so SmartScreen warns the first ti
 ### macOS
 
 1. Download `AirGlance-0.7.0-osx-arm64.zip` or `-osx-x64.zip`.
-2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.5 is not.
+2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.7.0 is not.
 
 ### Linux
 

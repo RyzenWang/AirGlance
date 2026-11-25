@@ -107,7 +107,7 @@ Windows 便携版没有代码签名，首次运行会出现 SmartScreen 警告�
 ### macOS
 
 1. 下载 `AirGlance-0.7.0-osx-arm64.zip` 或 `-osx-x64.zip`。
-2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.5 尚未公证。
+2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.7.0 尚未公证。
 
 ### Linux
 

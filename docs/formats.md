@@ -168,7 +168,23 @@ The matrix is a description of tested behavior, not a claim that every supported
 - PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
 - WebP ICC and WebP EXIF are not covered by fixtures.
 - ICO alpha, GIF transparency and BMP alpha are not covered by dedicated fixtures.
-- TIFF CMYK conversion, multi-page files, BigTIFF and exotic compression/16-bit colour paths are not covered by fixtures.
+- TIFF multi-page files, BigTIFF and 12-bit JPEG-in-TIFF are not covered by fixtures. The stripped, tiled, pyramidal, planar, CMYK, palette, YCbCr, float and signed/unsigned 16-bit paths are; the grouped table above lists the fixtures that prove them.
+
+### TIFF fixtures
+
+One quadrants image per sample layout, shared by `TiffPreviewDecoderTests` and
+`TiffRegionReaderTests`. The baseline `rgb-lzw.tif`, `alpha.tif` and
+`orientation-6.tif` are in the table above.
+
+| Fixtures | What they prove |
+| --- | --- |
+| `cmyk-quadrants.tif`, `cmyk-quadrants-jpeg.tif`, `cmyk-large-single-strip.tif` | CMYK conversion, JPEG-compressed CMYK, and a single strip larger than the strip cache |
+| `planar-rgb.tif`, `planar-tiled-rgb.tif`, `planar-cmyk.tif`, `planar16-rgb.tif`, `planar16-cmyk.tif`, `planar16-rgba.tif` | Planar configuration, stripped and tiled, at 8 and 16 bits, with and without alpha |
+| `palette-quadrants.tif`, `palette16-quadrants.tif` | 8- and 16-bit palette colour maps |
+| `ycbcr-quadrants.tif`, `ycbcr-quadrants-jpeg.tif`, `ycbcr-subsampled.tif`, `ycbcr-subsampled-lzw.tif`, `ycbcr-subsampled-deflate.tif` | YCbCr uncompressed, JPEG-compressed, and subsampled with LZW or Deflate |
+| `int16-quadrants.tif`, `float16-quadrants.tif`, `float32-quadrants.tif` | Signed 16-bit and half/single precision float samples |
+| `rgba-quadrants.tif`, `rgba16-quadrants.tif` | 8- and 16-bit RGBA |
+| `subifd-levels.tif` | A reduced pyramid level is preferred over the full-resolution directory |
 - CMYK JPEG, progressive JPEG and very large JPEGs are not separately tested.
 - The 16-bit PNG test checks the reported depth, not the precision of the 8-bit result.
 - Animated WebP and APNG are not decoded as animations.

@@ -155,6 +155,20 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 
 这两个 ICC 文件来自 saucecontrol/Compact-ICC-Profiles，采用 CC0 许可。它们只是测试夹具，不随应用一起分发。参见 [THIRD-PARTY-NOTICES](../THIRD-PARTY-NOTICES.md)。
 
+### TIFF 夹具
+
+每种样本布局各一张 quadrants 图，由 `TiffPreviewDecoderTests` 和 `TiffRegionReaderTests` 共用。基线用的 `rgb-lzw.tif`、`alpha.tif` 和 `orientation-6.tif` 已在上表中。
+
+| 夹具 | 证明的内容 |
+| --- | --- |
+| `cmyk-quadrants.tif`、`cmyk-quadrants-jpeg.tif`、`cmyk-large-single-strip.tif` | CMYK 转换、JPEG 压缩的 CMYK，以及单条带大于条带缓存的情况 |
+| `planar-rgb.tif`、`planar-tiled-rgb.tif`、`planar-cmyk.tif`、`planar16-rgb.tif`、`planar16-cmyk.tif`、`planar16-rgba.tif` | 平面（planar）配置，条带与瓦片两种排布，8 位与 16 位，含与不含 Alpha |
+| `palette-quadrants.tif`、`palette16-quadrants.tif` | 8 位与 16 位调色板颜色表 |
+| `ycbcr-quadrants.tif`、`ycbcr-quadrants-jpeg.tif`、`ycbcr-subsampled.tif`、`ycbcr-subsampled-lzw.tif`、`ycbcr-subsampled-deflate.tif` | YCbCr 的三种形态：未压缩、JPEG 压缩、子采样并配合 LZW 或 Deflate |
+| `int16-quadrants.tif`、`float16-quadrants.tif`、`float32-quadrants.tif` | 有符号 16 位样本，以及半精度/单精度浮点样本 |
+| `rgba-quadrants.tif`、`rgba16-quadrants.tif` | 8 位与 16 位 RGBA |
+| `subifd-levels.tif` | 优先使用降采样金字塔层，而不是全分辨率目录 |
+
 ## 覆盖缺口
 
 该矩阵描述的是已测试的行为，并不声称每种受支持的格式都有测试夹具。以下各点未被当前测试套件测量：
@@ -165,7 +179,7 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 - PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
 - WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。
 - ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。
-- TIFF 的 CMYK 转换、多页文件、BigTIFF 和特殊压缩/16 位颜色路径没有测试夹具。
+- TIFF 的多页文件、BigTIFF 和 TIFF 内 12 位 JPEG 没有夹具覆盖。条带式、瓦片式、金字塔、平面、CMYK、调色板、YCbCr、浮点以及有符号/无符号 16 位路径都有覆盖，对应夹具见上方分组表。
 - CMYK JPEG、渐进式 JPEG 和超大 JPEG 没有单独测试。
 - 16 位 PNG 测试检查的是所报告的位深，而不是 8 位结果的精度。
 - 动画 WebP 和 APNG 不会按动画解码。
