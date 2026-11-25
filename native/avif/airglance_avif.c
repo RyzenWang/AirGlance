@@ -148,8 +148,13 @@ int airglance_avif_info(const uint8_t * data,
     if ((image->transformFlags & AVIF_TRANSFORM_CLAP) != 0)
     {
         avifCropRect crop_rect;
+        // Pass the decoder's diagnostics buffer, never NULL:
+        // avifCropRectFromCleanApertureBox() calls avifDiagnosticsClearError()
+        // unconditionally on entry, and that helper writes through the pointer
+        // without a NULL check, so NULL here is an access violation. Any AVIF with
+        // a clean aperture took this path and crashed the process.
         if (avifCropRectFromCleanApertureBox(
-                &crop_rect, &image->clap, image->width, image->height, NULL))
+                &crop_rect, &image->clap, image->width, image->height, &decoder->diag))
         {
             info->clap_x = crop_rect.x;
             info->clap_y = crop_rect.y;

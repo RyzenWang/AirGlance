@@ -31,13 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`U+95C2` followed by `?`); they all go through `L.WindowTitleFormat` now, a key
   that existed but had no caller. The no-path error state also stops producing
   `AirGlance — AirGlance`: it clears the file name like the empty states do.
-- AVIF files with a clean aperture can be opened. The decode buffer was sized
-  from the `clap` crop while the native decoder writes the whole coded frame and
-  requires capacity for it, so every such file paid for a full AV1 decode and
-  then reported itself as corrupt. `CropManaged`/`CropUnmanaged` were unreachable
-  behind that failure and now trim the frame as intended. The new
+- Opening an AVIF with a clean aperture no longer crashes the process. The native
+  shim passed `NULL` as the diagnostics buffer to
+  `avifCropRectFromCleanApertureBox`, which calls `avifDiagnosticsClearError`
+  unconditionally, and that helper writes through the pointer without a `NULL`
+  check. Every `clap` file therefore faulted with an access violation while its
+  metadata was read.
+- AVIF files with a clean aperture decode at all. The decode buffer was sized from
+  the `clap` crop while the native decoder writes the whole coded frame and
+  requires capacity for it, so even past the crash such a file paid for a full AV1
+  decode and then reported itself as corrupt. `CropManaged`/`CropUnmanaged` were
+  unreachable behind that failure and now trim the frame as intended. The new
   `tests/Assets/clap.avif` fixture (1440 × 900 coded, 1438 × 898 displayed) covers
-  the path and compares the crop against the uncropped frame.
+  both faults and compares the crop against the uncropped frame.
 - The information panel no longer claims a colour conversion for TIFF. LibTiff
   returns the stored samples, but `IccAppliedToPixels` defaulted to true, so an
   Adobe RGB or Display P3 TIFF was labelled `… → sRGB` without any conversion.
