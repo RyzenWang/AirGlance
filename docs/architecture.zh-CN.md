@@ -115,7 +115,7 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 - `AppServices` 每个进程创建一次。它加载设置，应用已保存的语言和主题，打开缩略图缓存，并在线程池上启动 30 天清理。它在设置更改时保存设置，并在退出时再次保存。它还对外提供程序集版本，以及用于项目链接的 shell 辅助方法。它没有网络客户端。
 - `LocalizationService` 维护一个约 150 组英/中键值对的目录（0.3.0 中为 153 组）。XAML 文本使用 `{DynamicResource L.*}`；代码中构建的文本使用 `T` 和 `Format`。应用语言会构建一个合并的 `ResourceDictionary`，移除之前的语言字典并添加新的字典。`LanguageChanged` 会刷新视图模型和窗口，因此切换英文/中文不需要重启应用。默认值遵循操作系统 UI 区域性：`zh*` 区域性选择简体中文，其他情况均为英文。
-- `ThemeService` 规范化 `System`、`Light` 或 `Dark`，并设置 `Application.RequestedThemeVariant`。系统模式遵循 `PlatformSettings.ColorValuesChanged`。当操作系统报告高对比度时，该服务会在所选的浅色/深色主题之上叠加一个高对比度 `ResourceDictionary`，并把系统强调色映射到用于选择和焦点的 `Coral` 和 `Teal` 标记。即使浅色/深色是显式选择，高对比度仍遵循操作系统。
+- `ThemeService` 规范化 `System`、`Light` 或 `Dark`，并设置 `Application.RequestedThemeVariant`。系统模式遵循 `PlatformSettings.ColorValuesChanged`；显式选择浅色或深色时忽略系统变化。没有高对比度配色：系统对比度偏好不再被读取，因为该配色从未真正加载（见优化清单），所以将主题移除，而不是留着一个静默失效的功能。
 - `BenchmarkRecorder` 从操作系统的进程启动时间开始测量。启动模式记录首个窗口、第一帧、解码时间、图像百万像素和峰值工作集，然后在第一帧后退出。解码模式在完成一次 1600 × 1000 解码后退出。扫描模式计时文件夹枚举和前八个 160 px 缩略图，并报告 `scan_ms`、`thumbnail_ms`、`total_ms`、`files` 和 `peak_ws_mb`。所有模式都向 stdout 写入 `key=value` 行，失败时以 `error=<message>` 退出并返回代码 1。
 - `StartupTrace` 只读取一次 `AIRGLANCE_STARTUP_TRACE`。当它为 `1` 时，会向 stderr 写入相对于进程启动时间的标记。正常运行时只付出读取环境变量的代价。
 - `CommandLineOptions` 在窗口存在之前解析参数。它记录帮助、版本、基准模式、第一个可显示的目标以及被忽略的路径/选项。详情见 [命令行](#command-line)。

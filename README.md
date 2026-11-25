@@ -33,7 +33,7 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 - Rotates, flips and crops non-destructively in the Edit drawer (`Ctrl+E`); Cancel restores the previous view and the original file is never written. Export a copy as JPEG, PNG or WebP with quality and resize options, or copy the image to the clipboard.
 - Fullscreen, a 3 / 5 / 10 second slideshow, and an information panel with file, image, ICC and EXIF fields.
 - Right-click → Analyze opens a read-only drawer with luminance/RGB/hue/saturation histograms, clipping and tone zones, a palette and eyedropper samples, sharpness/noise/JPEG estimates and image data. Single images only; nothing is exported.
-- English and Chinese switch at runtime. Light, dark and follow-system themes; the system high-contrast setting is honoured.
+- English and Chinese switch at runtime. Light, dark and follow-system themes.
 - Settings and thumbnails stay on your machine. There is no account, no telemetry, and no network code.
 
 ## Screenshots

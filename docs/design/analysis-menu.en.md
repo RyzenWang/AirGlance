@@ -300,7 +300,7 @@ About 40 new keys through `LocalizationService`; reusable information-panel keys
 - Eyedropper checked state matches canvas pointer mode.
 - Dual view and edit close the drawer; fullscreen hides it; `Esc` closes it.
 
-**Manual acceptance**: one image each of JPEG / PNG (alpha) / WebP / AVIF / GIF / TIFF (proxy) / SVG / ICO; one 24 MP and one 100 MP file; light, dark and high-contrast themes.
+**Manual acceptance**: one image each of JPEG / PNG (alpha) / WebP / AVIF / GIF / TIFF (proxy) / SVG / ICO; one 24 MP and one 100 MP file; light and dark themes.
 
 ## 10. Later
 
