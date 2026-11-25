@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Xml;
-using System.Xml.Linq;
 
 namespace AirGlance.Core.Imaging;
 
@@ -13,6 +12,7 @@ public static class SvgGeometry
     private const int DefaultWidth = 300;
     private const int DefaultHeight = 150;
     private const int MaximumDimension = 32767;
+    private const long MaximumDocumentCharacters = 8 * 1024 * 1024;
 
     public static (int Width, int Height) Read(string path)
     {
@@ -25,6 +25,9 @@ public static class SvgGeometry
                 FileShare.ReadWrite | FileShare.Delete,
                 bufferSize: 64 * 1024,
                 FileOptions.SequentialScan);
+
+            // Read the root element with XmlReader: a full XDocument was built here only
+            // to read three attributes, and the document size is now bounded.
             using var reader = XmlReader.Create(
                 stream,
                 new XmlReaderSettings
@@ -32,18 +35,19 @@ public static class SvgGeometry
                     DtdProcessing = DtdProcessing.Prohibit,
                     XmlResolver = null,
                     IgnoreComments = true,
-                    IgnoreProcessingInstructions = true
+                    IgnoreProcessingInstructions = true,
+                    MaxCharactersInDocument = MaximumDocumentCharacters
                 });
-            var document = XDocument.Load(reader, LoadOptions.None);
-            var root = document.Root;
-            if (root is null || !string.Equals(root.Name.LocalName, "svg", StringComparison.OrdinalIgnoreCase))
+
+            if (reader.MoveToContent() != XmlNodeType.Element ||
+                !string.Equals(reader.LocalName, "svg", StringComparison.OrdinalIgnoreCase))
             {
                 return (DefaultWidth, DefaultHeight);
             }
 
-            var viewBox = ParseViewBox(root.Attribute("viewBox")?.Value);
-            var width = ParseLength(root.Attribute("width")?.Value);
-            var height = ParseLength(root.Attribute("height")?.Value);
+            var viewBox = ParseViewBox(reader.GetAttribute("viewBox"));
+            var width = ParseLength(reader.GetAttribute("width"));
+            var height = ParseLength(reader.GetAttribute("height"));
 
             if (width is null && height is null && viewBox is { } box)
             {

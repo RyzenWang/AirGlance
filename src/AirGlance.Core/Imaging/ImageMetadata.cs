@@ -54,4 +54,37 @@ public sealed class ImageMetadata
                 : IccDescription!;
 
     public double Megapixels => DisplayWidth * (double)DisplayHeight / 1_000_000d;
+
+    /// <summary>
+    /// A copy that reports a real orientation: display dimensions are swapped for the
+    /// quarter turns that do, and the tag is recorded. Used by readers that describe the
+    /// stored raster but display an oriented image.
+    /// </summary>
+    public ImageMetadata WithOrientation(ImageOrientation orientation)
+    {
+        if (orientation == Orientation)
+        {
+            return this;
+        }
+
+        var (displayWidth, displayHeight) = orientation.OrientedSize(RawWidth, RawHeight);
+        return new ImageMetadata
+        {
+            FilePath = FilePath,
+            FileName = FileName,
+            FileSizeBytes = FileSizeBytes,
+            LastWriteTime = LastWriteTime,
+            RawWidth = RawWidth,
+            RawHeight = RawHeight,
+            DisplayWidth = displayWidth,
+            DisplayHeight = displayHeight,
+            Orientation = orientation,
+            FormatName = FormatName,
+            FrameCount = FrameCount,
+            BitDepth = BitDepth,
+            IccDescription = IccDescription,
+            IccAppliedToPixels = IccAppliedToPixels,
+            Exif = Exif
+        };
+    }
 }

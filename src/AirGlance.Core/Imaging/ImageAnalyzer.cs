@@ -13,6 +13,9 @@ public static class ImageAnalyzer
     private const int SaturationBins = 64;
     private const int DetailEdge = 1024;
 
+    /// <summary>One bit per possible 8-bit-per-channel colour, 2^24 bits in total.</summary>
+    private const int UniqueColorMapWords = (1 << 24) >> 6;
+
     public static ImageAnalysisResult Analyze(
         DecodedBitmap image,
         ImageAnalysisContext context,
@@ -34,7 +37,14 @@ public static class ImageAnalyzer
         var saturation = new int[SaturationBins];
         var alpha = new int[256];
         var zones = new long[11];
-        var unique = new HashSet<int>();
+
+        // Counting distinct colours by hashing every pixel was the most expensive thing
+        // in an otherwise five-operation loop: 24 M hash inserts on a 24 MP image. A
+        // 2 MB presence map answers the same question with one AND and one OR. Small
+        // images keep the set, where the 2 MB allocation would be the larger cost.
+        var uniqueBits = total >= 65_536 ? new ulong[UniqueColorMapWords] : null;
+        var uniqueSet = uniqueBits is null ? new HashSet<int>() : null;
+        var uniqueCount = 0;
 
         long pixelCount = 0;
         long transparent = 0;
@@ -136,7 +146,22 @@ public static class ImageAnalyzer
             if (!uniqueCapped)
             {
                 var packed = (r << 16) | (g << 8) | b;
-                if (unique.Add(packed) && unique.Count >= UniqueColorLimit)
+                if (uniqueBits is not null)
+                {
+                    ref var word = ref uniqueBits[packed >> 6];
+                    var mask = 1UL << (packed & 63);
+                    if ((word & mask) == 0)
+                    {
+                        word |= mask;
+                        uniqueCount++;
+                    }
+                }
+                else if (uniqueSet!.Add(packed))
+                {
+                    uniqueCount++;
+                }
+
+                if (uniqueCount >= UniqueColorLimit)
                 {
                     uniqueCapped = true;
                 }
@@ -177,7 +202,7 @@ public static class ImageAnalyzer
             HardWhiteCount = hardWhite,
             ZoneCounts = zones,
             Entropy = entropy,
-            UniqueColorCount = unique.Count,
+            UniqueColorCount = uniqueCapped ? UniqueColorLimit : uniqueCount,
             UniqueColorCapped = uniqueCapped,
             HasTransparency = transparent > 0 || semiTransparent > 0,
             TransparentCount = transparent,

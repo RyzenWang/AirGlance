@@ -31,7 +31,7 @@ public static class TiffPreviewDecoder
         try
         {
             var file = new FileInfo(path);
-            using var image = OpenRaw(path);
+            using var image = Tiff.Open(path, "r") ?? throw Corrupt(path, "The TIFF could not be opened.");
             var width = TagInt(image, TiffTag.IMAGEWIDTH);
             var height = TagInt(image, TiffTag.IMAGELENGTH);
             if (width <= 0 || height <= 0)
@@ -70,6 +70,34 @@ public static class TiffPreviewDecoder
             throw new ImageLoadException(
                 ImageLoadFailure.Corrupt,
                 "The TIFF metadata could not be read.",
+                path,
+                Path.GetExtension(path),
+                exception);
+        }
+    }
+
+    /// <summary>
+    /// The orientation stored in the first directory. The preview samples the stored
+    /// raster, so the caller has to apply this to the decoded pixels afterwards.
+    /// </summary>
+    public static ImageOrientation ReadOrientation(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        try
+        {
+            using var image = Tiff.Open(path, "r") ?? throw Corrupt(path, "The TIFF could not be opened.");
+            var value = TagInt(image, TiffTag.ORIENTATION);
+            return value is >= 1 and <= 8 ? (ImageOrientation)value : ImageOrientation.TopLeft;
+        }
+        catch (ImageLoadException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new ImageLoadException(
+                ImageLoadFailure.Corrupt,
+                "The TIFF orientation could not be read.",
                 path,
                 Path.GetExtension(path),
                 exception);

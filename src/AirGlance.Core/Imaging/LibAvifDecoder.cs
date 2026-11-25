@@ -17,13 +17,24 @@ internal static unsafe class LibAvifDecoder
     private const int MaxExifBytes = 1 * 1024 * 1024;
     private const long MaxFileBytes = 512L * 1024 * 1024;
 
+    /// <summary>Payloads larger than this are read again rather than kept resident.</summary>
+    private const long MaxCachedFileBytes = 32L * 1024 * 1024;
+
+    private static readonly object CacheGate = new();
+    private static string? _cachedPath;
+    private static long _cachedLength;
+    private static DateTime _cachedWriteTime;
+    private static byte[]? _cachedData;
+    private static AvifInfo _cachedInfo;
+    private static byte[] _cachedIcc = [];
+    private static byte[] _cachedExif = [];
+
     public static ImageMetadata ReadMetadata(string path)
     {
         try
         {
             var file = new FileInfo(path);
-            var data = ReadPayload(path);
-            var (info, icc, exif) = ReadInfo(data);
+            var (_, info, icc, exif) = Load(path);
             var (rawWidth, rawHeight) = CropSize(info);
             var orientation = ResolveOrientation(info, exif);
             var (displayWidth, displayHeight) = orientation.OrientedSize(rawWidth, rawHeight);
@@ -57,8 +68,7 @@ internal static unsafe class LibAvifDecoder
     {
         try
         {
-            var data = ReadPayload(path);
-            var (info, _, exif) = ReadInfo(data);
+            var (data, info, _, exif) = Load(path);
             var (width, height) = CropSize(info);
 
             // The native decoder always writes the whole coded frame and exposes the
@@ -102,8 +112,7 @@ internal static unsafe class LibAvifDecoder
     {
         try
         {
-            var data = ReadPayload(path);
-            var (info, _, exif) = ReadInfo(data);
+            var (data, info, _, exif) = Load(path);
             var (width, height) = CropSize(info);
 
             // See Decode: the buffer covers the coded frame, then CropUnmanaged trims it.
@@ -164,6 +173,49 @@ internal static unsafe class LibAvifDecoder
         }
 
         return (info, icc, exif);
+    }
+
+    /// <summary>
+    /// The payload and its parsed metadata, cached for the file that was opened last.
+    /// The viewer reads metadata and then decodes the same file, which otherwise read it
+    /// twice and ran libavif's container parse once per call. Only files small enough to
+    /// hold comfortably are cached; a large AVIF falls back to reading each time.
+    /// </summary>
+    private static (byte[] Data, AvifInfo Info, byte[] Icc, byte[] Exif) Load(string path)
+    {
+        var file = new FileInfo(path);
+        var length = file.Length;
+        var writeTime = file.LastWriteTimeUtc;
+
+        lock (CacheGate)
+        {
+            if (_cachedData is not null &&
+                _cachedLength == length &&
+                _cachedWriteTime == writeTime &&
+                string.Equals(_cachedPath, path, StringComparison.Ordinal))
+            {
+                return (_cachedData, _cachedInfo, _cachedIcc, _cachedExif);
+            }
+        }
+
+        var data = ReadPayload(path);
+        var (info, icc, exif) = ReadInfo(data);
+
+        if (length <= MaxCachedFileBytes)
+        {
+            lock (CacheGate)
+            {
+                _cachedPath = path;
+                _cachedLength = length;
+                _cachedWriteTime = writeTime;
+                _cachedData = data;
+                _cachedInfo = info;
+                _cachedIcc = icc;
+                _cachedExif = exif;
+            }
+        }
+
+        return (data, info, icc, exif);
     }
 
     private static byte[] ReadPayload(string path)

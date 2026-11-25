@@ -51,7 +51,8 @@ public static class ImageTransform
             pixels,
             sourceWidth,
             sourceHeight,
-            width / (double)sourceWidth)
+            width / (double)sourceWidth,
+            decoded.IsProxy)
         {
             HasAlpha = decoded.HasAlpha
         };

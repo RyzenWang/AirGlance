@@ -14,21 +14,32 @@ namespace AirGlance.Core.Imaging;
 /// </summary>
 public static class ImageDecoder
 {
-    private const long LargeTiffPixelThreshold = 250_000_000;
+    /// <summary>
+    /// Pixel count above which a full-resolution TIFF raster is refused. The raster
+    /// path holds an <c>int</c> buffer and a <c>byte</c> buffer at once, so 32 MP is
+    /// already 256 MB plus 128 MB; these files are previewed by sampling instead and
+    /// reach 100% through the region reader.
+    /// </summary>
+    private const long FullRasterPixelBudget = 32_000_000;
+
+    /// <summary>
+    /// Pixel count above which a codec that cannot scale down is not decoded at all.
+    /// A 128 MP preview would already need a 512 MB buffer.
+    /// </summary>
+    private const long PreviewPixelBudget = 128_000_000;
 
     public static DecodedBitmap Decode(
         string path,
         int maxWidth,
         int maxHeight,
-        CancellationToken cancellationToken = default,
-        bool allowLargePreview = true)
+        CancellationToken cancellationToken = default)
     {
         Validate(path);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (SupportedFormats.IsTiff(path))
         {
-            return DecodeTiff(path, maxWidth, maxHeight, cancellationToken, allowLargePreview);
+            return DecodeTiff(path, maxWidth, maxHeight, cancellationToken);
         }
 
         if (SupportedFormats.IsSvg(path))
@@ -104,8 +115,20 @@ public static class ImageDecoder
             if (pixelCount <= 0 || pixelCount > int.MaxValue / 4)
             {
                 throw new ImageLoadException(
-                    ImageLoadFailure.Corrupt,
+                    ImageLoadFailure.TooLarge,
                     "The decoded image would be too large.",
+                    path,
+                    Path.GetExtension(path));
+            }
+
+            // Codecs that cannot scale down (PNG, WebP, BMP) would allocate the whole
+            // image just to shrink it, so refuse the ones no screen can use instead of
+            // risking an out-of-memory crash on the decode.
+            if (!fullResolution && pixelCount > PreviewPixelBudget)
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.TooLarge,
+                    "The image is too large to decode for a preview.",
                     path,
                     Path.GetExtension(path));
             }
@@ -177,6 +200,17 @@ public static class ImageDecoder
         {
             throw;
         }
+        catch (OutOfMemoryException exception)
+        {
+            // A codec can still exhaust memory inside the native decoder even when the
+            // pixel budget above is satisfied; report it instead of letting it escape.
+            throw new ImageLoadException(
+                ImageLoadFailure.TooLarge,
+                "The image could not be decoded because there was not enough memory.",
+                path,
+                Path.GetExtension(path),
+                exception);
+        }
         catch (UnauthorizedAccessException exception)
         {
             throw new ImageLoadException(
@@ -207,7 +241,7 @@ public static class ImageDecoder
     }
 
     public static DecodedBitmap DecodeFull(string path, CancellationToken cancellationToken = default) =>
-        Decode(path, 0, 0, cancellationToken, allowLargePreview: false);
+        Decode(path, 0, 0, cancellationToken);
 
     /// <summary>
     /// Decodes at full resolution into unmanaged memory. This is the tile-cache entry
@@ -704,27 +738,21 @@ public static class ImageDecoder
         string path,
         int maxWidth,
         int maxHeight,
-        CancellationToken cancellationToken,
-        bool allowLargePreview)
+        CancellationToken cancellationToken)
     {
-        if (IsLargeTiff(path))
+        // A preview never needs the full raster: sampling tiles or strips straight into
+        // the target is what keeps a 100 MP TIFF from building two full-size buffers
+        // (an int[] and a byte[]) before shrinking them.
+        if (maxWidth > 0 && maxHeight > 0)
         {
-            if (!allowLargePreview)
-            {
-                throw new ImageLoadException(
-                    ImageLoadFailure.Unsupported,
-                    "Full-resolution decoding is not available for this large TIFF.",
-                    path,
-                    Path.GetExtension(path));
-            }
-
-            return DecodeLargeTiffPreview(path, maxWidth, maxHeight, cancellationToken);
+            return DecodeTiffPreview(path, maxWidth, maxHeight, cancellationToken);
         }
 
         try
         {
             using var image = OpenTiff(path);
             var info = ReadTiffInfo(image, path);
+            EnsureFullRasterFits(info, path);
             var (orientedWidth, orientedHeight) = info.Orientation.OrientedSize(info.Width, info.Height);
             var bitmap = ReadTiffRgba(image, info, path);
             cancellationToken.ThrowIfCancellationRequested();
@@ -804,31 +832,63 @@ public static class ImageDecoder
         }
     }
 
-    private static DecodedBitmap DecodeLargeTiffPreview(
+    /// <summary>
+    /// Samples tiles or strips into the requested size and then applies the stored
+    /// orientation to the small result. Bounded memory regardless of the source size.
+    /// </summary>
+    private static DecodedBitmap DecodeTiffPreview(
         string path,
         int maxWidth,
         int maxHeight,
-        CancellationToken cancellationToken) =>
-        TiffPreviewDecoder.DecodePreview(path, maxWidth, maxHeight, cancellationToken);
-
-    private static ImageMetadata ReadLargeTiffMetadata(string path) =>
-        TiffPreviewDecoder.ReadMetadata(path);
-
-    private static DecodedImageBuffer DecodeTiffRaw(string path, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
-        if (IsLargeTiff(path))
+        var preview = TiffPreviewDecoder.DecodePreview(path, maxWidth, maxHeight, cancellationToken);
+
+        // DecodePreview always reports a proxy because it was written for files past the
+        // raster budget. Below that budget a full-resolution decode is still possible, so
+        // the bitmap is a plain preview and the viewer keeps its normal 100% path.
+        var pixelCount = (long)preview.SourceWidth * preview.SourceHeight;
+        if (preview.IsProxy && pixelCount <= FullRasterPixelBudget)
+        {
+            preview = new DecodedBitmap(
+                preview.Width,
+                preview.Height,
+                preview.Pixels,
+                preview.SourceWidth,
+                preview.SourceHeight,
+                preview.Scale);
+        }
+
+        var orientation = TiffPreviewDecoder.ReadOrientation(path);
+        return orientation == ImageOrientation.TopLeft
+            ? preview
+            : ImageTransform.ApplyOrientation(preview, orientation, preview.SourceWidth, preview.SourceHeight);
+    }
+
+    private static void EnsureFullRasterFits(TiffInfo info, string path)
+    {
+        if ((long)info.Width * info.Height > FullRasterPixelBudget)
         {
             throw new ImageLoadException(
-                ImageLoadFailure.Unsupported,
-                "Full-resolution decoding is not available for this large TIFF.",
+                ImageLoadFailure.TooLarge,
+                "This TIFF is too large to decode at full resolution; it can still be shown as a preview.",
                 path,
                 Path.GetExtension(path));
         }
+    }
 
+    private static ImageMetadata ReadLargeTiffMetadata(string path) =>
+        // The preview decoder describes the stored raster; the info panel shows what the
+        // viewer displays, which is that raster after the TIFF orientation tag.
+        TiffPreviewDecoder.ReadMetadata(path).WithOrientation(TiffPreviewDecoder.ReadOrientation(path));
+
+    private static DecodedImageBuffer DecodeTiffRaw(string path, CancellationToken cancellationToken)
+    {
         try
         {
             using var image = OpenTiff(path);
             var info = ReadTiffInfo(image, path);
+            EnsureFullRasterFits(info, path);
             var (orientedWidth, orientedHeight) = info.Orientation.OrientedSize(info.Width, info.Height);
             var bitmap = ReadTiffRgba(image, info, path);
             cancellationToken.ThrowIfCancellationRequested();
@@ -945,7 +1005,7 @@ public static class ImageDecoder
             var width = TiffInt(image, TiffTag.IMAGEWIDTH);
             var height = TiffInt(image, TiffTag.IMAGELENGTH);
             return width is > 0 && height is > 0 &&
-                   (long)width.Value * height.Value > LargeTiffPixelThreshold;
+                   (long)width.Value * height.Value > FullRasterPixelBudget;
         }
         catch
         {
@@ -985,7 +1045,7 @@ public static class ImageDecoder
         if (pixelCount > int.MaxValue / 4)
         {
             throw new ImageLoadException(
-                ImageLoadFailure.Corrupt,
+                ImageLoadFailure.TooLarge,
                 "The decoded TIFF would be too large.",
                 path,
                 Path.GetExtension(path));
@@ -1099,7 +1159,26 @@ public static class ImageDecoder
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var (sourceWidth, sourceHeight) = SvgGeometry.Read(path);
+
+            // One parse: the picture provides the drawable rect, so the size no longer
+            // needs a second pass over the document with SvgGeometry.
+            using var stream = OpenRead(path);
+            using var svg = new SKSvg();
+            var picture = svg.Load(stream);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var cull = picture?.CullRect ?? SKRect.Empty;
+            if (picture is null || cull.Width <= 0 || cull.Height <= 0)
+            {
+                throw new ImageLoadException(
+                    ImageLoadFailure.Corrupt,
+                    "The SVG has no drawable area.",
+                    path,
+                    ".svg");
+            }
+
+            var sourceWidth = Math.Max(1, (int)Math.Round(cull.Width));
+            var sourceHeight = Math.Max(1, (int)Math.Round(cull.Height));
             var targetScale = maxWidth <= 0 || maxHeight <= 0
                 ? 1.0
                 : Math.Min(1.0, Math.Min((double)maxWidth / sourceWidth, (double)maxHeight / sourceHeight));
@@ -1117,50 +1196,46 @@ public static class ImageDecoder
                     ".svg");
             }
 
-            using var stream = OpenRead(path);
-            using var svg = new SKSvg();
-            var picture = svg.Load(stream);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var cull = picture?.CullRect ?? SKRect.Empty;
-            if (picture is null || cull.Width <= 0 || cull.Height <= 0)
-            {
-                throw new ImageLoadException(
-                    ImageLoadFailure.Corrupt,
-                    "The SVG has no drawable area.",
-                    path,
-                    ".svg");
-            }
-
-            using var bitmap = new SKBitmap(new SKImageInfo(
+            // Draw straight into the managed buffer instead of rendering into an SKBitmap
+            // and copying its bytes out afterwards.
+            var pixels = GC.AllocateUninitializedArray<byte>(checked(targetWidth * targetHeight * 4));
+            var info = new SKImageInfo(
                 targetWidth,
                 targetHeight,
                 SKColorType.Bgra8888,
                 SKAlphaType.Premul,
-                SKColorSpace.CreateSrgb()));
-            using (var canvas = new SKCanvas(bitmap))
+                SKColorSpace.CreateSrgb());
+
+            unsafe
             {
-                canvas.Clear(SKColors.Transparent);
-                var drawScale = Math.Min(targetWidth / cull.Width, targetHeight / cull.Height);
-                canvas.Translate(
-                    (float)((targetWidth - cull.Width * drawScale) / 2),
-                    (float)((targetHeight - cull.Height * drawScale) / 2));
-                canvas.Scale((float)drawScale);
-                canvas.Translate(-cull.Left, -cull.Top);
-                canvas.DrawPicture(picture);
-                canvas.Flush();
+                fixed (byte* destination = pixels)
+                {
+                    using var bitmap = new SKBitmap();
+                    if (!bitmap.InstallPixels(info, (IntPtr)destination, targetWidth * 4))
+                    {
+                        throw new ImageLoadException(
+                            ImageLoadFailure.Unknown,
+                            "The SVG render target could not be created.",
+                            path,
+                            ".svg");
+                    }
+
+                    using (var canvas = new SKCanvas(bitmap))
+                    {
+                        canvas.Clear(SKColors.Transparent);
+                        var drawScale = Math.Min(targetWidth / cull.Width, targetHeight / cull.Height);
+                        canvas.Translate(
+                            (float)((targetWidth - cull.Width * drawScale) / 2),
+                            (float)((targetHeight - cull.Height * drawScale) / 2));
+                        canvas.Scale((float)drawScale);
+                        canvas.Translate(-cull.Left, -cull.Top);
+                        canvas.DrawPicture(picture);
+                        canvas.Flush();
+                    }
+                }
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            var pixels = bitmap.Bytes;
-            if (pixels.Length < targetWidth * targetHeight * 4)
-            {
-                throw new ImageLoadException(
-                    ImageLoadFailure.Corrupt,
-                    "The SVG renderer returned an incomplete image.",
-                    path,
-                    ".svg");
-            }
 
             return new DecodedBitmap(
                 targetWidth,
@@ -1318,16 +1393,48 @@ public static class ImageDecoder
         var target = GC.AllocateUninitializedArray<byte>(targetWidth * targetHeight * 4);
         var targetPixels = MemoryMarshal.Cast<byte, uint>(target.AsSpan());
 
-        var xRatio = (double)sourceWidth / targetWidth;
-        var yRatio = (double)sourceHeight / targetHeight;
+        // Every source pixel the target pixel covers, per axis. Precomputing the spans
+        // keeps the division out of the inner loop and lets the result be an average
+        // instead of a point sample, which is what caused moiré on large reductions.
+        var columns = new (int Start, int Count)[targetWidth];
+        for (var x = 0; x < targetWidth; x++)
+        {
+            var start = (int)((long)x * sourceWidth / targetWidth);
+            var end = (int)((long)(x + 1) * sourceWidth / targetWidth);
+            columns[x] = (start, Math.Max(1, end - start));
+        }
+
         for (var y = 0; y < targetHeight; y++)
         {
-            var sourceY = Math.Min(sourceHeight - 1, (int)((y + 0.5) * yRatio));
-            var row = sourceY * sourceWidth;
+            var rowStart = (int)((long)y * sourceHeight / targetHeight);
+            var rowEnd = (int)((long)(y + 1) * sourceHeight / targetHeight);
+            var rowCount = Math.Max(1, rowEnd - rowStart);
+            var targetRow = y * targetWidth;
+
             for (var x = 0; x < targetWidth; x++)
             {
-                var sourceX = Math.Min(sourceWidth - 1, (int)((x + 0.5) * xRatio));
-                targetPixels[y * targetWidth + x] = sourcePixels[row + sourceX];
+                var (columnStart, columnCount) = columns[x];
+                uint a = 0, r = 0, g = 0, b = 0;
+                for (var sy = rowStart; sy < rowStart + rowCount; sy++)
+                {
+                    var sourceRow = sy * sourceWidth;
+                    for (var sx = columnStart; sx < columnStart + columnCount; sx++)
+                    {
+                        var pixel = sourcePixels[sourceRow + sx];
+                        a += pixel >> 24;
+                        r += (pixel >> 16) & 0xFF;
+                        g += (pixel >> 8) & 0xFF;
+                        b += pixel & 0xFF;
+                    }
+                }
+
+                var count = (uint)(rowCount * columnCount);
+                var half = count / 2;
+                targetPixels[targetRow + x] =
+                    (((a + half) / count) << 24) |
+                    (((r + half) / count) << 16) |
+                    (((g + half) / count) << 8) |
+                    ((b + half) / count);
             }
         }
 
