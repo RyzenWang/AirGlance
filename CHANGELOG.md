@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   README images and `docs/design/assets/sample-photo.jpg`; see
   `packaging/msix/STORE-UPDATE-0.7.0.md`.
 
+### Added
+
+- Animated WebP plays and loops. `ImageDecoder.DecodeAnimation` gated on a `.gif`
+  extension from a time when GIF was the only animated format, while `SKCodec`
+  exposes WebP frames, disposal, blend rules and delays through the same API; the
+  gate is gone and the frame count decides. APNG remains a single frame.
+
 ### Removed
 
 - The high-contrast theme, which never applied. `HighContrast.axaml` had no
@@ -26,6 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- PNG files with an `eXIf` orientation are no longer displayed sideways. Skia reports
+  no encoded origin for PNG, and the decode path used only that origin; it now falls
+  back to the orientation the managed reader parses. `orientation-6.png` covers it.
+- BigTIFF decodes. The format was documented as outside the support contract but
+  LibTiff already handled it; `bigtiff-lzw.tif` turns that into a tested claim.
+  BMP and ICO gained fixtures as well, and `icc-exif.webp` covers WebP's `ICCP` and
+  EXIF metadata, which were parsed but untested. All six come from
+  `tools/make-extra-fixtures.py`.
 - The window caption no longer shows two garbled characters where the em dash
   belongs. Two of the five caption sites carried text damaged by a GBK round trip
   (`U+95C2` followed by `?`); they all go through `L.WindowTitleFormat` now, a key

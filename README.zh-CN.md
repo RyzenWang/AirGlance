@@ -66,7 +66,7 @@ AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。�
 | --- | --- | --- |
 | JPEG | `.jpg`、`.jpeg`、`.jfif` | 应用 EXIF 方向，内嵌 ICC 转为 sRGB。JPEG 副本会把透明区域压平到白色。 |
 | PNG | `.png` | 保留透明通道和内嵌 ICC。16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。 |
-| WebP | `.webp` | 支持带透明通道的静态图片；内嵌 ICC 转为 sRGB。 |
+| WebP | `.webp` | 支持带透明通道的静态图片；内嵌 ICC 转为 sRGB。动画 WebP 与 GIF 一样自动播放并循环。 |
 | AVIF | `.avif` | Windows x64/arm64、macOS x64/arm64、Linux x64/arm64。显示第一帧，支持透明通道、10/12 位源、`irot`/`imir`、clean aperture、ICC/EXIF 元数据；不支持 AVIF 导出。Windows arm64 使用交叉编译的 arm64 解码器，不带 x86 SIMD。 |
 | BMP | `.bmp` | 通过 SkiaSharp 解码。 |
 | GIF | `.gif` | 动画 GIF 自动播放并循环；静态 GIF 只显示一帧。 |
@@ -195,8 +195,8 @@ Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/
 
 - HEIC/HEIF 和相机 RAW 不支持。AVIF 由 Windows x64/arm64、macOS x64/arm64、Linux x64/arm64 构建支持；Windows arm64 解码器是交叉编译的，不带 x86 SIMD。
 - AVIF 只显示第一帧，动画 AVIF 不播放，另存副本也不能写 AVIF。
-- 动画 GIF 会播放；动画 WebP 和 APNG 仍是静态图。视频不支持。
-- TIFF 只显示第一页。BigTIFF 和部分特殊压缩变体不在支持范围内；托管 LibTiff 路径覆盖 stripped、tiled、pyramidal 和 planar 文件，包括 8/16 位 RGB、CMYK、RGBA、浮点和调色板数据。
+- 动画 GIF 和动画 WebP 会播放；APNG 仍是静态图。视频不支持。
+- TIFF 只显示第一页。BigTIFF 已支持并有夹具测试；部分特殊压缩变体不在支持范围内；托管 LibTiff 路径覆盖 stripped、tiled、pyramidal 和 planar 文件，包括 8/16 位 RGB、CMYK、RGBA、浮点和调色板数据。
 - 没有图库、数据库、标签、评分、搜索、批量转换或重命名、滤镜、图层、文字、拼接、云同步或账号。
 - 没有标签页。双画布是一个窗口内明确的 A/B 两块画布，不是标签栏。没有托盘图标，也没有单实例转发。
 - 双画布两侧都加载有界预览；逐画布旋转/翻转、另存副本和幻灯片暂缓。不支持两张 100 MP 图片同时 100%，也不包含成对前进（左 N / 右 N+1）。

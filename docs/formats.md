@@ -59,10 +59,11 @@ The native library is built by `native/avif/build.ps1` (Windows x64), `build-win
 | HEIC / HEIF | Not listed and not opened |
 | RAW (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2 and others) | Not listed and not opened |
 | Animated AVIF (AVIF sequences) | First frame is shown as a still image; no animation loop |
-| Animated WebP / APNG | First frame is shown as a still image; no animation loop |
+| Animated WebP | Played frame by frame, like GIF |
+| APNG | First frame is shown as a still image; no animation loop |
 | Video (MP4, MOV, WebM, MKV and others) | Not listed and not opened |
 
-HEIC, HEIF and RAW are deliberately absent, not pending work. HEIC needs a native HEVC decoder that is not bundled; AVIF uses AV1 and is now bundled for Windows x64/arm64, macOS and Linux. Animated WebP and APNG are supported containers, but the viewer only uses their first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
+HEIC, HEIF and RAW are deliberately absent, not pending work. HEIC needs a native HEVC decoder that is not bundled; AVIF uses AV1 and is now bundled for Windows x64/arm64, macOS and Linux. Animated WebP is played; APNG is a supported container but the viewer only uses its first frame. Renaming an unsupported file to a supported extension does not help: the content check still fails and the file is reported as corrupt.
 
 ## Exact behavior
 
@@ -101,7 +102,7 @@ Animated GIFs are decoded frame by frame and played automatically by the viewer.
 
 `animated.gif` has three frames with 100 ms delays; `ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay` checks all three frame colours and delays, and the window test checks that the displayed bitmap changes over time. Rotation and save/copy operate on the first frame; animated playback is at the decoded preview size (a large GIF may be softer at 100%).
 
-Animated WebP and APNG remain still images: those containers are not decoded as frame sets and are not tested. Video is not supported.
+Animated WebP is decoded by the same code: `SKCodec` exposes its frames, its disposal and blend rules, and its delays, and the frame budget applies identically. `animated.webp` has three frames with 100, 200 and 300 ms delays. APNG remains a still image, and video is not supported.
 
 ### Metadata
 
@@ -151,6 +152,12 @@ All paths are under `tests/Assets` and are copied next to the test binaries.
 | `corrupt.avif` | 100 bytes (truncated) | `ImageDecoderTests.Avif_corrupt_file_reports_corrupt` | Truncated AVIF reports corrupt |
 | `corrupt.jpg` | 18 bytes | `ImageDecoderTests.Corrupt_file_reports_corrupt` | A supported extension with invalid content reports a corrupt image |
 | `exif-full.jpg` | 120 × 80 | `ImageDecoderTests.Exif_fields_are_read` | IFD0/sub-IFD fields, rational values and Pillow-style pairs |
+| `orientation-6.png` | 40 × 20 stored; 20 × 40 displayed | `ImageDecoderTests.Png_exif_orientation_is_applied_to_pixels` | PNG `eXIf` orientation is applied to pixels |
+| `animated.webp` | 40 × 40, 3 frames at 100/200/300 ms | `ImageDecoderTests.Animated_webp_decodes_every_frame_and_delay`, `Animated_webp_metadata_reports_frame_count` | Animated WebP frames, delays and frame count |
+| `icc-exif.webp` | 48 × 32 | `ImageDecoderTests.Webp_icc_and_exif_are_read` | WebP `ICCP` profile description and camera EXIF |
+| `sample.bmp` | 32 × 16 | `ImageDecoderTests.Bmp_decodes_its_quadrants` | BMP baseline decode |
+| `sample.ico` | 32 × 32 | `ImageDecoderTests.Ico_decodes_with_alpha` | ICO decode with a transparent corner |
+| `bigtiff-lzw.tif` | 64 × 32 | `ImageDecoderTests.Bigtiff_decodes` | BigTIFF with 64-bit offsets and LZW |
 | `profiles/DisplayP3.icc` | 480 bytes | Test asset generation and `display-p3.*` | Display P3 profile fixture |
 | `profiles/AdobeCompat.icc` | 374 bytes | Test asset generation and `adobe-rgb.jpg` | Adobe RGB compatible profile fixture |
 
@@ -158,17 +165,7 @@ The two ICC files come from saucecontrol/Compact-ICC-Profiles and are CC0. They 
 
 `clap.avif` is generated from `sample.avif` by `tools/make-clap-avif.py`. It carries the same AV1 payload with a clean-aperture property added to the item property container, associated as an essential property, so it needs no encoder and regenerates byte for byte.
 
-## Coverage gaps
-
-The matrix is a description of tested behavior, not a claim that every supported format has a fixture. These points are not measured by the current suite:
-
-- BMP and ICO have no fixture and no test. Their support is the `SKCodec` path and the extension gate.
-- AVIF `clap` is fixture-tested for a still image. `imir` and combined `irot`/`imir` follow libavif's documented mapping but are not fixture-tested. ICC is read for the info panel but not converted to sRGB for AVIF pixels. HDR/gain maps and AVIF encoding are not supported.
-- AVIF tests and fixtures only run where the native decoder is present. Windows CI builds both x64 and arm64 decoders; macOS and Linux CI build the decoder for the matching architecture. The Windows arm64 DLL is cross-built and PE-checked, but no Windows arm64 hardware run is recorded.
-- PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
-- WebP ICC and WebP EXIF are not covered by fixtures.
-- ICO alpha, GIF transparency and BMP alpha are not covered by dedicated fixtures.
-- TIFF multi-page files, BigTIFF and 12-bit JPEG-in-TIFF are not covered by fixtures. The stripped, tiled, pyramidal, planar, CMYK, palette, YCbCr, float and signed/unsigned 16-bit paths are; the grouped table above lists the fixtures that prove them.
+`orientation-6.png`, `animated.webp`, `icc-exif.webp`, `sample.bmp`, `sample.ico` and `bigtiff-lzw.tif` are generated by `tools/make-extra-fixtures.py` from plain Pillow drawing calls, so they carry no third-party content.
 
 ### TIFF fixtures
 
@@ -184,10 +181,22 @@ One quadrants image per sample layout, shared by `TiffPreviewDecoderTests` and
 | `ycbcr-quadrants.tif`, `ycbcr-quadrants-jpeg.tif`, `ycbcr-subsampled.tif`, `ycbcr-subsampled-lzw.tif`, `ycbcr-subsampled-deflate.tif` | YCbCr uncompressed, JPEG-compressed, and subsampled with LZW or Deflate |
 | `int16-quadrants.tif`, `float16-quadrants.tif`, `float32-quadrants.tif` | Signed 16-bit and half/single precision float samples |
 | `rgba-quadrants.tif`, `rgba16-quadrants.tif` | 8- and 16-bit RGBA |
+| `bigtiff-lzw.tif` | A BigTIFF container with 64-bit offsets decodes like a classic TIFF |
 | `subifd-levels.tif` | A reduced pyramid level is preferred over the full-resolution directory |
+
+## Coverage gaps
+
+The matrix is a description of tested behavior, not a claim that every supported format has a fixture. These points are not measured by the current suite:
+
+- BMP and ICO are fixture-tested for quadrant colours and an ICO transparent corner. BMP alpha and multi-size ICO entries are not covered.
+- AVIF `clap` is fixture-tested for a still image. `imir` and combined `irot`/`imir` follow libavif's documented mapping but are not fixture-tested. ICC is read for the info panel but not converted to sRGB for AVIF pixels. HDR/gain maps and AVIF encoding are not supported.
+- AVIF tests and fixtures only run where the native decoder is present. Windows CI builds both x64 and arm64 decoders; macOS and Linux CI build the decoder for the matching architecture. The Windows arm64 DLL is cross-built and PE-checked, but no Windows arm64 hardware run is recorded.
+- PNG `eXIf` orientation is applied to pixels and fixture-tested. Interlaced PNG is not covered by a fixture.
+- Animated WebP is decoded as an animation and fixture-tested; APNG is still shown as a single frame.
+- GIF transparency and BMP alpha are not covered by dedicated fixtures.
+- TIFF multi-page files and 12-bit JPEG-in-TIFF are not covered by fixtures; BigTIFF is (`bigtiff-lzw.tif`). The stripped, tiled, pyramidal, planar, CMYK, palette, YCbCr, float and signed/unsigned 16-bit paths are; the grouped table above lists the fixtures that prove them.
 - CMYK JPEG, progressive JPEG and very large JPEGs are not separately tested.
 - The 16-bit PNG test checks the reported depth, not the precision of the 8-bit result.
-- Animated WebP and APNG are not decoded as animations.
 - The format tests run on each host in `build.yml` (Windows, Linux and macOS), but there is no separate per-OS fixture or expected-result matrix.
 - `tools/testdata/photo-100mp.jpg` and `photo-24mp.jpg` are benchmark images, not format fixtures, and are gitignored.
 

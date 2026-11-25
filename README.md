@@ -66,7 +66,7 @@ A file is recognised by its extension. Ordinary raster formats decode with SkiaS
 | --- | --- | --- |
 | JPEG | `.jpg`, `.jpeg`, `.jfif` | EXIF orientation and embedded ICC to sRGB. JPEG copies flatten transparency onto white. |
 | PNG | `.png` | Alpha and embedded ICC are preserved. A 16-bit PNG is reported as 16-bit but displayed and saved at 8-bit. |
-| WebP | `.webp` | Still images with alpha; embedded ICC to sRGB. |
+| WebP | `.webp` | Still images with alpha; embedded ICC to sRGB. Animated WebP plays and loops like GIF. |
 | AVIF | `.avif` | Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64. First frame, alpha, 10/12-bit sources, `irot`/`imir`, clean aperture, ICC/EXIF metadata. AVIF export is not supported. The Windows arm64 build uses a cross-compiled arm64 decoder without x86 SIMD. |
 | BMP | `.bmp` | Decoded through SkiaSharp. |
 | GIF | `.gif` | Animated GIFs play and loop automatically; static GIFs show one frame. |
@@ -195,8 +195,8 @@ These are limitations, not a promise list.
 
 - HEIC/HEIF and camera RAW are not supported. AVIF is supported by the Windows x64/arm64, macOS x64/arm64 and Linux x64/arm64 builds; the Windows arm64 decoder is cross-compiled without x86 SIMD.
 - AVIF shows the first frame only; animated AVIF is not played. AVIF cannot be written by Save copy.
-- Animated GIFs play; animated WebP and APNG remain still images. Video is not supported.
-- TIFF shows the first page only. BigTIFF and some exotic compression variants remain outside the support contract; the managed LibTiff path covers stripped, tiled, pyramidal and planar files, including 8/16-bit RGB, CMYK, RGBA, float and palette data.
+- Animated GIFs and animated WebP play; APNG remains a still image. Video is not supported.
+- TIFF shows the first page only. BigTIFF is supported and fixture-tested; some exotic compression variants remain outside the support contract; the managed LibTiff path covers stripped, tiled, pyramidal and planar files, including 8/16-bit RGB, CMYK, RGBA, float and palette data.
 - No gallery, database, tags, ratings, search, batch conversion or rename, filters, layers, text, stitching, cloud sync or accounts.
 - No tabs. Dual view is one window with two explicit A/B canvases, not a tab strip. No tray icon and no single-instance forwarding.
 - Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.

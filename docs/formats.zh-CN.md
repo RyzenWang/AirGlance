@@ -59,10 +59,11 @@ Windows x64/arm64、macOS 和 Linux 构建把 libavif 1.4.2 和 dav1d 1.5.5 打�
 | HEIC / HEIF | 不列出，也不打开 |
 | RAW（CR2、CR3、NEF、ARW、DNG、RAF、ORF、RW2 等） | 不列出，也不打开 |
 | 动画 AVIF（AVIF 序列） | 只把第 1 帧当作静态图显示；没有动画循环 |
-| 动画 WebP / APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
+| 动画 WebP | 与 GIF 一样逐帧播放 |
+| APNG | 只把第 1 帧当作静态图显示；没有动画循环 |
 | 视频（MP4、MOV、WebM、MKV 等） | 不列出，也不打开 |
 
-HEIC、HEIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。HEIC 需要未随包分发的原生 HEVC 解码器；AVIF 使用 AV1，Windows x64/arm64、macOS 和 Linux 构建已经随包支持。动画 WebP 和 APNG 是受支持的容器，但查看器只使用它们的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
+HEIC、HEIF、RAW 等格式是有意不支持的，而不是尚未完成的工作。HEIC 需要未随包分发的原生 HEVC 解码器；AVIF 使用 AV1，Windows x64/arm64、macOS 和 Linux 构建已经随包支持。动画 WebP 会播放；APNG 是受支持的容器，但查看器只使用它的第一帧。把不受支持的文件重命名为受支持的扩展名没有用处：内容检查仍然会失败，文件会被报告为损坏。
 
 ## 确切行为
 
@@ -101,7 +102,7 @@ ICO 使用相同的预乘 BGRA 路径，并且 `HasAlpha` 会为 ICO 容器设�
 
 `animated.gif` 有三帧、每帧延迟 100 ms；`ImageDecoderTests.Animated_gif_decodes_every_frame_and_delay` 检查三帧颜色和延迟，窗口测试检查显示的位图会随时间变化。旋转、另存和复制操作使用第 1 帧；动画按解码后的预览尺寸播放（较大的 GIF 在 100% 下可能偏软）。
 
-动画 WebP 和 APNG 仍按静态图处理：这些容器不会被解码为帧集合，也没有测试。视频不支持。
+动画 WebP 走同一套代码：`SKCodec` 会给出它的帧、消隐与混合规则以及每帧延迟，帧预算同样适用。`animated.webp` 为 3 帧，延迟分别是 100、200 和 300 ms。APNG 仍按静态图处理，视频不支持。
 
 ### 元数据
 
@@ -150,10 +151,18 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 | `corrupt.avif` | 100 字节（截断） | `ImageDecoderTests.Avif_corrupt_file_reports_corrupt` | 截断 AVIF 报告损坏 |
 | `corrupt.jpg` | 18 字节 | `ImageDecoderTests.Corrupt_file_reports_corrupt` | 受支持的扩展名搭配无效内容时会报告图像损坏 |
 | `exif-full.jpg` | 120 × 80 | `ImageDecoderTests.Exif_fields_are_read` | IFD0/子 IFD 字段、有理数值和 Pillow 风格数对 |
+| `orientation-6.png` | 存储 40 × 20；显示 20 × 40 | `ImageDecoderTests.Png_exif_orientation_is_applied_to_pixels` | PNG `eXIf` 的方向会应用到像素 |
+| `animated.webp` | 40 × 40，3 帧，100/200/300 ms | `ImageDecoderTests.Animated_webp_decodes_every_frame_and_delay`、`Animated_webp_metadata_reports_frame_count` | 动画 WebP 的帧、延迟与帧数 |
+| `icc-exif.webp` | 48 × 32 | `ImageDecoderTests.Webp_icc_and_exif_are_read` | WebP 的 `ICCP` 配置文件描述与相机 EXIF |
+| `sample.bmp` | 32 × 16 | `ImageDecoderTests.Bmp_decodes_its_quadrants` | BMP 基线解码 |
+| `sample.ico` | 32 × 32 | `ImageDecoderTests.Ico_decodes_with_alpha` | ICO 解码与透明角 |
+| `bigtiff-lzw.tif` | 64 × 32 | `ImageDecoderTests.Bigtiff_decodes` | 使用 64 位偏移的 BigTIFF + LZW |
 | `profiles/DisplayP3.icc` | 480 字节 | 测试资产生成以及 `display-p3.*` | Display P3 配置文件测试夹具 |
 | `profiles/AdobeCompat.icc` | 374 字节 | 测试资产生成以及 `adobe-rgb.jpg` | 兼容 Adobe RGB 的配置文件测试夹具 |
 
 这两个 ICC 文件来自 saucecontrol/Compact-ICC-Profiles，采用 CC0 许可。它们只是测试夹具，不随应用一起分发。参见 [THIRD-PARTY-NOTICES](../THIRD-PARTY-NOTICES.md)。
+
+`orientation-6.png`、`animated.webp`、`icc-exif.webp`、`sample.bmp`、`sample.ico` 和 `bigtiff-lzw.tif` 由 `tools/make-extra-fixtures.py` 用 Pillow 的绘图调用生成，不含第三方内容。
 
 ### TIFF 夹具
 
@@ -173,16 +182,15 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 
 该矩阵描述的是已测试的行为，并不声称每种受支持的格式都有测试夹具。以下各点未被当前测试套件测量：
 
-- BMP 和 ICO 没有测试夹具，也没有测试。它们的支持仅依靠 `SKCodec` 路径和扩展名校验。
+- BMP 和 ICO 已有象限颜色与 ICO 透明角的夹具测试。BMP 的 Alpha 和多尺寸 ICO 条目尚未覆盖。
 - AVIF 的 `clap` 已用静图夹具测试；`imir` 及 `irot`/`imir` 组合按 libavif 文档映射，但没有夹具测试。ICC 只为信息面板读取，AVIF 像素暂不转换到 sRGB。HDR/gain map 和 AVIF 编码不支持。
 - AVIF 测试和夹具只在原生解码器存在的平台运行。Windows CI 构建 x64 和 arm64 解码器；macOS 和 Linux CI 为当前架构构建。Windows arm64 DLL 是交叉构建并做了 PE 校验，但没有记录 Windows arm64 硬件运行结果。
-- PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
-- WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。
-- ICO 的 Alpha、GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。
-- TIFF 的多页文件、BigTIFF 和 TIFF 内 12 位 JPEG 没有夹具覆盖。条带式、瓦片式、金字塔、平面、CMYK、调色板、YCbCr、浮点以及有符号/无符号 16 位路径都有覆盖，对应夹具见上方分组表。
+- PNG `eXIf` 的方向已应用到像素并有夹具测试。隔行扫描（interlaced）PNG 没有夹具覆盖。
+- 动画 WebP 已按动画解码并有夹具测试；APNG 仍只显示单帧。
+- GIF 的透明度和 BMP 的 Alpha 没有专门的测试夹具覆盖。
+- TIFF 的多页文件和 TIFF 内 12 位 JPEG 没有夹具覆盖；BigTIFF 已覆盖（`bigtiff-lzw.tif`）。条带式、瓦片式、金字塔、平面、CMYK、调色板、YCbCr、浮点以及有符号/无符号 16 位路径都有覆盖，对应夹具见上方分组表。
 - CMYK JPEG、渐进式 JPEG 和超大 JPEG 没有单独测试。
 - 16 位 PNG 测试检查的是所报告的位深，而不是 8 位结果的精度。
-- 动画 WebP 和 APNG 不会按动画解码。
 - 格式测试在 `build.yml` 中的每个主机上运行（Windows、Linux 和 macOS），但没有按操作系统分开的测试夹具或预期结果矩阵。
 - `tools/testdata/photo-100mp.jpg` 和 `photo-24mp.jpg` 是基准测试图像，不是格式测试夹具，并且被 gitignore 忽略。
 
