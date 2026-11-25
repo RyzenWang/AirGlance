@@ -910,8 +910,49 @@ public partial class MainWindow : Window
         ApplyTool(ThemeButton, dark ? "L.SwitchToLight" : "L.SwitchToDark");
     }
 
-    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e) =>
+    /// <summary>
+    /// Properties the viewer raises on a timer or on every pointer move. Applying the
+    /// whole window state per notification cost two full passes per zoom-animation
+    /// frame (8 ms apart) and one per crop-drag move, so these are coalesced into a
+    /// single pass per dispatcher turn. Every other property still applies
+    /// synchronously, because a mode change must not lag a frame.
+    /// </summary>
+    private static readonly HashSet<string> CoalescedProperties = new(StringComparer.Ordinal)
+    {
+        nameof(MainWindowViewModel.ZoomPercent),
+        nameof(MainWindowViewModel.ZoomText),
+        nameof(MainWindowViewModel.Crop)
+    };
+
+    private bool _stateApplyQueued;
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is { } name && CoalescedProperties.Contains(name))
+        {
+            QueueViewModelState();
+            return;
+        }
+
         ApplyViewModelState();
+    }
+
+    private void QueueViewModelState()
+    {
+        if (_stateApplyQueued)
+        {
+            return;
+        }
+
+        _stateApplyQueued = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _stateApplyQueued = false;
+                ApplyViewModelState();
+            },
+            DispatcherPriority.Render);
+    }
 
     private void ApplyViewModelState()
     {
