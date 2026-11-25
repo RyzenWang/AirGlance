@@ -4,6 +4,7 @@ using AirGlance.App.Services;
 using AirGlance.App.Views;
 using AirGlance.Core.Files;
 using AirGlance.Core.Imaging;
+using AirGlance.Core.Storage;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -41,6 +42,47 @@ public partial class App : Application
         }
 
         var options = CommandLineOptions.Parse(desktop.Args);
+
+        // A second launch hands its paths to the running window instead of opening a
+        // second process. This is decided before any service or window work, so a
+        // forwarding launch stays cheap and never touches the settings the running
+        // instance owns. Benchmarks, --help and --version stay single-shot so their
+        // output and exit codes are never mixed with a running session.
+        SingleInstance? instance = null;
+        var pending = new List<string>();
+        if (options.Benchmark == BenchmarkMode.None && !options.ShowHelp && !options.ShowVersion)
+        {
+            // Same directory AppServices will use; the constructor only computes paths.
+            var scope = new SettingsService().SettingsDirectory;
+            instance = SingleInstance.Acquire(scope, paths => Dispatcher.UIThread.Post(() =>
+            {
+                if (desktop.MainWindow is MainWindow target)
+                {
+                    target.OpenForwardedPaths(paths);
+                }
+                else
+                {
+                    // A forward can arrive while the window is still being built.
+                    pending.AddRange(paths);
+                }
+            }));
+
+            if (instance is null)
+            {
+                if (options.TargetPath is { } forwarded)
+                {
+                    SingleInstance.Forward(scope, [forwarded]);
+                }
+
+                // Nothing has been created yet, and shutting the lifetime down here
+                // throws because the dispatcher is not running.
+                Environment.Exit(0);
+                return;
+            }
+
+            desktop.Exit += (_, _) => instance.Dispose();
+        }
+
         var services = new AppServices();
         TiledImageSource.CleanupStale(TimeSpan.FromDays(1));
         if (options.Benchmark != BenchmarkMode.None)
@@ -84,6 +126,13 @@ public partial class App : Application
         StartupTrace.Mark("window-created");
         desktop.MainWindow = window;
         desktop.Exit += (_, _) => services.Dispose();
+
+        // A path forwarded while the window was still being built waits in "pending".
+        if (pending.Count > 0)
+        {
+            window.OpenForwardedPaths([.. pending]);
+            pending.Clear();
+        }
 
         base.OnFrameworkInitializationCompleted();
     }

@@ -1840,6 +1840,21 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Opens a path handed over by a second launch, so the caller's process can exit.
+    /// The view model already guards against a load superseding another one.
+    /// </summary>
+    public void OpenForwardedPaths(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        ShowChrome();
+        _ = _viewModel.OpenPathAsync(paths[0]);
+    }
+
     private async Task OpenFileAsync()
     {
         var files = await StorageProvider.OpenFilePickerAsync(
