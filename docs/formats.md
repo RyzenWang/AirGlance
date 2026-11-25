@@ -142,6 +142,7 @@ All paths are under `tests/Assets` and are copied next to the test binaries.
 | `vector.svg` | 64 × 48 | `ImageDecoderTests.Svg_renders_at_its_intrinsic_size`, `Svg_scaled_decode_keeps_the_vector_aspect_ratio` | SVG is rasterized at intrinsic and scaled sizes |
 | `gradient-16bit.png` | 64 × 32 | `ImageDecoderTests.Sixteen_bit_png_reports_its_source_bit_depth` | PNG source bit depth 16 is reported |
 | `sample.avif` | 1440 × 900 | `ImageDecoderTests.Avif_decodes_a_still_image`, `Avif_preview_respects_the_requested_box` | AVIF still decode, centre colour and preview scaling |
+| `clap.avif` | 1440 × 900 coded; 1438 × 898 displayed | `ImageDecoderTests.Avif_clean_aperture_crops_the_decoded_frame` | A clean-aperture property is applied after the full frame is decoded |
 | `alpha.avif` | 80 × 80 | `ImageDecoderTests.Avif_alpha_is_preserved` | AVIF alpha is preserved and premultiplied |
 | `irot.avif` | 12 × 34 stored; 34 × 12 displayed | `ImageDecoderTests.Avif_irot_is_applied_and_bit_depth_is_reported` | `irot` orientation and 10-bit source reporting |
 | `icc-exif.avif` | 403 × 302 | `ImageDecoderTests.Avif_icc_and_exif_are_read` | AVIF ICC description and EXIF camera fields |
@@ -155,12 +156,14 @@ All paths are under `tests/Assets` and are copied next to the test binaries.
 
 The two ICC files come from saucecontrol/Compact-ICC-Profiles and are CC0. They are test fixtures only and are not shipped with the application. See [THIRD-PARTY-NOTICES](../THIRD-PARTY-NOTICES.md).
 
+`clap.avif` is generated from `sample.avif` by `tools/make-clap-avif.py`. It carries the same AV1 payload with a clean-aperture property added to the item property container, associated as an essential property, so it needs no encoder and regenerates byte for byte.
+
 ## Coverage gaps
 
 The matrix is a description of tested behavior, not a claim that every supported format has a fixture. These points are not measured by the current suite:
 
 - BMP and ICO have no fixture and no test. Their support is the `SKCodec` path and the extension gate.
-- AVIF has no valid clean-aperture-only fixture; the `clap` crop path is implemented but not exercised end to end. `irot` is fixture-tested; `imir` and combined `irot`/`imir` follow libavif's documented mapping but are not fixture-tested. ICC is read for the info panel but not converted to sRGB for AVIF pixels. HDR/gain maps and AVIF encoding are not supported.
+- AVIF `clap` is fixture-tested for a still image. `imir` and combined `irot`/`imir` follow libavif's documented mapping but are not fixture-tested. ICC is read for the info panel but not converted to sRGB for AVIF pixels. HDR/gain maps and AVIF encoding are not supported.
 - AVIF tests and fixtures only run where the native decoder is present. Windows CI builds both x64 and arm64 decoders; macOS and Linux CI build the decoder for the matching architecture. The Windows arm64 DLL is cross-built and PE-checked, but no Windows arm64 hardware run is recorded.
 - PNG `eXIf` orientation is not applied to pixels, and there is no PNG orientation fixture to demonstrate that end to end.
 - WebP ICC and WebP EXIF are not covered by fixtures.

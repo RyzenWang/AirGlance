@@ -160,7 +160,7 @@ XMP、IPTC、厂商注释以及 `eXIf` 之外的 PNG 文本块不会被读取。
 该矩阵描述的是已测试的行为，并不声称每种受支持的格式都有测试夹具。以下各点未被当前测试套件测量：
 
 - BMP 和 ICO 没有测试夹具，也没有测试。它们的支持仅依靠 `SKCodec` 路径和扩展名校验。
-- AVIF 没有仅包含 clean aperture 的有效测试夹具；`clap` 裁剪路径已实现但没有端到端覆盖。`irot` 有夹具测试；`imir` 及 `irot`/`imir` 组合按 libavif 文档映射，但没有夹具测试。ICC 只为信息面板读取，AVIF 像素暂不转换到 sRGB。HDR/gain map 和 AVIF 编码不支持。
+- AVIF 的 `clap` 已用静图夹具测试；`imir` 及 `irot`/`imir` 组合按 libavif 文档映射，但没有夹具测试。ICC 只为信息面板读取，AVIF 像素暂不转换到 sRGB。HDR/gain map 和 AVIF 编码不支持。
 - AVIF 测试和夹具只在原生解码器存在的平台运行。Windows CI 构建 x64 和 arm64 解码器；macOS 和 Linux CI 为当前架构构建。Windows arm64 DLL 是交叉构建并做了 PE 校验，但没有记录 Windows arm64 硬件运行结果。
 - PNG `eXIf` 的方向不会应用到像素，也没有 PNG 方向测试夹具来端到端地证明这一点。
 - WebP 的 ICC 和 WebP 的 EXIF 没有测试夹具覆盖。

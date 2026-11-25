@@ -481,6 +481,45 @@ public sealed class ImageDecoderTests
     }
 
     [Fact]
+    public void Avif_clean_aperture_crops_the_decoded_frame()
+    {
+        if (!SupportedFormats.SupportsAvif)
+        {
+            return;
+        }
+
+        var metadata = ImageDecoder.ReadMetadata(Asset("clap.avif"));
+        Assert.Equal(1438, metadata.RawWidth);
+        Assert.Equal(898, metadata.RawHeight);
+        Assert.Equal(1438, metadata.DisplayWidth);
+        Assert.Equal(898, metadata.DisplayHeight);
+
+        // The decoder writes the whole 1440 x 900 coded frame and reports the clean
+        // aperture separately. Sizing the destination buffer from the crop made every
+        // clap file fail as corrupt before the frame could be trimmed.
+        var cropped = ImageDecoder.DecodeFull(Asset("clap.avif"));
+        Assert.Equal(1438, cropped.Width);
+        Assert.Equal(898, cropped.Height);
+        Assert.Equal(1438, cropped.SourceWidth);
+        Assert.Equal(898, cropped.SourceHeight);
+
+        // The aperture is centred with zero offsets, so it drops the outer row and
+        // column: the result must match the same frame one pixel inside.
+        var frame = ImageDecoder.DecodeFull(Asset("sample.avif"));
+        for (var y = 0; y < cropped.Height; y += 300)
+        {
+            for (var x = 0; x < cropped.Width; x += 300)
+            {
+                var inside = Pixel(cropped, x, y);
+                var reference = Pixel(frame, x + 1, y + 1);
+                Assert.Equal(reference.R, inside.R);
+                Assert.Equal(reference.G, inside.G);
+                Assert.Equal(reference.B, inside.B);
+            }
+        }
+    }
+
+    [Fact]
     public void Avif_alpha_is_preserved()
     {
         if (!SupportedFormats.SupportsAvif)
