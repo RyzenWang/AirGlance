@@ -28,6 +28,9 @@ public sealed record DualRevealRequest(string Path);
 /// </summary>
 public sealed class DualCanvasView : UserControl, IDisposable
 {
+    private const int MaximumPreviewWidth = 2400;
+    private const int MaximumPreviewHeight = 1600;
+
     private readonly AppServices _services;
     private readonly PaneSlot _a;
     private readonly PaneSlot _b;
@@ -1178,13 +1181,16 @@ public sealed class DualCanvasView : UserControl, IDisposable
 
         try
         {
+            // A fixed 2400 x 1600 decode was four to eight times the size a pane actually
+            // shows in a normal window; ask for what the pane can display instead.
+            var (targetWidth, targetHeight) = PanePreviewTarget(pane);
             var decoded = await Task.Run(() =>
             {
                 var metadata = ImageDecoder.ReadMetadata(path);
                 var animation = metadata.IsAnimated
-                    ? ImageDecoder.DecodeAnimation(path, 2400, 1600, token)
+                    ? ImageDecoder.DecodeAnimation(path, targetWidth, targetHeight, token)
                     : null;
-                var still = animation is null ? ImageDecoder.Decode(path, 2400, 1600, token) : null;
+                var still = animation is null ? ImageDecoder.Decode(path, targetWidth, targetHeight, token) : null;
                 return (metadata, animation, still);
             }, token);
             if (token.IsCancellationRequested || version != pane.LoadVersion)
@@ -1714,6 +1720,25 @@ public sealed class DualCanvasView : UserControl, IDisposable
         pane.FileSeparator2.IsVisible = true;
         pane.FilePosition.IsVisible = true;
         pane.FolderCount.IsVisible = !compact;
+    }
+
+    /// <summary>
+    /// The decode size for one pane. The ceiling keeps the request bounded when a pane
+    /// covers a very wide window or the first layout pass has not given it a size yet.
+    /// </summary>
+    private (int Width, int Height) PanePreviewTarget(PaneSlot pane)
+    {
+        var scaling = TopLevel.GetTopLevel(this)?.RenderScaling ?? 1.0;
+        var width = (int)Math.Round(pane.Viewer.Bounds.Width * scaling);
+        var height = (int)Math.Round(pane.Viewer.Bounds.Height * scaling);
+        if (width <= 0 || height <= 0)
+        {
+            return (MaximumPreviewWidth, MaximumPreviewHeight);
+        }
+
+        return (
+            Math.Clamp(width, 640, MaximumPreviewWidth),
+            Math.Clamp(height, 480, MaximumPreviewHeight));
     }
 
     private static string TruncateLabel(string value, int maxChars)

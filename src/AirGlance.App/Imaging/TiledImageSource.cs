@@ -27,6 +27,10 @@ public sealed class TiledImageSource : IDisposable
     private readonly TiffRegionReader? _region;
     private readonly SemaphoreSlim _regionGate = new(1, 1);
     private readonly ConcurrentDictionary<int, byte> _pendingRegionTiles = [];
+    private readonly SemaphoreSlim _fileTileGate = new(1, 1);
+
+    /// <summary>Tile indices whose file read is in flight. Touched on the UI thread only.</summary>
+    private readonly HashSet<int> _pendingFileTiles = [];
     private readonly Dictionary<int, WriteableBitmap> _cache = [];
     private readonly Queue<int> _cacheOrder = [];
     private readonly CancellationTokenSource _regionPrepCts = new();
@@ -338,9 +342,54 @@ public sealed class TiledImageSource : IDisposable
             return null;
         }
 
-        var bitmap = ReadTile(column, row);
-        CacheTile(index, bitmap);
-        return bitmap;
+        // Reading the tile file is a blocking 1 MB read. Doing it here meant a cache miss
+        // inside Render stalled the frame, up to 32 times per pan, so the read is queued
+        // instead and the caller draws the preview underneath until the tile arrives.
+        if (_pendingFileTiles.Add(index))
+        {
+            RaiseTileLoadingChanged();
+            _ = LoadFileTileAsync(column, row, index);
+        }
+
+        return null;
+    }
+
+    private async Task LoadFileTileAsync(int column, int row, int index)
+    {
+        WriteableBitmap? bitmap = null;
+        try
+        {
+            await _fileTileGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (!_disposed)
+                {
+                    bitmap = await Task.Run(() => ReadTile(column, row)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _fileTileGate.Release();
+            }
+        }
+        catch
+        {
+            // A failed read leaves the preview visible; the next pan retries.
+            bitmap = null;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            _pendingFileTiles.Remove(index);
+            if (bitmap is null || _disposed)
+            {
+                bitmap?.Dispose();
+                return;
+            }
+
+            CacheTile(index, bitmap);
+            TileLoadingChanged?.Invoke(this, EventArgs.Empty);
+        });
     }
 
     private void RaiseTileLoadingChanged() =>
@@ -442,6 +491,8 @@ public sealed class TiledImageSource : IDisposable
 
         _cache.Clear();
         _cacheOrder.Clear();
+        _pendingFileTiles.Clear();
+        _fileTileGate.Dispose();
         _region?.Dispose();
         _regionPrepCts.Dispose();
         _stream?.Dispose();

@@ -1300,9 +1300,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            // Building the Avalonia bitmap is a full-image copy: 96 MB for a 24 MP photo,
+            // which used to happen on the UI thread right here. Do it on the pool and then
+            // confirm this load is still the one on screen before presenting it.
+            var bitmap = await Task.Run(() => BitmapFactory.FromDecoded(display), cancellationToken);
+            if (version != _loadVersion ||
+                !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase) ||
+                _regionActive)
+            {
+                bitmap.Dispose();
+                return;
+            }
+
             _rawDecoded = full;
             _fullLoaded = true;
-            Present(display, _metadata, resetView: false, animate: false, isNavigation: false);
+            Present(bitmap, display, _metadata, resetView: false, animate: false, isNavigation: false);
         }
         catch (OperationCanceledException)
         {
@@ -1593,13 +1605,21 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         ImageMetadata? metadata,
         bool resetView,
         bool animate,
+        bool isNavigation) =>
+        Present(BitmapFactory.FromDecoded(display), display, metadata, resetView, animate, isNavigation);
+
+    private void Present(
+        WriteableBitmap bitmap,
+        DecodedBitmap display,
+        ImageMetadata? metadata,
+        bool resetView,
+        bool animate,
         bool isNavigation)
     {
         var oldTiles = _tiledSource;
         _tiledSource = null;
         var oldAnimation = _currentAnimation;
         _currentAnimation = null;
-        var bitmap = BitmapFactory.FromDecoded(display);
         var old = _currentBitmap;
         _currentBitmap = bitmap;
         if (AnalysisVisible &&

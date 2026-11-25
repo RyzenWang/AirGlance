@@ -54,6 +54,24 @@ The published budgets are met (250.5 ms first window, 415.7 ms 24 MP first frame
 88.1 MB peak working set, 21.84 MiB zip). These are the remaining costs inside
 those numbers.
 
+The rows below describe each problem and the fix it needs. The whole remaining set
+was then done in one pass; what actually landed, and what it deliberately left out,
+is in this table. Where a row says "Fix", treat it as the plan the outcome was
+measured against.
+
+| Item | Outcome |
+| --- | --- |
+| P1-1 | **Done.** Every reduced-size TIFF preview samples tiles or strips into the target through `TiffPreviewDecoder`, then applies the orientation tag to the small result. |
+| P1-2 | **Done.** The full-raster budget is 32 MP and reports `TooLarge`; the 250 MP threshold is gone. |
+| P1-3 | **Done.** A preview is refused past 128 MP, and `OutOfMemoryException` from a codec is translated to `TooLarge` on every path. |
+| P1-4 | **Done.** `Downscale` averages the source block each target pixel covers, with the column map precomputed. |
+| P1-5 | **Partially done.** Distinct colours are counted with a 2 MB presence map instead of a hash insert per pixel. `ComputeDetail` still walks the image a second time and the palette still runs k-means over 65 536 samples. |
+| P1-8 | **Done.** A tile-file miss queues the 1 MB read on a worker and returns `null`; the preview shows underneath until the tile arrives. |
+| P1-10 | **Done for the full-resolution path.** The `WriteableBitmap` copy for a full decode is built on the pool and re-checks version, path and region state before presenting. Preview-sized copies stay on the UI thread because they are a few megabytes. |
+| P1-12 | **Partially done.** A pane decodes at its own size instead of a fixed 2400 × 1600. Panes still do not share `ImageLoadService`, and the dual filmstrip still bypasses `ThumbnailService`. |
+| P1-13 | **Done.** One parse sized from the picture's own rect, drawn straight into the managed buffer, and `SvgGeometry` reads the root with `XmlReader` under a document-size cap. |
+| P1-14 | **Done.** The payload and its parsed metadata are kept for the file opened last (up to 32 MB), so metadata-then-decode reads and parses once. |
+
 | ID | Item | Where | Why it costs | Fix | Effort |
 | --- | --- | --- | --- | --- | --- |
 | P1-1 | Every TIFF preview under 250 MP builds two full-resolution rasters before downscaling | `ImageDecoder.DecodeTiff` (`ImageDecoder.cs:729-769`), threshold at `ImageDecoder.cs:17` | `ReadTiffRgba` returns `int[w*h]` (4 B/px), it is copied into `byte[w*h*4]` (another 4 B/px), then oriented into a third buffer when needed, then point-sampled down. A 100 MP TIFF spends >1 GB to show an 8 MP preview. | Route every reduced-size TIFF preview through `TiffPreviewDecoder.DecodePreview` (`TiffPreviewDecoder.cs:79`), which already samples tiles/strips with bounded memory and prefers a pyramid IFD level; keep the full raster only for `maxWidth <= 0`. Apply orientation to the small result. | M |
