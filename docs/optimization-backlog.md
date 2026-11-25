@@ -91,6 +91,7 @@ those numbers.
 | P2-11 | 60.7 MB of `docs/design` PNGs are tracked, plus a stale Store screenshot set | `docs/design` = 123 files; the repo is 71 MB tracked / 84 MB `.git`; `packaging/msix/screenshots/0*.png` (1920 × 1080) is referenced by nothing | Re-encode the UI screenshots as WebP. Measured on a 10-file sample of `docs/design/implemented-*.png`: 2 984 KB PNG → 2 066 KB lossless WebP (69 %) → **563 KB at q92 (19 %)**. Delete the superseded screenshot set. | S |
 | P2-12 | Whole surfaces have no direct tests | `EditExportDialog` (0 references in `tests/`), `CommandLineOptions` (one incidental use), `LocalizationService` key parity, `ImageLoadService`, `TiledImageSource` (1 test), `ExifReader`, `ImageHeaderReader` | Start with three: a headless export-dialog test asserting format/quality/resize reach `ImageExporter`; a `[Theory]` over `CommandLineOptions.Parse`; a parity test that both localization halves have identical keys. | S–M |
 | P2-13 | Fixture provenance and git attributes are incomplete | 25 committed TIFF fixtures have no generator in `tools/` and no notice entry; `.gitattributes` marks png/ico/icns/jpg/webp/gif binary but not `tif`/`avif` | Extend `tools/make-test-assets.py` to emit the TIFF set, add a notices line, and add `*.tif`, `*.tiff`, `*.avif`, `*.jfif` as binary. | M |
+| P2-14 | The native build drops its object file in the directory it is started from | `build.ps1:351` passes `/Fe` but no `/Fo`, so `airglance_avif.obj` lands in the working directory — normally the repository root. Now covered by `.gitignore`, which hides it rather than stopping it. | Add `/Fo:"$cacheDirectory\airglance_avif.obj"` to the shim command; the cache directory is already ignored and already holds the other intermediates. | S |
 
 ---
 
@@ -103,7 +104,7 @@ those numbers.
 | P3-3 | `docs/formats.md:168` says TIFF CMYK conversion and 16-bit colour paths "are not covered by fixtures", but `TiffPreviewDecoderTests.cs:432-658` parameterises `cmyk-*`, `planar*`, `palette*`, `float16/32`, `int16`, `rgba16`, `ycbcr-*` and `subifd-levels`; the fixture table at `:128-154` lists 3 of the ~28 TIFF fixtures `README.md:199` then describes correctly. | Narrow the gap sentence to multi-page / BigTIFF / 12-bit JPEG in TIFF, and regenerate the fixture table from the directory. |
 | P3-4 | `docs/performance.md:8-12` calls the measured binary "the published 0.7.0 `win-x64` binary … version `0.7.0+c54dbec`", but `c54dbec` is four commits after tag `v0.7.0` (`dca66ab`) and the release workflow never built it. | Label it a post-tag Store build, or re-measure the actual `v0.7.0` zip. |
 | P3-5 | `docs/shipping.md:19-20` and `:407` say `store.yml` builds x64 **and** arm64 MSIX, but `store.yml:55-57` builds x64 only. The WACK step cannot fail either: `continue-on-error: true` plus a hard `exit 0` (`:88`, `:146`). | Fix the doc, or add the arm64 leg now that the decoder exists; publish the WACK XML to the job summary and fail on non-signature findings. |
-| P3-6 | The working tree still has the uncommitted 0.7.0 documentation pass (`CHANGELOG.md`, both READMEs, both architecture docs, both performance docs) and an untracked `docs/blog/`. | Commit or drop before the next change lands. |
+| P3-6 | `docs/blog/` is untracked and intentionally left out of commits. | Decide before it rots: add it to `.gitignore` if it is a local draft, or commit it when it is ready to publish. Nothing else is uncommitted. |
 | P3-7 | Three design documents still specify high-contrast behaviour that can no longer happen: `docs/design/interaction-v2.*:189` requires solid strokes in high-contrast mode, `docs/design/dark-edit-export-crop.md:316,357` lists it as an acceptance step, and `docs/design/avif-revival.md:280` still says `clap` has no end-to-end fixture. | Either mark them as superseded or prune the requirements; the analysis-drawer checklist was already updated. |
 
 ---
@@ -142,6 +143,12 @@ $env:AIRGLANCE_STARTUP_TRACE = "1"
 `dotnet test AirGlance.sln -c Release` covers the rest. P1-1, P1-6 and P1-10 should
 move `peak_ws_mb` and `first_frame_ms`; P1-7, P1-8, P1-9 and P1-10 should be
 judged by interaction feel plus a `dotnet-counters` Gen0/dependency check.
+
+A change under `native/avif/` needs `native/avif/build.ps1` (Windows) or
+`build.sh` (macOS, Linux) and then the same test suite: all three CI jobs build
+the decoder before testing, so the AVIF tests run rather than skip, and a native
+change is verified there. `native/avif/tools/` is the ignored place for a local
+NASM copy if one is not on `PATH`.
 
 Sizes and counts in this document were measured on the tree described above:
 tracked bytes 71.0 MB, `.git` 84.1 MB, `docs/design` 60.7 MB / 123 files,
