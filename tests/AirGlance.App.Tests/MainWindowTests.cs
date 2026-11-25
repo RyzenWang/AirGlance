@@ -18,6 +18,51 @@ namespace AirGlance.App.Tests;
 public sealed class MainWindowTests
 {
     [AvaloniaFact]
+    public async Task A_corrupt_image_keeps_the_previous_and_next_buttons()
+    {
+        using var fixture = new WindowFixture(includeBrokenImage: true);
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasError);
+        Assert.False(viewModel.HasImage);
+        Assert.True(viewModel.OverlayVisible);
+
+        // The arrows belong to the folder, not to the file that failed to open.
+        var next = window.GetVisualDescendants()
+            .OfType<Button>()
+            .First(button => (ToolTip.GetTip(button) as string) == "Next image");
+        Assert.True(next.IsVisible);
+
+        var host = Assert.IsAssignableFrom<Control>(next.Parent);
+        Assert.True(host.IsHitTestVisible, "the arrow host must accept clicks on the error overlay");
+        Assert.Equal(1, host.Opacity);
+
+        // And it has to lead somewhere: step off the broken file and land on a real image.
+        await viewModel.NextAsync();
+        await WaitUntilAsync(() => viewModel.HasImage);
+        Assert.False(viewModel.HasError);
+    }
+
+    [AvaloniaFact]
+    public async Task A_corrupt_image_in_a_single_image_folder_shows_no_arrows()
+    {
+        using var fixture = new WindowFixture(includeBrokenImage: true, includeGoodImages: false);
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasError);
+
+        // Nothing to navigate to, so the arrows stay hidden.
+        var next = window.GetVisualDescendants()
+            .OfType<Button>()
+            .First(button => (ToolTip.GetTip(button) as string) == "Next image");
+        Assert.False(next.IsVisible);
+    }
+
+    [AvaloniaFact]
     public async Task Keyboard_drives_navigation_edit_panels_and_fullscreen()
     {
         using var fixture = new WindowFixture();
@@ -797,7 +842,8 @@ public sealed class MainWindowTests
         private readonly string _root;
 
         public WindowFixture(string? initialAsset = null, bool includeSecondImage = true,
-            bool openInitialImage = true)
+            bool openInitialImage = true, bool includeBrokenImage = false,
+            bool includeGoodImages = true)
         {
             _root = Path.Combine(Path.GetTempPath(), "airglance-window-" + Guid.NewGuid().ToString("N"));
             var images = Path.Combine(_root, "images");
@@ -805,7 +851,11 @@ public sealed class MainWindowTests
             Directory.CreateDirectory(Path.Combine(_root, "settings"));
             Directory.CreateDirectory(Path.Combine(_root, "cache"));
 
-            var names = includeSecondImage ? new[] { "a.jpg", "b.jpg" } : new[] { "a.jpg" };
+            var names = !includeGoodImages
+                ? []
+                : includeSecondImage
+                    ? new[] { "a.jpg", "b.jpg" }
+                    : new[] { "a.jpg" };
             foreach (var name in names)
             {
                 File.Copy(
@@ -820,11 +870,18 @@ public sealed class MainWindowTests
                     Path.Combine(images, initialAsset));
             }
 
+            if (includeBrokenImage)
+            {
+                // Short enough to fail the content check, long enough to be found by the scan.
+                File.WriteAllBytes(Path.Combine(images, "broken.jpg"), [1, 2, 3, 4, 5, 6, 7, 8]);
+            }
+
             Services = new AppServices(Path.Combine(_root, "settings"), Path.Combine(_root, "cache"));
             Services.SetLanguage(LocalizationService.English);
-            var options = CommandLineOptions.Parse(openInitialImage
-                ? [Path.Combine(images, initialAsset ?? "a.jpg")]
-                : []);
+            var target = includeBrokenImage
+                ? Path.Combine(images, "broken.jpg")
+                : Path.Combine(images, initialAsset ?? "a.jpg");
+            var options = CommandLineOptions.Parse(openInitialImage ? [target] : []);
             Window = new MainWindow(Services, options);
         }
 

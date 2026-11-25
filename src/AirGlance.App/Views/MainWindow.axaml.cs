@@ -1038,9 +1038,17 @@ public partial class MainWindow : Window
             ? new Thickness(0, 0, 0, 150)
             : new Thickness(0, 0, 0, 22);
 
-        var showNavigation = _viewModel.HasImage && count > 1 && !_viewModel.OverlayVisible && !_cropMode;
+        // Navigation depends on the folder, not on the current file: a corrupt image must
+        // not strand the user with no way to reach the next one.
+        var showNavigation = count > 1 && !_cropMode;
         PrevButton.IsVisible = showNavigation;
         NextButton.IsVisible = showNavigation;
+        if (showNavigation && _viewModel.HasError && !_chromeVisible)
+        {
+            // The pointer may be nowhere near the canvas after a keyboard step onto a
+            // broken file, so bring the arrows back with the error card.
+            ShowChrome();
+        }
 
         InfoToggle.Classes.Set("active", _viewModel.InfoShown);
         FilmstripToggle.Classes.Set("active", _viewModel.FilmstripShown);
@@ -1140,7 +1148,13 @@ public partial class MainWindow : Window
         var controlsVisible = _chromeVisible && !empty;
         Dock.Opacity = controlsVisible && !_cropMode ? 1 : 0;
         Dock.IsHitTestVisible = controlsVisible && !_cropMode;
-        var navVisible = controlsVisible && !_viewModel.IsFullscreen && !_cropMode;
+
+        // The arrows follow the folder rather than the overlay: an error card occupies
+        // the centre of the canvas, and hiding navigation there trapped the user.
+        var navVisible = _chromeVisible &&
+                         !_viewModel.IsFullscreen &&
+                         !_cropMode &&
+                         _viewModel.Images.Count > 1;
         PrevHost.Opacity = navVisible ? 1 : 0;
         NextHost.Opacity = navVisible ? 1 : 0;
         PrevHost.IsHitTestVisible = navVisible;
