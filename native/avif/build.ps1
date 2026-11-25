@@ -145,6 +145,57 @@ function Get-Sha256([string]$Path)
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToUpperInvariant()
 }
 
+function Get-ShimHash
+{
+    # The marker records both shim sources so a source-only edit rebuilds the DLL.
+    $implementation = Get-Sha256 (Join-Path $scriptDirectory "airglance_avif.c")
+    $header = Get-Sha256 (Join-Path $scriptDirectory "airglance_avif.h")
+    return "$implementation`:$header"
+}
+
+function Test-UpToDate
+{
+    if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf))
+    {
+        return $false
+    }
+
+    $infoPath = Join-Path $outputDirectory "build-info.txt"
+    if (-not (Test-Path -LiteralPath $infoPath -PathType Leaf))
+    {
+        return $false
+    }
+
+    $expected = @{
+        libavif        = $libavifVersion
+        dav1d          = $dav1dVersion
+        libavif_sha256 = $libavifHash
+        dav1d_sha256   = $dav1dHash
+        dav1d_asm      = $asmEnabled.ToString().ToLowerInvariant()
+        shim_sha256    = $shimHash
+    }
+
+    $recorded = @{}
+    foreach ($line in Get-Content -LiteralPath $infoPath)
+    {
+        $parts = $line.Split("=", 2)
+        if ($parts.Count -eq 2)
+        {
+            $recorded[$parts[0].Trim()] = $parts[1].Trim()
+        }
+    }
+
+    foreach ($key in $expected.Keys)
+    {
+        if (-not $recorded.ContainsKey($key) -or $recorded[$key] -ne $expected[$key])
+        {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Get-SourceArchive([string]$Url, [string]$Destination, [string]$ExpectedHash)
 {
     if (Test-Path -LiteralPath $Destination -PathType Leaf)
@@ -227,11 +278,25 @@ if ($Clean)
 }
 
 Write-Step "Locating the build toolchain"
+$nasmDirectory = Get-NasmDirectory
+$asmEnabled = -not [string]::IsNullOrWhiteSpace($nasmDirectory)
+$shimHash = Get-ShimHash
+
+# A cached build directory makes the whole download and compile a no-op, which is
+# what CI restores. Anything that changes the result is in the marker: both library
+# versions and hashes, the asm setting and the shim sources.
+if (-not $Clean -and (Test-UpToDate))
+{
+    Write-Host "Up to date: $outputPath"
+    Write-Host "  libavif $libavifVersion, dav1d $dav1dVersion, dav1d asm=$asmEnabled"
+    Write-Host "  Use -Clean to force a rebuild."
+    return
+}
+
 $vsPath = Get-VisualStudioPath
 $vsRoot = Join-Path $vsPath "Common7\IDE\CommonExtensions\Microsoft\CMake"
 $cmakePath = Get-ToolPath "cmake" (Join-Path $vsRoot "CMake\bin\cmake.exe")
 $ninjaDirectory = [IO.Path]::GetDirectoryName((Get-ToolPath "ninja" (Join-Path $vsRoot "Ninja\ninja.exe")))
-$nasmDirectory = Get-NasmDirectory
 $python = Get-ToolPath "python" ""
 
 & $python -m mesonbuild.mesonmain --version | Out-Null
@@ -281,7 +346,6 @@ if (-not (Test-Path -LiteralPath (Join-Path $Dav1dSource "include\dav1d\dav1d.h"
     throw "dav1d source not found at '$Dav1dSource'."
 }
 
-$asmEnabled = -not [string]::IsNullOrWhiteSpace($nasmDirectory)
 $dav1dBuild = Join-Path $buildDirectory "dav1d"
 $libavifBuild = Join-Path $buildDirectory "libavif"
 $prefixLib = Join-Path $prefixDirectory "lib"
@@ -359,6 +423,7 @@ $buildInfo = @(
     "libavif_sha256=$libavifHash",
     "dav1d_sha256=$dav1dHash",
     "dav1d_asm=$($asmEnabled.ToString().ToLowerInvariant())",
+    "shim_sha256=$shimHash",
     "dll_bytes=$($dll.Length)",
     "built_utc=$([DateTime]::UtcNow.ToString('o'))"
 )

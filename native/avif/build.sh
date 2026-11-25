@@ -3,10 +3,11 @@
 # Builds libairglance_avif.dylib / .so for macOS and Linux.
 #
 # Usage:
-#   ./native/avif/build.sh [rid]
+#   ./native/avif/build.sh [--clean] [rid]
 #
-#   rid  osx-x64 | osx-arm64 | linux-x64 | linux-arm64
-#        Defaults to the host OS/architecture.
+#   rid      osx-x64 | osx-arm64 | linux-x64 | linux-arm64
+#            Defaults to the host OS/architecture.
+#   --clean  Discard the prefix and rebuild everything, ignoring the marker.
 #
 # The script downloads pinned libavif and dav1d sources into native/avif/.cache,
 # verifies their SHA-256, builds both as static libraries with PIC, and links a
@@ -47,7 +48,30 @@ case "$(uname -m)" in
 esac
 
 HOST_RID="$HOST_OS-$HOST_ARCH"
-RID="${1:-$HOST_RID}"
+
+CLEAN=0
+RID=""
+for arg in "$@"; do
+    case "$arg" in
+        --clean | -c)
+            CLEAN=1
+            ;;
+        -h | --help)
+            echo "usage: ./native/avif/build.sh [--clean] [rid]"
+            echo "  rid: osx-x64 | osx-arm64 | linux-x64 | linux-arm64 (default: the host)"
+            echo "  --clean: discard the prefix and rebuild everything"
+            exit 0
+            ;;
+        *)
+            if [[ -n "$RID" ]]; then
+                echo "error: unexpected argument '$arg'." >&2
+                exit 2
+            fi
+            RID="$arg"
+            ;;
+    esac
+done
+RID="${RID:-$HOST_RID}"
 if [[ "$RID" != "$HOST_OS-x64" && "$RID" != "$HOST_OS-arm64" ]]; then
     echo "error: RID '$RID' does not match host '$HOST_RID'." >&2
     echo "Build macOS packages on macOS and Linux packages on Linux." >&2
@@ -161,6 +185,33 @@ if [[ "$ARCH" == "x64" ]] && ! command -v nasm >/dev/null 2>&1; then
     echo "warning: NASM was not found; dav1d will be built without x86 SIMD." >&2
 fi
 
+# Both shim sources are part of the marker, so editing either one rebuilds.
+SHIM_HASH="$(sha256_of "$SCRIPT_DIR/airglance_avif.c"):$(sha256_of "$SCRIPT_DIR/airglance_avif.h")"
+
+is_up_to_date() {
+    local info="$OUTPUT_DIR/build-info.txt"
+    [[ -f "$OUTPUT_PATH" && -f "$info" ]] || return 1
+    grep -qx "libavif=$LIBAVIF_VERSION" "$info" || return 1
+    grep -qx "dav1d=$DAV1D_VERSION" "$info" || return 1
+    grep -qx "libavif_sha256=$LIBAVIF_HASH" "$info" || return 1
+    grep -qx "dav1d_sha256=$DAV1D_HASH" "$info" || return 1
+    grep -qx "dav1d_asm=$ASM" "$info" || return 1
+    grep -qx "shim_sha256=$SHIM_HASH" "$info" || return 1
+    return 0
+}
+
+# A restored cache makes the whole download and compile a no-op.
+if [[ "$CLEAN" -eq 0 ]] && is_up_to_date; then
+    echo "Up to date: $OUTPUT_PATH"
+    echo "  libavif $LIBAVIF_VERSION, dav1d $DAV1D_VERSION, dav1d asm=$ASM"
+    echo "  Use --clean to force a rebuild."
+    exit 0
+fi
+
+if [[ "$CLEAN" -eq 1 ]]; then
+    rm -rf "$PREFIX_DIR"
+fi
+
 mkdir -p "$SOURCE_DIR" "$BUILD_DIR" "$CACHE_DIR"
 
 echo "AirGlance AVIF native build"
@@ -269,6 +320,7 @@ dav1d=$DAV1D_VERSION
 libavif_sha256=$LIBAVIF_HASH
 dav1d_sha256=$DAV1D_HASH
 dav1d_asm=$ASM
+shim_sha256=$SHIM_HASH
 dll_bytes=$(wc -c < "$OUTPUT_PATH" | tr -d '[:space:]')
 built_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
