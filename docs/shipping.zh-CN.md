@@ -21,6 +21,8 @@
 
 归档文件名使用三段式产品版本 `0.7.0`。MSIX 文件名使用四段式包版本 `1.0.2.0`。`win-x64`、`win-arm64`、`osx-x64`、`osx-arm64`、`linux-x64` 和 `linux-arm64` 是 .NET 的运行时标识符。
 
+> **当前提交（0.7.1）：** Store 包为 `AirGlance_1.0.3.0_x64.msix`；下面描述的仍是 0.7.0 的发布流程，0.7.1 的上传说明见 [packaging/msix/STORE-UPDATE-0.7.1.md](../packaging/msix/STORE-UPDATE-0.7.1.md)。
+
 发布工作流只发布六个便携归档：Windows 的 x64/arm64 zip、macOS 的 x64/arm64 zip 和 Linux 的 x64/arm64 tar.gz。它会拒绝 MSIX 文件，因此 Store 包绝不会出现在公开的 GitHub 发布中。MSIX 文件由 `store.yml` 构建，用于 Store 审核和 Partner Center。
 
 ## 运行时验证状态

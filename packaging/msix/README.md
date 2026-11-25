@@ -7,7 +7,8 @@ application model: it executes the normal `AirGlance.exe` with the
 restricted capability.
 
 The current Store submission is documented in
-[STORE-UPDATE-0.7.0.md](STORE-UPDATE-0.7.0.md).
+[STORE-UPDATE-0.7.1.md](STORE-UPDATE-0.7.1.md); the 0.7.0 note stays as the
+[previous submission](STORE-UPDATE-0.7.0.md).
 
 ## Layout
 
@@ -59,7 +60,7 @@ pwsh -File ./packaging/msix/Build-Msix.ps1 `
 4. Calls `MakeAppx.exe pack /d <staging> /p <package> /o`.
 
 The output is named `AirGlance_<four-part-version>_<architecture>.msix`, for
-example `artifacts/msix/AirGlance_1.0.2.0_x64.msix`. The Store submission is x64-only for this update; the arm64 MSIX can be built and now includes the ARM64 AVIF decoder, but it is not part of this upload.
+example `artifacts/msix/AirGlance_1.0.3.0_x64.msix`. The Store submission is x64-only for this update; the arm64 MSIX can be built and now includes the ARM64 AVIF decoder, but it is not part of this upload.
 
 `Build-Msix.ps1` does not create a certificate and does not sign the package.
 The output is an unsigned container.
@@ -93,7 +94,7 @@ cannot pass until a trusted signing certificate is installed.
 
 A meaningful self-test therefore needs a signed package:
 
-1. Sign a copy of `AirGlance_1.0.2.0_x64.msix` with a local test certificate
+1. Sign a copy of `AirGlance_1.0.3.0_x64.msix` with a local test certificate
    certificate. The certificate subject must match the manifest `Publisher`.
    Do not use an untrusted certificate for a Store submission.
 2. On a clean Windows 10/11 test VM, trust that certificate and install the
