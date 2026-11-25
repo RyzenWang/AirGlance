@@ -94,6 +94,10 @@ macOS or Linux, on the matching host:
 
 The scripts call `dotnet publish -c Release -r <rid> -p:PublishAot=true -p:StripSymbols=true -p:Version=<version>`. `pack.ps1` also removes any remaining PDBs and enforces a 30 MB zip budget. `pack.sh` removes PDB, DBG and MDB files before packaging.
 
+`-Version` defaults to the `Version` property in `Directory.Build.props`, which is the single source for the application version. The Store package version is separate: `pack.ps1 -Msix` takes it from `-MsixVersion`, and when that is omitted from the `Identity` version in `packaging/msix/AppxManifest.xml`. Passing the application version where a package version is expected produces a package that Partner Center rejects for going backwards, so the two are not interchangeable.
+
+The native AVIF decoder is rebuilt only when something that affects it changed. `native/avif/build.ps1` and `build.sh` record the libavif and dav1d versions and hashes, the asm setting and the hash of both shim sources in `native/avif/bin/<rid>/build-info.txt`, and short-circuit when that marker still matches; `-Clean` (PowerShell) or `--clean` (shell) forces a rebuild. CI caches `native/avif/.cache` and `native/avif/bin`, so a run whose marker matches spends under a second there instead of several minutes.
+
 ### Windows zip contents
 
 `pack.ps1` zips the flat publish payload, not a wrapper folder:
