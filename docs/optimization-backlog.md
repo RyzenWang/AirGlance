@@ -1,4 +1,4 @@
-# Optimization backlog
+﻿# Optimization backlog
 
 A maintainer working document, not a user-facing promise list. It records what is
 left to improve after 0.7.0, why each item matters, and how to tell when it is
@@ -124,6 +124,8 @@ measured against.
 | P3-5 | `docs/shipping.md:19-20` and `:407` say `store.yml` builds x64 **and** arm64 MSIX, but `store.yml:55-57` builds x64 only. The WACK step cannot fail either: `continue-on-error: true` plus a hard `exit 0` (`:88`, `:146`). | Fix the doc, or add the arm64 leg now that the decoder exists; publish the WACK XML to the job summary and fail on non-signature findings. |
 | P3-6 | `docs/blog/` held an untracked local draft. | **Fixed**: the blog draft moved to the sibling `_blog` folder (`../_blog/airglance-0.7.0.md`) outside the repository; `docs/blog/` was removed. |
 | P3-7 | Three design documents still specify high-contrast behaviour that can no longer happen: `docs/design/interaction-v2.*:189` requires solid strokes in high-contrast mode, `docs/design/dark-edit-export-crop.md:316,357` lists it as an acceptance step, and `docs/design/avif-revival.md:280` still says `clap` has no end-to-end fixture. | Either mark them as superseded or prune the requirements; the analysis-drawer checklist was already updated. |
+| P3-8 | DecodedBitmap.SourceWidth is documented as the width after orientation, and the Skia path passes the oriented size, but the TIFF path passes the stored raster size, so a rotated TIFF reports 80 x 40 in the status bar while displaying 40 x 80. Tiff_orientation_is_applied pins the raw convention. | Pick one convention (the documentation says oriented), update both paths and the TIFF test. |
+| P3-9 | docs/architecture.md still says large images use the file-backed tile cache, but the 32 MP full-raster budget routes larger TIFFs to TiffRegionReader, which is the better path and worse copy. | Say which reader serves which size class. |
 
 ---
 
