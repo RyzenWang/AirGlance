@@ -91,7 +91,7 @@ The rule is deliberate:
 
 The window is an image-first overlay: the `ImageViewer` fills the canvas, while the top folder/file chips, bottom dock, side navigation, filmstrip and information drawer are separate overlay controls. The dock and side buttons fade after 2.5 seconds of idle and return on pointer movement. The filmstrip and information panel are mutually exclusive drawers, so opening one does not shrink or cover the other. The window subscribes to `MainWindowViewModel.PropertyChanged` and applies visibility, text and fullscreen state imperatively; static labels are refreshed from `LocalizationService.LanguageChanged`.
 
-The earlier XAML chrome cost about 370 ms of the first-window time; the same overlay tree built in code is about 15 ms. The filmstrip and information panel remain XAML and are loaded after the first frame. The context menu is built on the first right-click instead of during window construction.
+The earlier XAML chrome cost about 370 ms of the first-window time; the overlay tree built in code is about 46 ms at 0.7.0 (about 14 ms at 0.3.0). The filmstrip and information panel remain XAML and are loaded after the first frame. The context menu is built on the first right-click instead of during window construction.
 
 Mouse input is split by modifier: the wheel zooms at the pointer (no accumulated page jumps), and `Shift + wheel` pans. Left/right keys always browse; after the redesign they no longer become pan commands when the image is wider than the window.
 

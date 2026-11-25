@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   README images and `docs/design/assets/sample-photo.jpg`; see
   `packaging/msix/STORE-UPDATE-0.7.0.md`.
 
+### Performance
+
+- Re-ran the full benchmark on the published 0.7.0 Windows x64 binary with an
+  empty settings directory (default fit window). 24 MP JPEG: 250.5 ms first
+  window, 415.7 ms first frame and 88.1 MB peak working set (medians of 10
+  runs). 100 MP fit window: 341.4 ms first frame. 100 MP at 100%: 464.3 MB peak
+  and 125.3 MB steady working set. The window content now costs about 46 ms
+  (`window-ctor-ui`, 14 ms at 0.3.0) as the chrome grew. README, the performance
+  notes and the architecture note carry the new numbers.
+
 ## [0.7.0] - 2026-11-23
 
 ### Added

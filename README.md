@@ -177,19 +177,17 @@ Right-click the image for open, copy, show-in-folder, open-with and settings. In
 
 ## Performance
 
-Measured on Windows 10 Pro 22H2 (19045), Intel Xeon E5-2697 v4, 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`. Ten fresh processes per row, median from `tools/bench.ps1`; the full method and raw values are in [docs/performance.md](docs/performance.md).
+Measured on the published 0.7.0 Windows x64 binary, on Windows 10 Pro 22H2 (19045), 2 × Intel Xeon E5-2697 v4 (16 cores), 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`, on 2026-11-24. The runs used an empty settings directory so they opened at the default fit window. Ten fresh processes for the 24 MP rows and five for the 100 MP row; median from `tools/bench.ps1`. The full method and raw values are in [docs/performance.md](docs/performance.md).
 
-| Metric | Target | 0.3.0 (last full run) |
+| Metric | Target | 0.7.0 |
 | --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 222.0 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 424.7 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 327.0 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 84.5 MB |
-| Windows x64 portable zip | ≤ 30 MB | 20.51 MB |
+| Cold start to first window | ≤ 500 ms | 250.5 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 415.7 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 341.4 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 88.1 MB |
+| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB |
 
-0.7.0 adds the analysis drawer. Startup has not been re-benchmarked with the full method since 0.3.0, so the rows above stay labelled with the version they were measured on; the 0.7.0 local win-x64 AOT package is 21.05 MiB (0.6.0 was 20.85 MiB, 0.5.0 was 20.76 MiB). A single local 0.7.0 AOT check reached the first window in 130 ms and the first frame of a 1.7 MP JPEG in 191 ms.
-
-The 0.3.0 build meets the startup and first-frame targets on the reference machine: the window is up in about 222 ms and a 24 MP image is on screen in about 425 ms. The window chrome is built in C# instead of XAML, which removed the largest first-frame cost; decoding overlaps window construction. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
+0.7.0 meets the startup and first-frame targets on the reference machine: the window is up in about 251 ms and a 24 MP image is on screen in about 416 ms, with a peak working set of about 88 MB. The window now builds more chrome than 0.3.0 (`window-ctor-ui` about 46 ms versus 14 ms), which accounts for the later first window; first frame and memory remain within budget. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 
@@ -204,7 +202,7 @@ These are limitations, not a promise list.
 - Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.
 - Crop, rotate and flip are session edits. There is no lossless JPEG rotation, and the original file is never rewritten. Editing is disabled in dual view and for proxy-only or tiled images.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
-- 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **458 MB**, settling to about **88 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
+- 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **464 MB**, settling to about **125 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
 - The Windows portable build is unsigned and the macOS build is not notarised. The Microsoft Store build is available through the Store listing; the portable build remains the offline/arm64 option.
 
 ## Build from source
