@@ -431,7 +431,7 @@ Three workflows are checked in:
 - The Store listing is live. No WACK report or local signed-MSIX install is recorded in the repository; Store certification performs the authoritative checks.
 - Windows arm64 is built on the x64 `windows-latest` runner. No Windows arm64 hardware launch test is recorded. Linux arm64 and macOS x64 are built on native runners, but no packaged-artifact smoke test is recorded in CI.
 - No packaged-artifact launch test or `--bench` run is part of the workflows. The release workflow tests the source tree, not the extracted zip, tar.gz or app bundle.
-- The Windows zip, macOS app and Linux tar.gz do not include `LICENSE`, `THIRD-PARTY-NOTICES.md` or `README.md`. The repository contains these files, but the packaging scripts do not copy them into the archives.
+- The Windows zip, macOS app and Linux tar.gz do not include `README.md`. `LICENSE` and `THIRD-PARTY-NOTICES.md` do travel with the binaries: `pack.ps1` and `pack.sh` copy both whenever they are present in the repository root.
 - The macOS `CFBundleVersion` is fixed at `1`; `pack.sh` stamps only `CFBundleShortVersionString`. There is no monotonic build number.
 - There is no Windows installer, Linux package format beyond tar.gz, auto-update, crash reporting or telemetry. The absence of telemetry is intentional.
 - There is no tray icon. Single-instance forwarding hands a second launch's path to the running window through a local named pipe; there is no window activation, so the existing window is not raised.

@@ -66,8 +66,8 @@ AirGlance.Core (net10.0, SkiaSharp + Svg.Skia)
 
 - `ImageDecoder.DecodeFullRaw` 是瓦片缓存的解码路径。它解码到非托管内存（`NativeMemory.Alloc`），而不是托管的 `byte[]`，因此 100 MP 的缓冲区可以在瓦片文件写入后立即释放。它返回带有原始尺寸、方向应用后的源尺寸、EXIF 方向和 alpha 能力的 `DecodedImageBuffer`；它不执行方向拷贝。
 - `LibAvifDecoder`（Windows x64/arm64、macOS、Linux）是 AVIF 桥接层。它通过 `LibraryImport` 调用 `airglance_avif.dll`、`libairglance_avif.dylib` 或 `libairglance_avif.so`，用 libavif 解析元数据，把第一帧解成调用方内存中的预乘 BGRA，应用 `clap` 裁剪，把 `irot`/`imir` 映射到现有的 `ImageOrientation`（缺失时回退 EXIF 方向），并限制解码像素量。原生 shim 静态链接 libavif 和 dav1d；Windows 使用静态 CRT。库由 `Directory.Build.targets` 复制到可执行文件旁，不提交到 git。Windows arm64 DLL 使用 LLVM 针对 ARM64 UCRT 交叉构建并做 PE 校验；没有记录 Windows arm64 硬件运行结果。
-- `TiledImageSource`（App）将 512 px 的瓦片写入一个以临时文件为后端的缓存。每个瓦片是 512 × 512 的 BGRA，补齐到固定大小；最后一行/列是部分瓦片。方向和显示编辑在拷贝进瓦片时应用，因此不存在完整的已定向或已编辑中间缓冲区。瓦片文件在释放时删除；超过一天的文件会在启动时清理。只缓存 32 个瓦片位图，查看器绘制与视口相交的瓦片。
-- 对于忽略所请求预览缩放的编解码器（尤其是 PNG），`ImageDecoder.Decode` 会在软件中对解码后的缓冲区降采样，以免适配预览保留整张图像。降采样采用最近邻，且仅在编解码器返回其完整尺寸时使用。
+- `TiledImageSource`（App）将 512 px 的瓦片写入一个以临时文件为后端的缓存。每个瓦片是 512 × 512 的 BGRA，补齐到固定大小；最后一行/列是部分瓦片。方向和显示编辑在拷贝进瓦片时应用，因此不存在完整的已定向或已编辑中间缓冲区。瓦片文件在释放时删除；超过一天的文件会在启动时清理。只缓存 32 个瓦片位图，查看器绘制与视口相交的瓦片。这条路径有两个来源：32 MP 预算以内的图像先用完整光栅，更大的 TIFF 则由 `TiffRegionReader` 直接从文件流式读取瓦片，从不把整张图放进内存，所以瓦片文件的大小由光栅预算决定，而不是由源图尺寸决定。
+- 对于忽略所请求预览缩放的编解码器（尤其是 PNG），`ImageDecoder.Decode` 会在软件中对解码后的缓冲区降采样，以免适配预览保留整张图像。降采样会对每个目标像素覆盖的源像素块取平均，列跨度预先算好，且仅在编解码器返回其完整尺寸时使用。
 - `ImageTransform` 包含 EXIF 方向像素映射和显示编辑。`EditTransform` 存储一个规范状态：先镜像，再进行若干次顺时针四分之一圈旋转。任意顺序的旋转和翻转命令都会归约为八种状态。旋转或翻转会分配新的像素缓冲区，并在轴交换时更新源尺寸。
 - `ImageExporter` 编码 JPEG、PNG 或 WebP；JPEG 和 WebP 使用质量 90，PNG 为无损。JPEG 会先绘制到白色位图上，因此透明部分会变成白色。PNG 和 WebP 保留 alpha。保存总是创建新文件。默认名是 `<name>-copy.<ext>`；如果该文件已存在，接下来的候选名是 `-copy-2`、`-copy-3`，依此类推。`WriteNewFile` 使用 `FileMode.CreateNew`，如果另一个进程先创建了同名文件，则用另一个后缀重试。
 - `ExifReader` 读取 TIFF/EXIF 载荷，并返回信息面板所显示的字段。它处理 IFD0 和 Exif 子 IFD、RATIONAL 类型 5、带符号 RATIONAL 类型 10，以及以 SHORT 或 SSHORT 存储的 Pillow 风格配对。格式错误的元数据返回空详情；它绝不会阻止图像打开。

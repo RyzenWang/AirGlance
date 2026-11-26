@@ -202,7 +202,7 @@ These are limitations, not a promise list.
 - Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.
 - Crop, rotate and flip are session edits. There is no lossless JPEG rotation, and the original file is never rewritten. Editing is disabled in dual view and for proxy-only or tiled images.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
-- 100 MP images use a file-backed tile cache at 100%: the measured peak working set for a 10000 × 10000 JPEG is about **464 MB**, settling to about **125 MB** once the tiles are written. The temporary tile file is about 400 MB while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
+- 100 MP images use a file-backed tile cache at 100%: three runs on the published 0.7.1 build measured a peak working set of about **478 MB** for a 10000 × 10000 JPEG, settling to about **109 MB** once the tiles are written, with a **400 MB** temporary tile file while the image is open. A 48 MP PNG can still peak near 300 MB because the PNG preview decode cannot be scaled by the codec; smaller machines should keep very large PNGs to fit view.
 - The Windows portable build is unsigned and the macOS build is not notarised. The Microsoft Store build is available through the Store listing; the portable build remains the offline/arm64 option.
 
 ## Build from source

@@ -783,8 +783,11 @@ public static class ImageDecoder
             var oriented = ImageTransform.ApplyOrientation(
                 raw,
                 info.Orientation,
-                info.Width,
-                info.Height);
+                // SourceWidth/SourceHeight describe the pixels at 100% zoom, which is the
+                // orientation-applied size; the raw source pair made a rotated TIFF report
+                // its stored width and a scale below one.
+                orientedWidth,
+                orientedHeight);
 
             if (maxWidth <= 0 || maxHeight <= 0)
             {
@@ -872,9 +875,13 @@ public static class ImageDecoder
         }
 
         var orientation = TiffPreviewDecoder.ReadOrientation(path);
-        return orientation == ImageOrientation.TopLeft
-            ? preview
-            : ImageTransform.ApplyOrientation(preview, orientation, preview.SourceWidth, preview.SourceHeight);
+        if (orientation == ImageOrientation.TopLeft)
+        {
+            return preview;
+        }
+
+        var (sourceWidth, sourceHeight) = orientation.OrientedSize(preview.SourceWidth, preview.SourceHeight);
+        return ImageTransform.ApplyOrientation(preview, orientation, sourceWidth, sourceHeight);
     }
 
     private static void EnsureFullRasterFits(TiffInfo info, string path)

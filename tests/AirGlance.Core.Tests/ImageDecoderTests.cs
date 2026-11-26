@@ -218,8 +218,12 @@ public sealed class ImageDecoderTests
 
         Assert.Equal(40, bitmap.Width);
         Assert.Equal(80, bitmap.Height);
-        Assert.Equal(80, bitmap.SourceWidth);
-        Assert.Equal(40, bitmap.SourceHeight);
+
+        // SourceWidth/SourceHeight and Scale describe the pixels at 100% zoom, after the
+        // orientation tag, the same convention the Skia path already used.
+        Assert.Equal(40, bitmap.SourceWidth);
+        Assert.Equal(80, bitmap.SourceHeight);
+        Assert.Equal(1.0, bitmap.Scale, 6);
         Assert.Equal("blue", Classify(Pixel(bitmap, 6, 6)));
         Assert.Equal("red", Classify(Pixel(bitmap, bitmap.Width - 7, 6)));
         Assert.Equal("yellow", Classify(Pixel(bitmap, 6, bitmap.Height - 7)));

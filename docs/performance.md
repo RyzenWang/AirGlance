@@ -5,9 +5,11 @@
 All numbers here were measured on the machine below with the commands shown. If a
 number is not here, it was not measured; nothing in this file is projected.
 
-> **Version note (2026-11-24):** these timings were measured on the published
-> 0.7.0 `win-x64` binary (`AirGlance.exe` from
-> `AirGlance_1.0.2.0_x64.msix`, version `0.7.0+c54dbec`). The startup runs used
+> **Version note (2026-11-24):** these timings were measured on the `win-x64`
+> binary from the post-tag Store package `AirGlance_1.0.2.0_x64.msix`, version
+> `0.7.0+c54dbec`. That commit is four commits after tag `v0.7.0` (`dca66ab`) and
+> the release workflow never built it, so it is not the GitHub release archive;
+> the code paths it exercises are the same. The startup runs used
 > an empty settings directory, so they opened at the default fit window
 > (1240 × 860); the 100% test used a new directory per run. The package row uses
 > the published `v0.7.0` zip. The 0.3.0 figures appear only where this file
@@ -96,6 +98,22 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 The p95 spread is wide on this session because the machine was also running the
 release build and a publish; the medians are the comparable numbers. The 100% zoom
 tile-cache figures were not re-measured for 0.7.1 and stay as published for 0.7.0.
+
+### 0.7.1, 100 MP at 100% (tile cache)
+
+Three runs, published `v0.7.1` Windows x64 build, settings directory pre-seeded
+with `"rememberZoom": true, "zoomMode": "actual"`, working set sampled every
+100 ms for 18 s after launch, tile file size sampled in the same loop.
+
+| Metric | Median | What it means |
+| --- | --- | --- |
+| Peak working set | **478 MB** | the 400 MB full-resolution raster plus the bitmap built from it |
+| Steady working set | **109 MB** | after the tiles are written and the raster is released |
+| Temporary tile file | **400 MB** | 512 × 512 raw BGRA tiles, unchanged |
+
+The 0.7.0 snapshot in `README.md` said 464 MB and 125 MB; those were rough
+readings rather than a sampled series. The tile file did not shrink, because
+tiles are still stored as raw BGRA — that is the next change, not this one.
 
 ### 24 MP JPEG, fit window
 

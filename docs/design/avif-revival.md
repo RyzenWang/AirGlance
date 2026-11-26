@@ -277,7 +277,7 @@ native/avif/
 - 平台：Windows x64/arm64、macOS x64/arm64、Linux x64/arm64；Windows arm64
   无 x86 SIMD，且没有对应硬件运行记录。
 - 限制：ICC 只读描述、不做像素色彩管理；HDR/gain map 不支持；AVIF 编码不支持；
-  动画只取第一帧；`clap`/`imir` 无端到端夹具。
+  动画只取第一帧；`clap` 已有端到端夹具（`tests/Assets/clap.avif`，0.7.1），`imir` 仍无。
 - 构建：`native/avif/build.ps1` / `build.sh` 下载/校验源码并构建；`pack.ps1` /
   `pack.sh` 自动调用；CI 的 Windows/macOS/Linux 测试和 Release 任务已加构建步骤。
 

@@ -417,10 +417,10 @@ sha256sum -c SHA256SUMS.txt
 - Microsoft Store 已上架。本仓库未记录 WACK 报告或本地安装签名 MSIX 的结果；以 Store 认证为准。
 - Windows arm64 在 x64 的 `windows-latest` 运行器上构建。没有记录到 Windows arm64 硬件上的启动测试。Linux arm64 和 macOS x64 在原生运行器上构建，但 CI 中没有记录任何打包产物的冒烟测试。
 - 工作流中不包含打包产物的启动测试或 `--bench` 运行。发布工作流测试的是源码树，而不是解压后的 zip、tar.gz 或应用包。
-- Windows zip、macOS 应用和 Linux tar.gz 不包含 `LICENSE`、`THIRD-PARTY-NOTICES.md` 或 `README.md`。仓库中存在这些文件，但打包脚本不会将它们复制到归档中。
+- Windows zip、macOS 应用和 Linux tar.gz 不包含 `README.md`。`LICENSE` 和 `THIRD-PARTY-NOTICES.md` 会随二进制一同提供：只要仓库根目录存在这两个文件，`pack.ps1` 和 `pack.sh` 就会复制它们。
 - macOS 的 `CFBundleVersion` 固定为 `1`；`pack.sh` 只写入 `CFBundleShortVersionString`。没有单调递增的构建号。
 - 没有 Windows 安装程序，没有 tar.gz 之外的 Linux 包格式，也没有自动更新、崩溃报告或遥测。遥测的缺失是有意为之。
-- 没有单实例转发，也没有托盘图标。
+- 没有托盘图标。单实例转发会把第二次启动的路径通过本机命名管道交给已运行的窗口；没有窗口激活，所以已有窗口需要用户自己切过去。
 - 发布校验和文件名为 `SHA256SUMS.txt`，而不是 `SHA256SUMS`。其内容是标准 `sha256sum` 输出。
 - Store 已上架；截图和隐私政策可在 Partner Center 继续修改。清单中的 `MinVersion`（Windows 10 内部版本 19041）和 macOS 的 `LSMinimumSystemVersion`（12.0）都是声明，而非经过测量的兼容性矩阵。
 - 没有通用 macOS 二进制。macOS x64 和 arm64 是分开的下载项。
