@@ -350,6 +350,211 @@ internal static int RawPixelBytes(TiffRawLayout layout) =>
         TiffRawLayout.Gray or TiffRawLayout.GrayInverted or TiffRawLayout.Palette8 => 1,
         _ => 2
     };
+
+    internal static TiffRawFormat GetRawFormat(Tiff image)
+    {
+        var bits = TagInt(image, TiffTag.BITSPERSAMPLE);
+        if (bits is not (8 or 16 or 32))
+        {
+            return default;
+        }
+
+        var samples = TagInt(image, TiffTag.SAMPLESPERPIXEL);
+        if (samples == 0)
+        {
+            samples = 1;
+        }
+
+        var planar = TagInt(image, TiffTag.PLANARCONFIG);
+        if (planar == 2)
+        {
+            var planarCompression = TagInt(image, TiffTag.COMPRESSION);
+            var planarPhoto = TagInt(image, TiffTag.PHOTOMETRIC);
+            if (planarCompression is 1 or 5 or 8 or 32946 or 32773)
+            {
+                if (bits == 8 && samples == 3 && planarPhoto == 2)
+                {
+                    return new TiffRawFormat(TiffRawLayout.RgbPlanar8, null);
+                }
+
+                if (bits == 16 && samples == 3 && planarPhoto == 2)
+                {
+                    return new TiffRawFormat(TiffRawLayout.RgbPlanar16, null);
+                }
+
+                if (bits == 8 && samples == 4 && planarPhoto == 5)
+                {
+                    return new TiffRawFormat(TiffRawLayout.CmykPlanar8, null);
+                }
+
+                if (bits == 16 && samples == 4 && planarPhoto == 5)
+                {
+                    return new TiffRawFormat(TiffRawLayout.CmykPlanar16, null);
+                }
+
+                if (bits == 8 && samples == 4 && planarPhoto == 2)
+                {
+                    return new TiffRawFormat(TiffRawLayout.RgbaPlanar8, null);
+                }
+
+                if (bits == 16 && samples == 4 && planarPhoto == 2)
+                {
+                    return new TiffRawFormat(TiffRawLayout.RgbaPlanar16, null);
+                }
+            }
+
+            return default;
+        }
+
+        if (planar is not (0 or 1))
+        {
+            return default;
+        }
+
+        var compression = TagInt(image, TiffTag.COMPRESSION);
+        if (compression is not (1 or 5 or 7 or 8 or 32946 or 32773))
+        {
+            return default;
+        }
+
+        if (bits == 16)
+        {
+            var sampleFormat = TagInt(image, TiffTag.SAMPLEFORMAT);
+            if (sampleFormat is not (0 or 1 or 2 or 3))
+            {
+                return default;
+            }
+        }
+
+        var photometric = TagInt(image, TiffTag.PHOTOMETRIC);
+        if (bits == 32 && TagInt(image, TiffTag.SAMPLEFORMAT) == 3 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return new TiffRawFormat(TiffRawLayout.Float32Rgb, null);
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return new TiffRawFormat(TiffRawLayout.Float32Gray, null);
+            }
+
+            if (samples == 1 && photometric == 0)
+            {
+                return new TiffRawFormat(TiffRawLayout.Float32GrayInverted, null);
+            }
+        }
+
+        if (bits == 16 && TagInt(image, TiffTag.SAMPLEFORMAT) == 2 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return new TiffRawFormat(TiffRawLayout.Rgb16Int, null);
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return new TiffRawFormat(TiffRawLayout.Gray16Int, null);
+            }
+
+            return default;
+        }
+
+        if (bits == 16 && TagInt(image, TiffTag.SAMPLEFORMAT) == 3 && compression != 7)
+        {
+            if (samples == 3 && photometric == 2)
+            {
+                return new TiffRawFormat(TiffRawLayout.Float16Rgb, null);
+            }
+
+            if (samples == 1 && photometric == 1)
+            {
+                return new TiffRawFormat(TiffRawLayout.Float16Gray, null);
+            }
+
+            if (samples == 1 && photometric == 0)
+            {
+                return new TiffRawFormat(TiffRawLayout.Float16GrayInverted, null);
+            }
+        }
+
+        if (bits == 8 && samples == 3 && photometric == 6 &&
+            compression is 1 or 5 or 8 or 32946 or 32773 && !image.IsTiled())
+        {
+            var (subX, subY) = ReadSubsampling(image);
+            if (subX > 1 || subY > 1)
+            {
+                return new TiffRawFormat(TiffRawLayout.YCbCrSub8, null, subX, subY);
+            }
+        }
+
+        if (bits == 8 && samples == 3 && photometric == 6 && compression == 7)
+        {
+            EnableJpegRgbMode(image);
+            return new TiffRawFormat(TiffRawLayout.Rgb, null);
+        }
+
+        if (bits == 8 && samples == 3 && photometric == 6 &&
+            compression != 7 && HasUnitSubsampling(image))
+        {
+            return new TiffRawFormat(TiffRawLayout.YCbCr8, null);
+        }
+
+        if (bits == 8 && samples == 4 && photometric == 5)
+        {
+            return new TiffRawFormat(TiffRawLayout.Cmyk8, null);
+        }
+
+        if (bits == 8 && samples == 1 && photometric == 3 && compression != 7)
+        {
+            var palette = ReadColorMap(image);
+            if (palette is { Length: >= 768 })
+            {
+                return new TiffRawFormat(TiffRawLayout.Palette8, palette);
+            }
+
+            return default;
+        }
+
+        if (bits == 16 && samples == 1 && photometric == 3 && compression != 7)
+        {
+            var palette = ReadColorMap(image);
+            if (palette is { Length: >= 3 * 65536 })
+            {
+                return new TiffRawFormat(TiffRawLayout.Palette16, palette);
+            }
+
+            return default;
+        }
+
+        if (bits == 8 && samples == 4 && photometric == 2 && compression != 7 &&
+            image.GetField(TiffTag.EXTRASAMPLES) is not null)
+        {
+            return new TiffRawFormat(TiffRawLayout.Rgba8, null);
+        }
+
+        if (bits == 16 && samples == 4 && photometric == 2 && compression != 7)
+        {
+            return new TiffRawFormat(TiffRawLayout.Rgba16, null);
+        }
+
+        if (samples == 3 && photometric == 2)
+        {
+            return new TiffRawFormat(bits == 16 ? TiffRawLayout.Rgb16 : TiffRawLayout.Rgb, null);
+        }
+
+        if (samples == 1 && photometric == 1)
+        {
+            return new TiffRawFormat(bits == 16 ? TiffRawLayout.Gray16 : TiffRawLayout.Gray, null);
+        }
+
+        if (samples == 1 && photometric == 0)
+        {
+            return new TiffRawFormat(bits == 16 ? TiffRawLayout.Gray16Inverted : TiffRawLayout.GrayInverted, null);
+        }
+
+        return default;
+    }
 }
 
 internal enum TiffRawLayout
