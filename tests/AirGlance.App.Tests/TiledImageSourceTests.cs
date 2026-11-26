@@ -73,4 +73,43 @@ public sealed class TiledImageSourceTests
             }
         }
     }
+
+    [AvaloniaFact]
+    public void Streamed_tiles_match_the_raster_writer_byte_for_byte()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "orientation-1.jpg");
+
+        using var raw = ImageDecoder.DecodeFullRaw(path);
+        using var raster = TiledImageSource.Create(raw, EditTransform.None);
+        using var streamed = TiledImageSource.CreateStreamed(path);
+
+        Assert.NotNull(streamed);
+        Assert.Equal(raster.PixelWidth, streamed!.PixelWidth);
+        Assert.Equal(raster.PixelHeight, streamed.PixelHeight);
+        Assert.Equal(raster.TileColumns, streamed.TileColumns);
+        Assert.Equal(raster.TileRows, streamed.TileRows);
+
+        for (var row = 0; row < raster.TileRows; row++)
+        {
+            for (var column = 0; column < raster.TileColumns; column++)
+            {
+                Assert.Equal(
+                    raster.ReadTileBytesForTest(column, row),
+                    streamed.ReadTileBytesForTest(column, row));
+            }
+        }
+    }
+
+    [Fact]
+    public void Streaming_is_refused_when_the_writer_would_need_the_full_raster()
+    {
+        // An EXIF rotation needs the transposed source, and PNG has no scanline decode in
+        // this SkiaSharp build; both must decline so the caller uses the raster path.
+        Assert.Null(TiledImageSource.CreateStreamed(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "orientation-6.jpg")));
+        Assert.Null(TiledImageSource.CreateStreamed(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "orientation-6.png")));
+        Assert.Null(TiledImageSource.CreateStreamed(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "rgb-lzw.tif")));
+    }
 }

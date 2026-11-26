@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A 100 MP JPEG opened at 100% no longer needs a full-resolution raster. The tile writer
+  streams the encoder's scanlines into the tile file one band at a time, so peak memory
+  is the band buffer plus one tile instead of 400 MB of RGBA. Files that need the
+  transposed source (EXIF rotation), formats without scanline decode (PNG) and edits
+  still take the raster path, and the streamed tiles are byte-for-byte identical to it.
+
 ## [0.7.1] - 2026-11-25
 
 ### Changed

@@ -115,6 +115,25 @@ The 0.7.0 snapshot in `README.md` said 464 MB and 125 MB; those were rough
 readings rather than a sampled series. The tile file did not shrink, because
 tiles are still stored as raw BGRA — that is the next change, not this one.
 
+### Streamed tiles, 100 MP at 100% (unreleased)
+
+Same script and fixture as the row above, run against a local NativeAOT build of
+`f8b1c72` (the streamed tile writer) instead of the published binary.
+
+| Metric | 0.7.1 published | Streamed build | Change |
+| --- | --- | --- | --- |
+| Peak working set | **478 MB** | **127 MB** | −73 % |
+| Steady working set | 109 MB | 127 MB | +18 MB |
+| Temporary tile file | 400 MB | 400 MB | unchanged |
+
+The narrow band buffer (about 21 MB for a 10000 px row) replaces the 400 MB raster,
+so peak and steady are now the same number: there is no long transient left to
+avoid. The steady figure rose slightly because the tile file is written while the
+window keeps its caches, and 127 MB is still under half the old peak. The tile file
+did not shrink because tiles are still raw BGRA; encoding them is the next change,
+and the ratio depends on content — a 512 × 512 tile of a real photograph measured
+about 3–6× smaller losslessly, while a tile of the synthetic 100 MP fixture measures
+hundreds of times smaller, so the fixture cannot be used to forecast that win.
 ### 24 MP JPEG, fit window
 
 10 runs of the published `v0.7.0` Windows x64 build, median (p95 in brackets).

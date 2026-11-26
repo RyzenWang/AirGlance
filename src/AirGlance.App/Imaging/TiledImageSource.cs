@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using SkiaSharp;
 
 namespace AirGlance.App.Imaging;
 
@@ -20,6 +21,9 @@ public sealed class TiledImageSource : IDisposable
 
     private const int HeaderSize = 64;
     private const int MaxCachedTiles = 32;
+
+    /// <summary>Ceiling for the scanline band a streamed tile write buffers at once.</summary>
+    private const long MaxStreamBandBytes = 64L * 1024 * 1024;
     private const uint Magic = 0x4C544741; // AGTL
 
     private readonly string? _path;
@@ -276,6 +280,126 @@ public sealed class TiledImageSource : IDisposable
         EditTransform edit,
         CancellationToken cancellationToken = default) =>
         Task.Run(() => Create(raw, edit, cancellationToken), cancellationToken);
+
+    /// <summary>
+    /// Writes the tile file straight from the encoder's scanlines, so a JPEG never needs
+    /// the 400 MB full-resolution raster that <see cref="Create(DecodedImageBuffer, CancellationToken)"/>
+    /// requires. Returns null when the file cannot be streamed this way - a non-JPEG, an
+    /// EXIF rotation (the tile writer would need the transposed source), a codec without
+    /// scanline support, or a band too wide to buffer - and the caller falls back to the
+    /// raster path.
+    /// </summary>
+    public static TiledImageSource? CreateStreamed(string path, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        if (!IsStreamableJpeg(path))
+        {
+            return null;
+        }
+
+        using var input = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 64 * 1024,
+            FileOptions.SequentialScan);
+        using var codec = SKCodec.Create(input);
+        if (codec is null)
+        {
+            return null;
+        }
+
+        if ((int)codec.EncodedOrigin is >= 2 and <= 8)
+        {
+            return null;
+        }
+
+        var width = codec.Info.Width;
+        var height = codec.Info.Height;
+        if (width <= 0 || height <= 0)
+        {
+            return null;
+        }
+
+        var rowBytes = checked(width * 4);
+        var bandBytes = (long)rowBytes * TileSize;
+        if (bandBytes > MaxStreamBandBytes)
+        {
+            return null;
+        }
+
+        var info = new SKImageInfo(
+            width,
+            height,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul,
+            SKColorSpace.CreateSrgb());
+        if (codec.StartScanlineDecode(info) != SKCodecResult.Success)
+        {
+            return null;
+        }
+
+        var tileColumns = (width + TileSize - 1) / TileSize;
+        var tileRows = (height + TileSize - 1) / TileSize;
+        var expectedSize = HeaderSize + (long)tileColumns * tileRows * (long)TileSize * TileSize * 4;
+        var directory = Path.Combine(Path.GetTempPath(), "AirGlance", "tiles");
+        Directory.CreateDirectory(directory);
+        var tilePath = Path.Combine(directory, $"{Guid.NewGuid():N}.tiles");
+
+        var driveRoot = Path.GetPathRoot(directory);
+        try
+        {
+            if (!string.IsNullOrEmpty(driveRoot) &&
+                new DriveInfo(driveRoot).AvailableFreeSpace < expectedSize + 64L * 1024 * 1024)
+            {
+                throw new IOException("Not enough temporary disk space for the tile cache.");
+            }
+        }
+        catch (ArgumentException)
+        {
+            // A non-drive temp root (for example a UNC path) is allowed.
+        }
+
+        try
+        {
+            WriteStreamedTileFile(
+                tilePath,
+                codec,
+                width,
+                height,
+                tileColumns,
+                tileRows,
+                bandBytes,
+                cancellationToken);
+            var stream = new FileStream(
+                tilePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 1 << 20,
+                FileOptions.RandomAccess);
+            return new TiledImageSource(tilePath, stream, width, height);
+        }
+        catch
+        {
+            TryDelete(tilePath);
+            throw;
+        }
+    }
+
+    public static Task<TiledImageSource?> CreateStreamedAsync(
+        string path,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => CreateStreamed(path, cancellationToken), cancellationToken);
+
+    private static bool IsStreamableJpeg(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".jfif", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Removes tile files abandoned by a crash. Files in active use are much newer
@@ -542,6 +666,96 @@ public sealed class TiledImageSource : IDisposable
         return bitmap;
     }
 
+    /// <summary>
+    /// Streams the encoder's scanlines into the tile file one band (one tile row) at a
+    /// time. Peak memory is the band buffer plus one tile, so a 100 MP JPEG costs about
+    /// 21 MB instead of the 400 MB raster the raster writer needs.
+    /// </summary>
+    private static unsafe void WriteStreamedTileFile(
+        string path,
+        SKCodec codec,
+        int width,
+        int height,
+        int tileColumns,
+        int tileRows,
+        long bandBytes,
+        CancellationToken cancellationToken)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.Read,
+            bufferSize: 1 << 20,
+            FileOptions.SequentialScan);
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            writer.Write(Magic);
+            writer.Write(1);
+            writer.Write(width);
+            writer.Write(height);
+            writer.Write(TileSize);
+            writer.Write(tileColumns);
+            writer.Write(tileRows);
+            writer.Write(0L);
+            writer.Flush();
+        }
+
+        stream.Position = HeaderSize;
+        var rowBytes = checked(width * 4);
+        var band = GC.AllocateUninitializedArray<byte>((int)bandBytes);
+        var tile = new byte[TileSize * TileSize * 4];
+        fixed (byte* bandPointer = band)
+        fixed (byte* tilePointer = tile)
+        {
+            var source = (uint*)bandPointer;
+            var destination = (uint*)tilePointer;
+            var bandRow = 0;
+            while (bandRow < height)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var rows = Math.Min(TileSize, height - bandRow);
+                var decoded = 0;
+                while (decoded < rows)
+                {
+                    var lines = codec.GetScanlines(
+                        (nint)(bandPointer + (long)decoded * rowBytes),
+                        rows - decoded,
+                        rowBytes);
+                    if (lines <= 0)
+                    {
+                        throw new ImageLoadException(
+                            ImageLoadFailure.Corrupt,
+                            "The image could not be decoded row by row.",
+                            path,
+                            Path.GetExtension(path));
+                    }
+
+                    decoded += lines;
+                }
+
+                for (var column = 0; column < tileColumns; column++)
+                {
+                    Array.Clear(tile);
+                    var tileWidth = Math.Min(TileSize, width - column * TileSize);
+                    for (var y = 0; y < rows; y++)
+                    {
+                        Buffer.MemoryCopy(
+                            source + ((long)y * width) + column * TileSize,
+                            destination + y * TileSize,
+                            TileSize * 4,
+                            tileWidth * 4);
+                    }
+
+                    stream.Write(tile, 0, tile.Length);
+                }
+
+                bandRow += rows;
+            }
+        }
+
+        stream.Flush(flushToDisk: false);
+    }
     private static void WriteTileFile(
         string path,
         DecodedBitmap full,

@@ -1247,6 +1247,32 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
                 DecodedImageBuffer? raw = null;
                 try
                 {
+                    // Stream the encoder's scanlines straight into the tile file when the
+                    // format allows it. That skips the full-resolution raster, which is
+                    // 400 MB for a 100 MP photo and the reason such a file needed a
+                    // 478 MB peak before the tiles existed.
+                    var streamed = await TiledImageSource.CreateStreamedAsync(path, cancellationToken);
+                    if (version != _loadVersion ||
+                        !string.Equals(path, _currentPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        streamed?.Dispose();
+                        return;
+                    }
+
+                    if (streamed is not null)
+                    {
+                        if (!_edit.IsIdentity)
+                        {
+                            streamed.Dispose();
+                        }
+                        else
+                        {
+                            _fullLoaded = true;
+                            PublishTiled(streamed);
+                            return;
+                        }
+                    }
+
                     raw = await Task.Run(
                         () => ImageDecoder.DecodeFullRaw(path, cancellationToken),
                         cancellationToken);
