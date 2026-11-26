@@ -3,6 +3,9 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BitMiracle.LibTiff.Classic;
+using static AirGlance.Core.Imaging.TiffCodec;
+using RawFormat = AirGlance.Core.Imaging.TiffRawFormat;
+using RawLayout = AirGlance.Core.Imaging.TiffRawLayout;
 
 namespace AirGlance.Core.Imaging;
 
@@ -724,47 +727,9 @@ public static class TiffPreviewDecoder
         return false;
     }
 
-    private static ushort ReadUInt16(Stream stream, bool little)
-    {
-        Span<byte> buffer = stackalloc byte[2];
-        ReadExactly(stream, buffer);
-        return little
-            ? BinaryPrimitives.ReadUInt16LittleEndian(buffer)
-            : BinaryPrimitives.ReadUInt16BigEndian(buffer);
-    }
 
-    private static uint ReadUInt32(Stream stream, bool little)
-    {
-        Span<byte> buffer = stackalloc byte[4];
-        ReadExactly(stream, buffer);
-        return little
-            ? BinaryPrimitives.ReadUInt32LittleEndian(buffer)
-            : BinaryPrimitives.ReadUInt32BigEndian(buffer);
-    }
 
-    private static ulong ReadUInt64(Stream stream, bool little)
-    {
-        Span<byte> buffer = stackalloc byte[8];
-        ReadExactly(stream, buffer);
-        return little
-            ? BinaryPrimitives.ReadUInt64LittleEndian(buffer)
-            : BinaryPrimitives.ReadUInt64BigEndian(buffer);
-    }
 
-    private static void ReadExactly(Stream stream, Span<byte> buffer)
-    {
-        var read = 0;
-        while (read < buffer.Length)
-        {
-            var count = stream.Read(buffer[read..]);
-            if (count <= 0)
-            {
-                throw new EndOfStreamException();
-            }
-
-            read += count;
-        }
-    }
 
     private readonly record struct ReducedLevel(
         int Width,
@@ -2002,164 +1967,14 @@ public static class TiffPreviewDecoder
         }
     }
 
-    private static float ReadSingleNative(byte[] source, int offset)
-    {
-        var bits = BitConverter.IsLittleEndian
-            ? BinaryPrimitives.ReadInt32LittleEndian(source.AsSpan(offset, 4))
-            : BinaryPrimitives.ReadInt32BigEndian(source.AsSpan(offset, 4));
-        return BitConverter.Int32BitsToSingle(bits);
-    }
 
-    private static byte FromFloat(float value) =>
-        (byte)Math.Clamp((int)MathF.Round(value * 255f), 0, 255);
 
-    private static float ReadHalfNative(byte[] source, int offset) =>
-        (float)BitConverter.UInt16BitsToHalf(ReadUInt16Native(source, offset));
 
-    private static byte Signed16ToByte(ushort value) =>
-        (byte)Math.Clamp((unchecked((short)value) + 32768) >> 8, 0, 255);
 
-    private static ushort ReadUInt16Native(byte[] row, int offset)
-    {
-        // LibTiff returns 16-bit scanline samples in the machine byte order.
-        return BitConverter.IsLittleEndian
-            ? (ushort)(row[offset] | (row[offset + 1] << 8))
-            : (ushort)((row[offset] << 8) | row[offset + 1]);
-    }
 
-    private static int RawPixelBytes(RawLayout layout) =>
-        layout switch
-        {
-            RawLayout.None => 0,
-            RawLayout.Rgb or RawLayout.RgbPlanar8 or RawLayout.YCbCr8 => 3,
-            RawLayout.Rgb16 or RawLayout.RgbPlanar16 => 6,
-            RawLayout.Cmyk8 or RawLayout.Rgba8 or RawLayout.CmykPlanar8 or RawLayout.RgbaPlanar8 => 4,
-            RawLayout.CmykPlanar16 => 8,
-            RawLayout.Rgba16 => 8,
-            RawLayout.Float32Gray or RawLayout.Float32GrayInverted => 4,
-            RawLayout.Float32Rgb => 12,
-            RawLayout.Float16Gray or RawLayout.Float16GrayInverted => 2,
-            RawLayout.Float16Rgb => 6,
-            RawLayout.Gray16Int => 2,
-            RawLayout.Rgb16Int => 6,
-            RawLayout.Palette16 => 2,
-            RawLayout.Gray or RawLayout.GrayInverted or RawLayout.Palette8 => 1,
-            _ => 2
-        };
 
-    private static uint ReadRawPixel(byte[] source, int offset, RawFormat format)
-    {
-        switch (format.Layout)
-        {
-            case RawLayout.Rgb:
-                return Opaque(source[offset], source[offset + 1], source[offset + 2]);
-            case RawLayout.Rgb16:
-                return Opaque(
-                    (byte)(ReadUInt16Native(source, offset) >> 8),
-                    (byte)(ReadUInt16Native(source, offset + 2) >> 8),
-                    (byte)(ReadUInt16Native(source, offset + 4) >> 8));
-            case RawLayout.Cmyk8:
-                var cyan = source[offset];
-                var magenta = source[offset + 1];
-                var yellow = source[offset + 2];
-                var black = source[offset + 3];
-                return Opaque(
-                    (byte)(255 - Math.Min(255, cyan + black)),
-                    (byte)(255 - Math.Min(255, magenta + black)),
-                    (byte)(255 - Math.Min(255, yellow + black)));
-            case RawLayout.Rgba8:
-                return PremultipliedBgra(
-                    source[offset],
-                    source[offset + 1],
-                    source[offset + 2],
-                    source[offset + 3]);
-            case RawLayout.Rgba16:
-                return PremultipliedBgra(
-                    (byte)(ReadUInt16Native(source, offset) >> 8),
-                    (byte)(ReadUInt16Native(source, offset + 2) >> 8),
-                    (byte)(ReadUInt16Native(source, offset + 4) >> 8),
-                    (byte)(ReadUInt16Native(source, offset + 6) >> 8));
-            case RawLayout.Float32Gray:
-                var grayFloat = FromFloat(ReadSingleNative(source, offset));
-                return Opaque(grayFloat, grayFloat, grayFloat);
-            case RawLayout.Float32GrayInverted:
-                var invertedFloat = (byte)(255 - FromFloat(ReadSingleNative(source, offset)));
-                return Opaque(invertedFloat, invertedFloat, invertedFloat);
-            case RawLayout.Float32Rgb:
-                return Opaque(
-                    FromFloat(ReadSingleNative(source, offset)),
-                    FromFloat(ReadSingleNative(source, offset + 4)),
-                    FromFloat(ReadSingleNative(source, offset + 8)));
-            case RawLayout.Float16Gray:
-                var grayHalf = FromFloat(ReadHalfNative(source, offset));
-                return Opaque(grayHalf, grayHalf, grayHalf);
-            case RawLayout.Float16GrayInverted:
-                var invertedHalf = (byte)(255 - FromFloat(ReadHalfNative(source, offset)));
-                return Opaque(invertedHalf, invertedHalf, invertedHalf);
-            case RawLayout.Float16Rgb:
-                return Opaque(
-                    FromFloat(ReadHalfNative(source, offset)),
-                    FromFloat(ReadHalfNative(source, offset + 2)),
-                    FromFloat(ReadHalfNative(source, offset + 4)));
-            case RawLayout.Gray16Int:
-                var graySigned = Signed16ToByte(ReadUInt16Native(source, offset));
-                return Opaque(graySigned, graySigned, graySigned);
-            case RawLayout.Rgb16Int:
-                return Opaque(
-                    Signed16ToByte(ReadUInt16Native(source, offset)),
-                    Signed16ToByte(ReadUInt16Native(source, offset + 2)),
-                    Signed16ToByte(ReadUInt16Native(source, offset + 4)));
-            case RawLayout.Palette8:
-                var palette = format.Palette!;
-                var index = source[offset];
-                return Opaque(
-                    (byte)(palette[index] >> 8),
-                    (byte)(palette[256 + index] >> 8),
-                    (byte)(palette[512 + index] >> 8));
-            case RawLayout.Palette16:
-                var palette16 = format.Palette!;
-                var index16 = ReadUInt16Native(source, offset);
-                return Opaque(
-                    (byte)(palette16[index16] >> 8),
-                    (byte)(palette16[65536 + index16] >> 8),
-                    (byte)(palette16[131072 + index16] >> 8));
-            case RawLayout.YCbCr8:
-                return FromYCbCr(source[offset], source[offset + 1], source[offset + 2]);
-            case RawLayout.Gray:
-                return Opaque(source[offset], source[offset], source[offset]);
-            case RawLayout.Gray16:
-                var gray16 = (byte)(ReadUInt16Native(source, offset) >> 8);
-                return Opaque(gray16, gray16, gray16);
-            case RawLayout.GrayInverted:
-                var inverted = (byte)(255 - source[offset]);
-                return Opaque(inverted, inverted, inverted);
-            case RawLayout.Gray16Inverted:
-                var inverted16 = (byte)(255 - (ReadUInt16Native(source, offset) >> 8));
-                return Opaque(inverted16, inverted16, inverted16);
-            default:
-                return 0xFF000000u;
-        }
-    }
 
-    private static uint Opaque(byte red, byte green, byte blue) =>
-        0xFF000000u | ((uint)red << 16) | ((uint)green << 8) | blue;
 
-    private static uint PremultipliedBgra(byte red, byte green, byte blue, byte alpha)
-    {
-        if (alpha == 0)
-        {
-            return 0;
-        }
-
-        if (alpha != 255)
-        {
-            red = (byte)((red * alpha + 127) / 255);
-            green = (byte)((green * alpha + 127) / 255);
-            blue = (byte)((blue * alpha + 127) / 255);
-        }
-
-        return ((uint)alpha << 24) | ((uint)red << 16) | ((uint)green << 8) | blue;
-    }
 
     private static void WriteScaledValue(
         byte[] pixels,
@@ -2234,13 +2049,6 @@ public static class TiffPreviewDecoder
         }
     }
 
-    private static void WriteBgra(byte[] pixels, int offset, uint value)
-    {
-        // One 32-bit write per pixel keeps the parallel tile/strip workers from
-        // tearing a pixel into mixed channels. The last writer wins, which is
-        // fine for a proxy preview.
-        Volatile.Write(ref Unsafe.As<byte, uint>(ref pixels[offset]), value);
-    }
 
     private static RawFormat GetRawFormat(Tiff image)
     {
@@ -2447,99 +2255,8 @@ public static class TiffPreviewDecoder
         return default;
     }
 
-    private static ushort[]? ReadColorMap(Tiff image)
-    {
-        var field = image.GetField(TiffTag.COLORMAP);
-        if (field is null)
-        {
-            return null;
-        }
 
-        var parts = new List<ushort[]>();
-        foreach (var value in field)
-        {
-            switch (value.Value)
-            {
-                case ushort[] bytes:
-                    parts.Add(bytes);
-                    break;
-                case short[] shorts:
-                {
-                    var map = new ushort[shorts.Length];
-                    for (var index = 0; index < shorts.Length; index++)
-                    {
-                        map[index] = unchecked((ushort)shorts[index]);
-                    }
 
-                    parts.Add(map);
-                    break;
-                }
-                case int[] ints:
-                {
-                    var map = new ushort[ints.Length];
-                    for (var index = 0; index < ints.Length; index++)
-                    {
-                        map[index] = (ushort)Math.Clamp(ints[index], 0, ushort.MaxValue);
-                    }
-
-                    parts.Add(map);
-                    break;
-                }
-            }
-        }
-
-        if (parts.Count >= 3)
-        {
-            var length = Math.Min(parts[0].Length, Math.Min(parts[1].Length, parts[2].Length));
-            var combined = new ushort[3 * length];
-            for (var channel = 0; channel < 3; channel++)
-            {
-                Array.Copy(parts[channel], 0, combined, channel * length, length);
-            }
-
-            return combined;
-        }
-
-        return parts.Count == 1 ? parts[0] : null;
-    }
-
-    private readonly record struct RawFormat(
-        RawLayout Layout,
-        ushort[]? Palette,
-        int SubX = 1,
-        int SubY = 1);
-
-    private enum RawLayout
-    {
-        None,
-        Rgb,
-        Rgb16,
-        RgbPlanar8,
-        RgbPlanar16,
-        CmykPlanar8,
-        CmykPlanar16,
-        RgbaPlanar8,
-        RgbaPlanar16,
-        Cmyk8,
-        Rgba8,
-        Rgba16,
-        Float32Gray,
-        Float32GrayInverted,
-        Float32Rgb,
-        Float16Gray,
-        Float16GrayInverted,
-        Float16Rgb,
-        Gray16Int,
-        Rgb16Int,
-        Palette8,
-        Palette16,
-        YCbCr8,
-        YCbCrSub8,
-        Gray,
-        Gray16,
-        GrayInverted,
-        Gray16Inverted
-    }
 
     private static (int Width, int Height, double Scale) ComputeTarget(
         int width,
@@ -2570,41 +2287,10 @@ public static class TiffPreviewDecoder
     private static int RoundUp(int value, int step) =>
         step <= 1 ? value : ((value + step - 1) / step) * step;
 
-    private static (int X, int Y) ReadSubsampling(Tiff image)
-    {
-        var field = image.GetField(TiffTag.YCBCRSUBSAMPLING);
-        return field is { Length: >= 2 }
-            ? (field[0].ToInt(), field[1].ToInt())
-            : (0, 0);
-    }
 
-    private static bool HasUnitSubsampling(Tiff image)
-    {
-        var (x, y) = ReadSubsampling(image);
-        return x == 1 && y == 1;
-    }
 
-    private static uint FromYCbCr(byte y, byte cb, byte cr)
-    {
-        var blueDifference = cb - 128;
-        var redDifference = cr - 128;
-        var red = ClampByte(y + ((91881 * redDifference) >> 16));
-        var green = ClampByte(y - ((22554 * blueDifference + 46802 * redDifference) >> 16));
-        var blue = ClampByte(y + ((116130 * blueDifference) >> 16));
-        return Opaque((byte)red, (byte)green, (byte)blue);
-    }
 
-    private static int ClampByte(int value) => value < 0 ? 0 : value > 255 ? 255 : value;
 
-    private static void EnableJpegRgbMode(Tiff image)
-    {
-        if (TagInt(image, TiffTag.COMPRESSION) == 7 &&
-            TagInt(image, TiffTag.PHOTOMETRIC) == 6 &&
-            TagInt(image, TiffTag.SAMPLESPERPIXEL) == 3)
-        {
-            image.SetField(TiffTag.JPEGCOLORMODE, JpegColorMode.RGB);
-        }
-    }
 
     private static Tiff OpenAtLevel(string path, short directory, long subIfdOffset)
     {
@@ -2667,17 +2353,7 @@ public static class TiffPreviewDecoder
     private static ImageLoadException Corrupt(string path, string message) =>
         new(ImageLoadFailure.Corrupt, message, path, Path.GetExtension(path));
 
-    private static int TagInt(Tiff image, TiffTag tag)
-    {
-        var value = TagLong(image, tag);
-        return value is <= 0 or > int.MaxValue ? 0 : (int)value;
-    }
 
-    private static long TagLong(Tiff image, TiffTag tag)
-    {
-        var field = image.GetField(tag);
-        return field is { Length: > 0 } ? field[0].ToLong() : 0;
-    }
 
     private static byte[]? TagBytes(Tiff image, TiffTag tag)
     {
