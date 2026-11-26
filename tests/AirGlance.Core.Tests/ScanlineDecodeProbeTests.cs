@@ -78,6 +78,29 @@ public sealed class ScanlineDecodeProbeTests
         Assert.Equal(SKCodecResult.Unimplemented, codec.StartScanlineDecode(info));
     }
 
+    [Theory]
+    [InlineData("sample.bmp", SKCodecResult.Success)]
+    [InlineData("alpha.webp", SKCodecResult.Unimplemented)]
+    [InlineData("animated.webp", SKCodecResult.Unimplemented)]
+    [InlineData("sample.ico", SKCodecResult.Unimplemented)]
+    public void Which_formats_support_scanline_decode(string asset, SKCodecResult expected)
+    {
+        // Recorded so the tile writer's format gate is a decision with evidence: JPEG and
+        // BMP stream, WebP and ICO do not, and PNG is asserted in its own test above. If a
+        // future SkiaSharp starts streaming WebP, this fails and the gate can be widened.
+        using var stream = File.OpenRead(Asset(asset));
+        using var codec = SKCodec.Create(stream);
+        Assert.NotNull(codec);
+
+        var info = new SKImageInfo(
+            codec.Info.Width,
+            codec.Info.Height,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul,
+            SKColorSpace.CreateSrgb());
+
+        Assert.Equal(expected, codec.StartScanlineDecode(info));
+    }
     private static string Asset(string name) =>
         Path.Combine(AppContext.BaseDirectory, "Assets", name);
 }
