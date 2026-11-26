@@ -7,6 +7,9 @@
     <DebugType>portable</DebugType>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- A published NuGet advisory (NU1901-NU1904) must not turn every build red on a
+         repository that has no lock files; Dependabot proposes the upgrade instead. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     <!-- Single source of the application version. The packaging scripts read this
          property instead of carrying their own default. -->
     <Version>0.7.1</Version>

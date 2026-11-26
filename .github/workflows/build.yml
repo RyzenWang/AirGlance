@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DOTNET_NOLOGO: "true"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
@@ -113,4 +117,13 @@ jobs:
         run: dotnet build AirGlance.sln -c Release --no-restore
 
       - name: Test
-        run: dotnet test AirGlance.sln -c Release --no-build --logger console
+        run: dotnet test AirGlance.sln -c Release --no-build --logger console --logger trx --results-directory artifacts/test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: artifacts/test-results
+          if-no-files-found: warn
+          retention-days: 14

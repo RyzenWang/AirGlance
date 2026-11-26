@@ -445,6 +445,11 @@ public sealed class LocalizationService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Every key with both halves, so a test can prove no entry is missing a language or
+    /// a placeholder. Production code never enumerates the catalog.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, (string En, string Zh)> CatalogForTest => Catalog;
     public string T(string key) =>
         Catalog.TryGetValue(key, out var value) ? (IsChinese ? value.Zh : value.En) : key;
 
