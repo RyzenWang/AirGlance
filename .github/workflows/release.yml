@@ -23,15 +23,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
@@ -41,7 +41,7 @@ jobs:
       # The gate that authorises a release must exercise the same tests as PR CI,
       # which means the AVIF decoder has to be present or those tests return early.
       - name: Cache the native AVIF build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             native/avif/.cache
@@ -124,15 +124,15 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
@@ -152,7 +152,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache the native AVIF build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             native/avif/.cache
@@ -197,7 +197,7 @@ jobs:
         run: bash ./packaging/scripts/pack.sh "$VERSION" "${{ matrix.rid }}"
 
       - name: Upload release archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AirGlance-${{ matrix.rid }}
           path: artifacts/AirGlance-*-${{ matrix.rid }}.${{ matrix.extension }}
@@ -211,12 +211,12 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download release archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
