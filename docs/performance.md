@@ -83,6 +83,25 @@ only comparable build; a normal Release build is a JIT app and is much slower.
 
 ## Results
 
+### 0.7.2, current mark
+
+Measured on the NativeAOT `win-x64` build of the release commit (`78b1db7`), same
+machine and scripts as the rows below. 10 runs for 24 MP, 5 for 100 MP fit window,
+3 runs of 18 s with 100 ms sampling for 100 MP at 100%.
+
+| Metric | 24 MP | 100 MP fit window |
+| --- | --- | --- |
+| First window | **256.4 ms** (600.1) | — |
+| First frame | **272.9 ms** (625.6) | **323.3 ms** (365.8) |
+| Decode | **57.7 ms** (69.1) | **147.4 ms** (163.5) |
+| Peak working set | **63.6 MB** (68.0) | **77.4 MB** (82.6) |
+| 100 MP at 100% | | **128.3 MB peak, 128.3 MB steady, 400 MB tile file** |
+
+The p95 spread is wide (600 ms first window) because the machine was busy; the same
+commit measured 249.3 ms and 265.1 ms on its first run with the dependency bump, and
+decode did not move at all, so the 2-4 % difference from the 0.7.1 medians is the
+machine rather than the code. See "Streamed tiles" below for the 478 → 128 MB change
+that this release ships.
 ### 0.7.1, current mark
 
 10 runs for 24 MP and 5 for 100 MP, published `v0.7.1` Windows x64 build, median

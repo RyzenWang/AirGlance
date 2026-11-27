@@ -14,7 +14,7 @@
   <a href="https://github.com/RyzenWang/AirGlance/releases/latest">最新发布</a>
 </p>
 
-AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.7.1，也是最新公开二进制版本。它刻意保持小巧。
+AirGlance 是一个适用于 Windows、macOS 和 Linux 的桌面看图工具。它一次打开一个文件夹、显示一张图片，不用标签页、图库或工作区就能浏览其余图片。当前版本是 0.7.2，也是最新公开二进制版本。它刻意保持小巧。
 
 > **Windows：** 推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装，更新由商店负责。商店版本可能落后于 GitHub Release；Windows、macOS 和 Linux 的便携包仍可在 [GitHub Releases](https://github.com/RyzenWang/AirGlance/releases/latest) 下载。
 
@@ -90,7 +90,7 @@ AirGlance 使用 SkiaSharp 处理普通位图、LibTiff 处理 TIFF、Svg.Skia �
 
 ## 安装
 
-Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装；各平台的便携包在 [v0.7.1 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.1)。商店版本可能落后于 GitHub Release。
+Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 安装；各平台的便携包在 [v0.7.2 GitHub Release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.2)。商店版本可能落后于 GitHub Release。
 
 ### Microsoft Store（Windows）
 
@@ -99,20 +99,20 @@ Windows 用户推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9p30
 
 ### Windows 便携版
 
-1. 下载 `AirGlance-0.7.1-win-x64.zip`（或 `win-arm64`）。
+1. 下载 `AirGlance-0.7.2-win-x64.zip`（或 `win-arm64`）。
 2. 解压到任意位置，运行 `AirGlance.exe`。
 
 Windows 便携版没有代码签名，首次运行会出现 SmartScreen 警告。选择 **更多信息 → 仍要运行**。可执行文件是 NativeAOT 构建，不需要安装 .NET 运行时。
 
 ### macOS
 
-1. 下载 `AirGlance-0.7.1-osx-arm64.zip` 或 `-osx-x64.zip`。
-2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.7.1 尚未公证。
+1. 下载 `AirGlance-0.7.2-osx-arm64.zip` 或 `-osx-x64.zip`。
+2. 解压 `AirGlance.app`，第一次启动时右键点击应用并选择 **打开**。在应用完成公证之前，Gatekeeper 会一直阻止普通双击；0.7.2 尚未公证。
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.7.1-linux-x64.tar.gz
+tar -xzf AirGlance-0.7.2-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -124,14 +124,14 @@ tar -xzf AirGlance-0.7.1-linux-x64.tar.gz
 
 | 平台 | 压缩包 | 实际运行过 NativeAOT 二进制 |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **已验证** — 已启动 0.7.1 本地 AOT 构建并显示图片 |
+| Windows x64 | `win-x64.zip` | **已验证** — 已启动 0.7.2 本地 AOT 构建并显示图片 |
 | Linux x64 | `linux-x64.tar.gz` | **已验证**（维护者，0.1.1） |
 | Windows arm64 | `win-arm64.zip` | 未验证 |
 | macOS arm64 | `osx-arm64.zip` | 未验证 |
 | macOS x64 | `osx-x64.zip` | 未验证 |
 | Linux arm64 | `linux-arm64.tar.gz` | 未验证 |
 
-“已验证”是指实际启动过 AOT 二进制并显示过图片。Windows x64 条目对应 0.7.1 本地 AOT 构建；此前已发布的 0.5.0 压缩包已用 JPEG、TIFF、SVG 和 GIF 冒烟测试；Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
+“已验证”是指实际启动过 AOT 二进制并显示过图片。Windows x64 条目对应 0.7.2 本地 AOT 构建；此前已发布的 0.5.0 压缩包已用 JPEG、TIFF、SVG 和 GIF 冒烟测试；Linux x64 由维护者在 0.1.1 上验证。其他压缩包由 CI 构建，但尚未在对应平台上运行。剪贴板图片复制已在 Windows x64 上用 PNG 和 JPEG 验证；复制路径和 100% 以上 Windows 显示缩放仍未验证。详见 [shipping](docs/shipping.md)。
 
 Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) 分发；商店版本可能落后于 GitHub Release，更新由 Windows 负责。
 
@@ -177,17 +177,17 @@ Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/
 
 ## 性能
 
-在已发布的 Windows x64 二进制上测量，机器为 Windows 10 Pro 22H2 (19045)、2 × Intel Xeon E5-2697 v4（16 核）、32 GB 内存、.NET 10.0.14、NativeAOT `win-x64`。测量使用一个空的设置目录，以默认的适应窗口打开。24 MP 各行十次全新进程，100 MP 行五次，取 `tools/bench.ps1` 的中位数。0.7.1 一列是**新口径**：提交 `e25739d` 把首帧标记移进了真正绘制像素的那次渲染，此前它排在胶片条和面板构建之后，而峰值工作集是在打印该行时读取的。两列测量点不同，不能逐行对比。完整方法和原始数据见 [docs/performance.md](docs/performance.md)。
+在 Windows 10 Pro 22H2 (19045)、2 × Intel Xeon E5-2697 v4（16 核）、32 GB 内存、.NET 10.0.14、NativeAOT `win-x64` 上测量。测量使用一个空的设置目录，以默认的适应窗口打开。24 MP 各行十次全新进程，100 MP 行五次，取 `tools/bench.ps1` 的中位数。0.7.0 一列是**旧口径**：提交 `e25739d` 把首帧标记移进了真正绘制像素的那次渲染，此前它排在胶片条和面板构建之后，而峰值工作集是在打印该行时读取的，所以 0.7.0 与后续各列测量点不同、不能逐行对比。0.7.1 用已发布的二进制测量，0.7.2 用其发布提交的 NativeAOT 构建测量（依赖升级只换了链接的原生 SkiaSharp 库）。完整方法和原始数据见 [docs/performance.md](docs/performance.md)。
 
-| 指标 | 目标 | 0.7.0（旧口径） | 0.7.1（现口径） |
-| --- | --- | --- | --- |
-| 冷启动到首窗 | ≤ 500 ms | 250.5 ms | 250.7 ms |
-| 24 MP JPEG 首帧 | ≤ 500 ms | 415.7 ms | 265.9 ms |
-| 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 341.4 ms | 309.9 ms |
-| 24 MP 适应窗口内存峰值 | ≤ 250 MB | 88.1 MB | 63.6 MB |
-| Windows x64 便携 zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB |
+| 指标 | 目标 | 0.7.0（旧口径） | 0.7.1 | 0.7.2 |
+| --- | --- | --- | --- | --- |
+| 冷启动到首窗 | ≤ 500 ms | 250.5 ms | 250.7 ms | 256.4 ms |
+| 24 MP JPEG 首帧 | ≤ 500 ms | 415.7 ms | 265.9 ms | 272.9 ms |
+| 100 MP JPEG 首帧（适应窗口） | ≤ 2.0 s | 341.4 ms | 309.9 ms | 323.3 ms |
+| 24 MP 适应窗口内存峰值 | ≤ 250 MB | 88.1 MB | 63.6 MB | 63.6 MB |
+| Windows x64 便携 zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB | 21.38 MiB |
 
-0.7.1 在参考机器上达到全部目标：窗口约 251 ms 出现，24 MP 图片约 266 ms 上屏，100 MP 约 310 ms，峰值工作集约 64 MB。首帧和内存的差异主要来自测量点的移动，而不是因为工作变快了，所以 0.7.0 一列保留在旁边；真正能说明两台测量可比的是首窗时间，而这项改动没有碰它。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
+0.7.2 在参考机器上达到全部目标：窗口约 256 ms 出现，24 MP 图片约 273 ms 上屏，100 MP 约 323 ms，峰值工作集约 64 MB。0.7.2 的中位数比 0.7.1 高 2–4%，p95 也更宽（首窗 600 ms），这是机器的波动而不是性能退化：同一提交在依赖升级后的首次测量是 249.3 ms / 265.1 ms，而解码时间完全没有变化。便携包比 0.7.1 更小（尽管 SkiaSharp 原生库更大），因为 0.7.1 的产物由另一次打包生成；两者都远在 30 MB 预算内。首次冷启动时操作系统扫描可执行文件可能更慢，因此应以中位数对比预算。这些是实测数字，不是估算。原始运行数据见 [docs/performance.md](docs/performance.md)。
 
 ## 已知限制
 
@@ -202,7 +202,7 @@ Windows x64 版本也通过 [Microsoft Store](https://apps.microsoft.com/detail/
 - 双画布两侧都加载有界预览；逐画布旋转/翻转、另存副本和幻灯片暂缓。不支持两张 100 MP 图片同时 100%，也不包含成对前进（左 N / 右 N+1）。
 - 裁剪、旋转和翻转都是会话内编辑，没有无损 JPEG 旋转，原文件永远不会被重写。双画布以及仅代理/分块图片下编辑不可用。
 - 16 位 PNG 会显示为 16 位，但显示和另存时按 8 位处理。
-- 100 MP 图片在 100% 时使用基于文件的分块缓存。瓦片写入器会把 JPEG 的扫描行直接流式写进分块文件，所以 10000 × 10000 JPEG 的峰值现在约为 **127 MB** —— 同一台机器、同一脚本实测，已发布的 0.7.1 构建则是 **478 MB**（各三次运行，每 100 ms 采样一次工作集）。图片打开期间临时分块文件仍约 400 MB。PNG 无法这样流式处理，因为 Skia 对它不提供扫描行解码，所以 48 MP PNG 仍可能峰值接近 300 MB；内存较小的机器查看超大 PNG 时建议使用适应窗口。
+- 100 MP 图片在 100% 时使用基于文件的分块缓存。瓦片写入器会把 JPEG 的扫描行直接流式写进分块文件，所以 10000 × 10000 JPEG 的峰值约为 **128 MB** —— 同一台机器、同一脚本实测，0.7.1 则是 **478 MB**（各三次运行，每 100 ms 采样一次工作集）。图片打开期间临时分块文件仍约 400 MB。PNG 无法这样流式处理，因为 Skia 对它不提供扫描行解码，所以 48 MP PNG 仍可能峰值接近 300 MB；内存较小的机器查看超大 PNG 时建议使用适应窗口。
 - Windows 便携版未签名，macOS 版未公证。Microsoft Store 版本已通过商店提供；便携版仍是离线/ARM64 的选择。
 
 ## 从源码构建

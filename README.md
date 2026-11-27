@@ -14,7 +14,7 @@
   <a href="https://github.com/RyzenWang/AirGlance/releases/latest">Latest releases</a>
 </p>
 
-AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.7.1 is the current build and the latest public binary release. It is deliberately small.
+AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a folder, shows one image, and lets you step through the rest without tabs, libraries or a workspace. Version 0.7.2 is the current build and the latest public binary release. It is deliberately small.
 
 > **Windows:** the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6) build is the recommended install and updates through the Store. The Store listing can trail the GitHub release; portable archives for Windows, macOS and Linux remain on [GitHub Releases](https://github.com/RyzenWang/AirGlance/releases/latest).
 
@@ -90,7 +90,7 @@ AirGlance uses SkiaSharp for ordinary raster formats, LibTiff for TIFF, Svg.Skia
 
 ## Install
 
-Windows users should install from the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); portable archives for all platforms are on the [v0.7.1 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.1). The Store listing can trail the GitHub release.
+Windows users should install from the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); portable archives for all platforms are on the [v0.7.2 GitHub release](https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.2). The Store listing can trail the GitHub release.
 
 ### Microsoft Store (Windows)
 
@@ -99,20 +99,20 @@ Windows users should install from the [Microsoft Store](https://apps.microsoft.c
 
 ### Windows portable
 
-1. Download `AirGlance-0.7.1-win-x64.zip` (or `win-arm64`).
+1. Download `AirGlance-0.7.2-win-x64.zip` (or `win-arm64`).
 2. Unzip it anywhere and run `AirGlance.exe`.
 
 The Windows portable build is not code-signed, so SmartScreen warns the first time. Choose **More info → Run anyway**. The executable is a NativeAOT build; it does not need a .NET runtime installed.
 
 ### macOS
 
-1. Download `AirGlance-0.7.1-osx-arm64.zip` or `-osx-x64.zip`.
-2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.7.1 is not.
+1. Download `AirGlance-0.7.2-osx-arm64.zip` or `-osx-x64.zip`.
+2. Unzip `AirGlance.app`, then right-click the app and choose **Open** the first time. Gatekeeper will keep blocking a normal double-click until the app is notarised, which 0.7.2 is not.
 
 ### Linux
 
 ```bash
-tar -xzf AirGlance-0.7.1-linux-x64.tar.gz
+tar -xzf AirGlance-0.7.2-linux-x64.tar.gz
 ./AirGlance
 ```
 
@@ -124,14 +124,14 @@ The release publishes six archives. Runtime verification is narrower than that:
 
 | Platform | Archive | NativeAOT binary actually run |
 | --- | --- | --- |
-| Windows x64 | `win-x64.zip` | **Verified** — the 0.7.1 local AOT build launched and displayed an image |
+| Windows x64 | `win-x64.zip` | **Verified** — the 0.7.2 local AOT build launched and displayed an image |
 | Linux x64 | `linux-x64.tar.gz` | **Verified** by the maintainer against 0.1.1 |
 | Windows arm64 | `win-arm64.zip` | Unverified |
 | macOS arm64 | `osx-arm64.zip` | Unverified |
 | macOS x64 | `osx-x64.zip` | Unverified |
 | Linux arm64 | `linux-arm64.tar.gz` | Unverified |
 
-"Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to the 0.7.1 local AOT build; the previously published 0.5.0 archive was smoke-tested with JPEG, TIFF, SVG and GIF files; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
+"Verified" means the AOT binary was launched and displayed an image. The Windows x64 entry refers to the 0.7.2 local AOT build; the previously published 0.5.0 archive was smoke-tested with JPEG, TIFF, SVG and GIF files; the Linux x64 entry was verified against 0.1.1 by the maintainer. The other archives are produced by CI but have not been run on their platform. Clipboard image copy was verified on Windows x64 with PNG and JPEG files; copy-path and Windows display scaling above 100% are still unverified. See [shipping](docs/shipping.md).
 
 The Windows x64 build is also distributed through the [Microsoft Store](https://apps.microsoft.com/detail/9p30h2pjg0f6); the Store listing can trail the GitHub release, and Store updates are handled by Windows.
 
@@ -177,17 +177,17 @@ Right-click the image for open, copy, show-in-folder, open-with and settings. In
 
 ## Performance
 
-Measured on the published Windows x64 binaries, on Windows 10 Pro 22H2 (19045), 2 × Intel Xeon E5-2697 v4 (16 cores), 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`. The runs used an empty settings directory so they opened at the default fit window. Ten fresh processes for the 24 MP rows and five for the 100 MP row; median from `tools/bench.ps1`. The 0.7.1 column is a **new series**: commit `e25739d` moved the first-frame mark into the render pass that draws the pixels, where it used to wait behind the filmstrip and panel construction, and the peak working set is read when that mark is reported. The two columns measure different points and must not be compared row by row. The full method and raw values are in [docs/performance.md](docs/performance.md).
+Measured on Windows 10 Pro 22H2 (19045), 2 × Intel Xeon E5-2697 v4 (16 cores), 32 GB RAM, .NET 10.0.14, NativeAOT `win-x64`. The runs used an empty settings directory so they opened at the default fit window. Ten fresh processes for the 24 MP rows and five for the 100 MP row; median from `tools/bench.ps1`. The 0.7.0 column is an **older series**: commit `e25739d` moved the first-frame mark into the render pass that draws the pixels, where it used to wait behind the filmstrip and panel construction, and the peak working set is read when that mark is reported, so 0.7.0 and the later columns measure different points and must not be compared row by row. 0.7.1 was measured on its published binary; 0.7.2 on the NativeAOT build of its release commit, because the dependency bump only changes which native SkiaSharp library is linked. The full method and raw values are in [docs/performance.md](docs/performance.md).
 
-| Metric | Target | 0.7.0 (old mark) | 0.7.1 (current mark) |
-| --- | --- | --- | --- |
-| Cold start to first window | ≤ 500 ms | 250.5 ms | 250.7 ms |
-| 24 MP JPEG first frame | ≤ 500 ms | 415.7 ms | 265.9 ms |
-| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 341.4 ms | 309.9 ms |
-| 24 MP fit-window peak working set | ≤ 250 MB | 88.1 MB | 63.6 MB |
-| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB |
+| Metric | Target | 0.7.0 (old mark) | 0.7.1 | 0.7.2 |
+| --- | --- | --- | --- | --- |
+| Cold start to first window | ≤ 500 ms | 250.5 ms | 250.7 ms | 256.4 ms |
+| 24 MP JPEG first frame | ≤ 500 ms | 415.7 ms | 265.9 ms | 272.9 ms |
+| 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 341.4 ms | 309.9 ms | 323.3 ms |
+| 24 MP fit-window peak working set | ≤ 250 MB | 88.1 MB | 63.6 MB | 63.6 MB |
+| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB | 21.38 MiB |
 
-0.7.1 meets every target on the reference machine: the window is up in about 251 ms, a 24 MP image is on screen in about 266 ms and a 100 MP one in about 310 ms, with a peak working set of about 64 MB. Most of the first-frame and memory difference comes from the moved mark rather than from faster work, which is why the 0.7.0 column stays next to it; the window time, which the change did not touch, is the row that shows the machine is comparable. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
+0.7.2 meets every target on the reference machine: the window is up in about 256 ms, a 24 MP image is on screen in about 273 ms and a 100 MP one in about 323 ms, with a peak working set of about 64 MB. The 0.7.2 medians sit 2–4 % above 0.7.1 and its p95 is wider (600 ms first window), which is the machine's spread rather than a regression: the same commit measured 249.3 ms and 265.1 ms on the first run of the dependency bump, and the decode time did not move at all. The portable archive is smaller than 0.7.1 despite the larger SkiaSharp native library, because the 0.7.1 asset was built by a different packaging run; the archive is well inside the 30 MB budget either way. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 
@@ -202,7 +202,7 @@ These are limitations, not a promise list.
 - Dual view loads bounded previews on both sides; per-canvas rotate/flip, save-copy and slideshow are deferred. Two 100 MP images at 100% simultaneously are not supported, and pair stepping (left N / right N+1) is not included.
 - Crop, rotate and flip are session edits. There is no lossless JPEG rotation, and the original file is never rewritten. Editing is disabled in dual view and for proxy-only or tiled images.
 - 16-bit PNGs are reported as 16-bit but displayed and re-saved as 8-bit.
-- 100 MP images use a file-backed tile cache at 100%. The tile writer streams a JPEG's scanlines straight into the tile file, so a 10000 × 10000 JPEG now peaks at about **127 MB** — down from the **478 MB** the published 0.7.1 build needed, measured with the same script on the same machine (three runs, working set sampled every 100 ms). The temporary tile file is still about 400 MB while the image is open. PNG cannot be streamed this way because Skia exposes no scanline decode for it, so a 48 MP PNG can still peak near 300 MB; smaller machines should keep very large PNGs to fit view.
+- 100 MP images use a file-backed tile cache at 100%. The tile writer streams a JPEG's scanlines straight into the tile file, so a 10000 × 10000 JPEG peaks at about **128 MB** — down from the **478 MB** that 0.7.1 needed, measured with the same script on the same machine (three runs, working set sampled every 100 ms). The temporary tile file is still about 400 MB while the image is open. PNG cannot be streamed this way because Skia exposes no scanline decode for it, so a 48 MP PNG can still peak near 300 MB; smaller machines should keep very large PNGs to fit view.
 - The Windows portable build is unsigned and the macOS build is not notarised. The Microsoft Store build is available through the Store listing; the portable build remains the offline/arm64 option.
 
 ## Build from source

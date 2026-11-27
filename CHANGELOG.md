@@ -7,13 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-27
+
 ### Changed
 
 - A 100 MP JPEG opened at 100% no longer needs a full-resolution raster. The tile writer
-  streams the encoder's scanlines into the tile file one band at a time, so peak memory
-  is the band buffer plus one tile instead of 400 MB of RGBA. Files that need the
-  transposed source (EXIF rotation), formats without scanline decode (PNG) and edits
-  still take the raster path, and the streamed tiles are byte-for-byte identical to it.
+  streams the encoder's scanlines into the tile file one band at a time, so peak memory is
+  the band buffer plus one tile instead of 400 MB of RGBA: **478 MB → 128 MB** on the same
+  fixture and script. Files that need the transposed source (an EXIF rotation), formats
+  without scanline decode (PNG, WebP and ICO, where SkiaSharp answers `Unimplemented`) and
+  any edit still take the raster path, and the streamed tiles are byte-for-byte identical
+  to the ones the raster writer produces.
+- SkiaSharp 4.150.1 → 4.157.0, Avalonia 11.3.22 → 11.3.23, Svg.Skia 5.2.3 → 5.2.4 and
+  Microsoft.NET.Test.Sdk 17.14.1 → 17.14.2. The SkiaSharp move replaces the native library
+  (12.3 MB → 13.2 MB) and the portable archive grows by about 0.4 MiB; every format was
+  decoded again through the packaged binary, and the row-by-row capability matrix is
+  unchanged, so the streamed tile writer's format gate still holds.
+
+### Fixed
+
+- A TIFF with an orientation tag reported the stored size instead of the displayed one: an
+  80 × 40 file rotated by the tag drew as 40 × 80 but said "80 × 40" in the status bar, with
+  a scale of 0.8 instead of 1. The TIFF full decode now passes the oriented source size,
+  which is what `DecodedBitmap.SourceWidth` documents and what the Skia path already did,
+  and the preview wrapper applies the oriented pair as well.
+
+### Internal
+
+- One implementation for the two TIFF decoders. `TiffCodec` owns the byte readers, the tag
+  helpers, the sample-to-BGRA switch, the raw layout enum and the 204-line format-detection
+  ladder that `TiffPreviewDecoder` and `TiffRegionReader` had each carried. About 1030
+  duplicated lines were already drifting: one copy used a single 32-bit store per pixel and
+  the other four byte stores, three enum members were spelled differently, and only one copy
+  handled `YCbCrSub8`. The preview decoder went 2688 → 2160 lines, the region reader
+  1847 → 1342.
+- The three largest classes were split across files with no behaviour change: `MainWindow`
+  2886 → 407 lines plus six files, `DualCanvasView` 2146 → 616 plus five, and `ImageDecoder`
+  1557 → 579 plus one file per format. The tile-file write side moved to `TileFileWriter` so
+  the on-disk format is described in one place instead of next to the LRU cache and the
+  async loading.
+- 26 new tests: the command-line parser (ten cases over flags, `--`, precedence and missing
+  or unsupported paths), the localization catalog (placeholder parity, every key resolving
+  in both languages, `Format` substitution) and a probe that records which formats SkiaSharp
+  can decode row by row.
+
+### Documentation
+
+- The coverage-gap list in `docs/formats.md` matches the fixtures again, `shipping.md` no
+  longer claims the archives omit `LICENSE` and `THIRD-PARTY-NOTICES.md` (in either
+  language), `architecture.md` names both feeders of the tile cache and stops claiming a
+  nearest-neighbour downscale, `performance.md` labels the 0.7.0 numbers as the post-tag
+  Store package rather than the release archive, and the three design documents have their
+  dead high-contrast requirements struck through.
+- The 100% zoom figures were re-measured instead of inherited: on the 0.7.1 binary the peak
+  was 478 MB (previously quoted as 464), steady 109 MB (previously 125) and the tile file
+  400 MB.
+
+### Performance
+
+- Re-measured on the 0.7.2 NativeAOT `win-x64` build of the release commit, same machine and
+  scripts as the 0.7.1 series. 24 MP JPEG: 256.4 ms first window, 272.9 ms first frame,
+  57.7 ms decode, 63.6 MB peak working set (medians of 10 runs). 100 MP fit window: 323.3 ms
+  first frame, 77.4 MB peak (5 runs). 100 MP at 100%: 128.3 MB peak and steady, tile file
+  400 MB (3 runs). The medians sit within the run-to-run spread of the 0.7.1 series, which
+  is what the SkiaSharp bump predicted; README and `docs/performance.md` carry the numbers.
 
 ## [0.7.1] - 2026-11-25
 
@@ -508,6 +565,7 @@ First public release. AirGlance opens one folder at a time and shows one image a
 - PNG `eXIf` orientation is read for the information panel but is not applied to the displayed pixels. JPEG EXIF orientation is applied.
 - Windows MSIX packages require a real publisher certificate. The manifest publisher placeholder `CN=AirWorks` must be replaced with the Partner Center publisher before Store submission.
 
+[0.7.2]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.2
 [0.7.1]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.1
 [0.7.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.7.0
 [0.6.0]: https://github.com/RyzenWang/AirGlance/releases/tag/v0.6.0

@@ -12,7 +12,7 @@
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     <!-- Single source of the application version. The packaging scripts read this
          property instead of carrying their own default. -->
-    <Version>0.7.1</Version>
+    <Version>0.7.2</Version>
     <Company>AirWorks</Company>
     <Product>AirGlance</Product>
     <Authors>AirWorks</Authors>
