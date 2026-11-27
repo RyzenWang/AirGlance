@@ -12,9 +12,16 @@ public sealed record ImageSource(string FolderPath, IReadOnlyList<string> Files,
 /// </summary>
 public static class ImageSourceResolver
 {
+    /// <summary>Name-ordered overload kept for callers that only know about direction.</summary>
     public static ImageSource Resolve(
         string path,
         bool descending = false,
+        CancellationToken cancellationToken = default) =>
+        Resolve(path, new FolderSortOrder(FolderSortField.Name, descending), cancellationToken);
+
+    public static ImageSource Resolve(
+        string path,
+        FolderSortOrder order,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(path))
@@ -26,7 +33,7 @@ public static class ImageSourceResolver
 
         if (Directory.Exists(fullPath))
         {
-            var files = FolderScanner.EnumerateImages(fullPath, descending, cancellationToken);
+            var files = FolderScanner.EnumerateImages(fullPath, order, cancellationToken);
             return new ImageSource(fullPath, files, 0);
         }
 
@@ -41,7 +48,7 @@ public static class ImageSourceResolver
 
         try
         {
-            siblings = FolderScanner.EnumerateImages(folder, descending, cancellationToken);
+            siblings = FolderScanner.EnumerateImages(folder, order, cancellationToken);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {

@@ -102,6 +102,12 @@
                       SelectedIndex="{Binding SortIndex, Mode=TwoWay}">
               <ComboBoxItem Content="{DynamicResource L.SortName}" />
               <ComboBoxItem Content="{DynamicResource L.SortNameDescending}" />
+              <ComboBoxItem Content="{DynamicResource L.SortDate}" />
+              <ComboBoxItem Content="{DynamicResource L.SortDateDescending}" />
+              <ComboBoxItem Content="{DynamicResource L.SortSize}" />
+              <ComboBoxItem Content="{DynamicResource L.SortSizeDescending}" />
+              <ComboBoxItem Content="{DynamicResource L.SortType}" />
+              <ComboBoxItem Content="{DynamicResource L.SortTypeDescending}" />
             </ComboBox>
           </Grid>
         </StackPanel>

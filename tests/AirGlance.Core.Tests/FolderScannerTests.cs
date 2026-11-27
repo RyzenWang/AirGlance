@@ -77,6 +77,70 @@ public sealed class FolderScannerTests : IDisposable
     }
 
     [Fact]
+    public void Date_order_sorts_by_modification_time_and_falls_back_to_name()
+    {
+        var older = Path.Combine(_folder, "b-older.jpg");
+        var newer = Path.Combine(_folder, "a-newer.jpg");
+        var same = Path.Combine(_folder, "c-same.jpg");
+        foreach (var path in new[] { older, newer, same })
+        {
+            File.WriteAllBytes(path, [0]);
+        }
+
+        var stamp = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(older, stamp);
+        File.SetLastWriteTimeUtc(newer, stamp.AddDays(1));
+        File.SetLastWriteTimeUtc(same, stamp.AddDays(1));
+
+        var ascending = FolderScanner.EnumerateImages(
+            _folder,
+            new FolderSortOrder(FolderSortField.DateModified, false));
+        var descending = FolderScanner.EnumerateImages(
+            _folder,
+            new FolderSortOrder(FolderSortField.DateModified, true));
+
+        // Equal timestamps fall back to the natural name order, so the result is stable.
+        Assert.Equal(
+            new[] { "b-older.jpg", "a-newer.jpg", "c-same.jpg" },
+            ascending.Select(Path.GetFileName));
+        Assert.Equal(
+            new[] { "c-same.jpg", "a-newer.jpg", "b-older.jpg" },
+            descending.Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void Size_order_sorts_by_length_and_falls_back_to_name()
+    {
+        foreach (var (name, length) in new[] { ("b.jpg", 3), ("a.jpg", 1), ("c.jpg", 3) })
+        {
+            File.WriteAllBytes(Path.Combine(_folder, name), new byte[length]);
+        }
+
+        var ascending = FolderScanner.EnumerateImages(
+            _folder,
+            new FolderSortOrder(FolderSortField.Size, false));
+
+        Assert.Equal(new[] { "a.jpg", "b.jpg", "c.jpg" }, ascending.Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void Type_order_groups_by_extension_then_name()
+    {
+        foreach (var name in new[] { "b.png", "a.webp", "c.png", "d.jpg" })
+        {
+            File.WriteAllBytes(Path.Combine(_folder, name), [0]);
+        }
+
+        var ascending = FolderScanner.EnumerateImages(
+            _folder,
+            new FolderSortOrder(FolderSortField.Type, false));
+
+        Assert.Equal(
+            new[] { "d.jpg", "b.png", "c.png", "a.webp" },
+            ascending.Select(Path.GetFileName));
+    }
+
+    [Fact]
     public void Hidden_files_are_skipped()
     {
         var visible = Path.Combine(_folder, "visible.jpg");

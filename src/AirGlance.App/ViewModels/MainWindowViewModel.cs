@@ -349,7 +349,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             source = await Task.Run(
-                () => ImageSourceResolver.Resolve(path, _services.Settings.SortDescending));
+                () => ImageSourceResolver.Resolve(path, _services.Settings.SortOrder));
         }
         catch (DirectoryNotFoundException)
         {
@@ -371,6 +371,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
             ShowError(ImageLoadFailure.Unknown, null);
             return;
         }
+
+        _services.Settings.RememberFolder(source.FolderPath);
 
         if (source.Files.Count == 0)
         {
@@ -942,7 +944,7 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         try
         {
             var files = await Task.Run(
-                () => FolderScanner.EnumerateImages(folder, _services.Settings.SortDescending));
+                () => FolderScanner.EnumerateImages(folder, _services.Settings.SortOrder));
             if (files.Count == 0)
             {
                 return;

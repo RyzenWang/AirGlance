@@ -25,6 +25,75 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void RememberFolder_keeps_one_entry_per_path_newest_first()
+    {
+        var settings = new AppSettings();
+        var first = Path.Combine(Path.GetTempPath(), "flight-a");
+        var second = Path.Combine(Path.GetTempPath(), "flight-b");
+
+        Assert.True(settings.RememberFolder(first));
+        Assert.True(settings.RememberFolder(second));
+        Assert.Equal([second, first], settings.RecentFolders);
+
+        // Opening the same folder again moves it to the front without duplicating it, and
+        // reports that nothing changed when it is already first.
+        Assert.True(settings.RememberFolder(first));
+        Assert.Equal([first, second], settings.RecentFolders);
+        Assert.False(settings.RememberFolder(first));
+        Assert.False(settings.RememberFolder(null));
+    }
+
+    [Fact]
+    public void RememberFolder_bounds_the_list()
+    {
+        var settings = new AppSettings();
+        for (var index = 0; index < AppSettings.RecentFolderLimit + 5; index++)
+        {
+            settings.RememberFolder(Path.Combine(Path.GetTempPath(), "flight-" + index));
+        }
+
+        Assert.Equal(AppSettings.RecentFolderLimit, settings.RecentFolders.Count);
+        Assert.EndsWith(
+            "flight-" + (AppSettings.RecentFolderLimit + 4),
+            settings.RecentFolders[0],
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Recent_folders_survive_a_save_and_load_round_trip()
+    {
+        var service = new SettingsService(_folder);
+        var settings = service.Load();
+        var first = Path.Combine(_folder, "one");
+        var second = Path.Combine(_folder, "two");
+        settings.RememberFolder(first);
+        settings.RememberFolder(second);
+        service.Save(settings);
+
+        var reloaded = new SettingsService(_folder).Load();
+
+        Assert.Equal([second, first], reloaded.RecentFolders);
+    }
+
+    [Fact]
+    public void Sort_order_is_canonicalised_when_settings_are_normalized()
+    {
+        foreach (var (raw, canonical) in new[]
+                 {
+                     ("DATE", "date"),
+                     ("size-descending", "size-descending"),
+                     ("type", "type"),
+                     ("nonsense", "name"),
+                     ("", "name")
+                 })
+        {
+            var settings = new AppSettings { Sort = raw }.Normalize();
+
+            Assert.Equal(canonical, settings.Sort);
+        }
+    }
+
+    [Fact]
     public void Defaults_are_normalized()
     {
         var service = new SettingsService(_folder);
@@ -73,7 +142,7 @@ public sealed class SettingsServiceTests : IDisposable
         {
             Language = "fr",
             Theme = "Sepia",
-            Sort = "size",
+            Sort = "by-vibes",
             SlideshowSeconds = 7,
             ZoomMode = "teleport",
             ZoomFactor = double.NaN,

@@ -229,6 +229,20 @@ public partial class MainWindow
 
         Add("L.OpenFile", OnOpenFileClick);
         Add("L.OpenFolder", OnOpenFolderClick);
+
+        // Both submenus are populated when the menu opens: the sort radio has to follow a
+        // keyboard or settings-window change, and the recent list changes with every
+        // folder that is opened.
+        var sortMenu = new MenuItem { Header = localization.T("L.SortBy") };
+        var recentMenu = new MenuItem { Header = localization.T("L.RecentFolders") };
+        menu.Items.Add(sortMenu);
+        menu.Items.Add(recentMenu);
+        menu.Opening += (_, _) =>
+        {
+            FillSortMenu(sortMenu);
+            FillRecentMenu(recentMenu);
+        };
+
         menu.Items.Add(new Separator());
         Add("L.CopyImage", OnCopyImageClick);
         Add("L.CopyPath", OnCopyPathClick);
@@ -257,6 +271,104 @@ public partial class MainWindow
 
         CanvasBorder.ContextMenu = menu;
         return menu;
+    }
+
+    private static readonly FolderSortOrder[] SortChoices =
+    [
+        new(FolderSortField.Name, false),
+        new(FolderSortField.Name, true),
+        new(FolderSortField.DateModified, false),
+        new(FolderSortField.DateModified, true),
+        new(FolderSortField.Size, false),
+        new(FolderSortField.Size, true),
+        new(FolderSortField.Type, false),
+        new(FolderSortField.Type, true)
+    ];
+
+    private static string SortLabelKey(FolderSortOrder order) => order switch
+    {
+        { Field: FolderSortField.Name, Descending: false } => "L.SortName",
+        { Field: FolderSortField.Name, Descending: true } => "L.SortNameDescending",
+        { Field: FolderSortField.DateModified, Descending: false } => "L.SortDate",
+        { Field: FolderSortField.DateModified, Descending: true } => "L.SortDateDescending",
+        { Field: FolderSortField.Size, Descending: false } => "L.SortSize",
+        { Field: FolderSortField.Size, Descending: true } => "L.SortSizeDescending",
+        { Field: FolderSortField.Type, Descending: false } => "L.SortType",
+        _ => "L.SortTypeDescending"
+    };
+
+    private void FillSortMenu(MenuItem sortMenu)
+    {
+        sortMenu.Items.Clear();
+        var current = _services.Settings.SortOrder;
+        foreach (var order in SortChoices)
+        {
+            var item = new MenuItem
+            {
+                Header = _services.Localization.T(SortLabelKey(order)),
+                ToggleType = MenuItemToggleType.Radio,
+                GroupName = "AirGlanceSort",
+                IsChecked = order == current
+            };
+            var chosen = order;
+            item.Click += (_, _) => ApplySortOrder(chosen);
+            sortMenu.Items.Add(item);
+        }
+    }
+
+    private void ApplySortOrder(FolderSortOrder order)
+    {
+        var value = order.ToSettingValue();
+        if (string.Equals(_services.Settings.Sort, value, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _services.Settings.Sort = value;
+
+        // Saving raises SettingsChanged and the view model re-sorts while keeping the
+        // current image selected, so picking an item is the whole interaction.
+        _services.SaveSettings();
+        ShowChrome();
+    }
+
+    private void FillRecentMenu(MenuItem recentMenu)
+    {
+        recentMenu.Items.Clear();
+        var folders = _services.Settings.RecentFolders;
+        if (folders.Count == 0)
+        {
+            recentMenu.Items.Add(new MenuItem
+            {
+                Header = _services.Localization.T("L.RecentFoldersEmpty"),
+                IsEnabled = false
+            });
+            return;
+        }
+
+        foreach (var folder in folders)
+        {
+            var name = Path.GetFileName(folder.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar));
+            var item = new MenuItem
+            {
+                Header = string.IsNullOrEmpty(name) ? folder : name
+            };
+            ToolTip.SetTip(item, folder);
+            var target = folder;
+            item.Click += (_, _) => _ = _viewModel.OpenPathAsync(target);
+            recentMenu.Items.Add(item);
+        }
+
+        recentMenu.Items.Add(new Separator());
+        var clear = new MenuItem { Header = _services.Localization.T("L.ClearRecent") };
+        clear.Click += (_, _) =>
+        {
+            _services.Settings.RecentFolders.Clear();
+            _services.SaveSettings();
+        };
+        recentMenu.Items.Add(clear);
     }
 
     private void AddAnalysisItem(MenuItem parent, string key, AnalysisTab tab)

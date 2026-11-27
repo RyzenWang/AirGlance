@@ -4,22 +4,83 @@ public static class FolderScanner
 {
     /// <summary>
     /// Lists displayable images directly inside one folder. Hidden and system files are
-    /// skipped, only supported extensions are kept, and the result is naturally sorted.
+    /// skipped, only supported extensions are kept, and the result is ordered by
+    /// <paramref name="order"/> — the natural name order unless the caller asked for
+    /// modification time, size or type.
     /// </summary>
     public static IReadOnlyList<string> EnumerateImages(
         string folder,
-        bool descending = false,
+        FolderSortOrder order,
         CancellationToken cancellationToken = default)
     {
         var files = EnumerateMatching(folder, SupportedFormats.IsSupported, cancellationToken);
-        files.Sort(NaturalPathComparer.Instance);
+        SortFiles(files, order);
+        return files;
+    }
 
-        if (descending)
+    /// <summary>Name-ordered overload kept for callers that only know about direction.</summary>
+    public static IReadOnlyList<string> EnumerateImages(
+        string folder,
+        bool descending = false,
+        CancellationToken cancellationToken = default) =>
+        EnumerateImages(folder, new FolderSortOrder(FolderSortField.Name, descending), cancellationToken);
+
+    private static void SortFiles(List<string> files, FolderSortOrder order)
+    {
+        switch (order.Field)
+        {
+            case FolderSortField.DateModified:
+                files.Sort((left, right) => CompareBy(
+                    File.GetLastWriteTimeUtc(left).Ticks,
+                    File.GetLastWriteTimeUtc(right).Ticks,
+                    left,
+                    right));
+                break;
+
+            case FolderSortField.Size:
+                files.Sort((left, right) => CompareBy(
+                    new FileInfo(left).Length,
+                    new FileInfo(right).Length,
+                    left,
+                    right));
+                break;
+
+            case FolderSortField.Type:
+                files.Sort((left, right) =>
+                {
+                    var byExtension = string.Compare(
+                        Path.GetExtension(left),
+                        Path.GetExtension(right),
+                        StringComparison.OrdinalIgnoreCase);
+                    return byExtension != 0
+                        ? byExtension
+                        : NaturalStringComparer.Instance.Compare(
+                            Path.GetFileName(left),
+                            Path.GetFileName(right));
+                });
+                break;
+
+            default:
+                files.Sort(NaturalStringComparer.Instance);
+                break;
+        }
+
+        if (order.Descending)
         {
             files.Reverse();
         }
+    }
 
-        return files;
+    /// <summary>
+    /// Orders by one numeric key and falls back to the natural file name so that two files
+    /// with the same timestamp or size always appear in the same, predictable order.
+    /// </summary>
+    private static int CompareBy(long leftKey, long rightKey, string left, string right)
+    {
+        var byKey = leftKey.CompareTo(rightKey);
+        return byKey != 0
+            ? byKey
+            : NaturalStringComparer.Instance.Compare(Path.GetFileName(left), Path.GetFileName(right));
     }
 
     /// <summary>

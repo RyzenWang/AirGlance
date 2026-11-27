@@ -1,3 +1,5 @@
+using AirGlance.Core.Files;
+
 namespace AirGlance.Core.Storage;
 
 /// <summary>
@@ -6,13 +8,22 @@ namespace AirGlance.Core.Storage;
 /// </summary>
 public sealed class AppSettings
 {
+    /// <summary>How many folders the recent list keeps.</summary>
+    public const int RecentFolderLimit = 10;
+
     public string Language { get; set; } = AppPaths.DefaultLanguage;
 
     /// <summary><c>System</c>, <c>Light</c> or <c>Dark</c>.</summary>
     public string Theme { get; set; } = "System";
 
-    /// <summary><c>name</c> or <c>name-descending</c>.</summary>
+    /// <summary>
+    /// <c>name</c>, <c>date</c>, <c>size</c> or <c>type</c>, each optionally suffixed with
+    /// <c>-descending</c>.
+    /// </summary>
     public string Sort { get; set; } = "name";
+
+    /// <summary>Folders opened recently, newest first. Not a library: paths only.</summary>
+    public List<string> RecentFolders { get; set; } = [];
 
     /// <summary>Slideshow interval in seconds: 3, 5 or 10.</summary>
     public int SlideshowSeconds { get; set; } = 5;
@@ -32,7 +43,45 @@ public sealed class AppSettings
 
     public bool WindowMaximized { get; set; }
 
-    public bool SortDescending => string.Equals(Sort, "name-descending", StringComparison.Ordinal);
+    public bool SortDescending => FolderSortOrder.Parse(Sort).Descending;
+
+    public FolderSortOrder SortOrder => FolderSortOrder.Parse(Sort);
+
+    /// <summary>
+    /// Records a folder at the top of the recent list, keeping one entry per path and the
+    /// list bounded. Returns true when the list changed, so callers can skip a save.
+    /// </summary>
+    public bool RememberFolder(string? folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            return false;
+        }
+
+        var path = folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (path.Length == 0)
+        {
+            path = folder;
+        }
+
+        if (RecentFolders.Count > 0 &&
+            string.Equals(RecentFolders[0], path, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        RecentFolders.RemoveAll(
+            entry => string.Equals(entry, path, StringComparison.OrdinalIgnoreCase));
+        RecentFolders.Insert(0, path);
+        if (RecentFolders.Count > RecentFolderLimit)
+        {
+            RecentFolders.RemoveRange(
+                RecentFolderLimit,
+                RecentFolders.Count - RecentFolderLimit);
+        }
+
+        return true;
+    }
 
     public AppSettings Normalize()
     {
@@ -48,7 +97,29 @@ public sealed class AppSettings
             _ => "System"
         };
 
-        Sort = SortDescending ? "name-descending" : "name";
+        Sort = FolderSortOrder.Parse(Sort).ToSettingValue();
+
+        var recent = new List<string>(RecentFolderLimit);
+        foreach (var folder in RecentFolders ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                continue;
+            }
+
+            if (recent.Any(entry => string.Equals(entry, folder, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            recent.Add(folder);
+            if (recent.Count == RecentFolderLimit)
+            {
+                break;
+            }
+        }
+
+        RecentFolders = recent;
 
         if (SlideshowSeconds is not (3 or 5 or 10))
         {

@@ -1,4 +1,5 @@
 using AirGlance.App.Services;
+using AirGlance.Core.Files;
 using AirGlance.Core.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -29,7 +30,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _languageIndex = settings.Language == LocalizationService.ChineseSimplified ? 1 : 0;
         var intervalIndex = Array.IndexOf(SlideIntervals, settings.SlideshowSeconds);
         _slideshowIndex = intervalIndex >= 0 ? intervalIndex : 1;
-        _sortIndex = settings.SortDescending ? 1 : 0;
+        var sortOrder = settings.SortOrder;
+        _sortIndex = (int)sortOrder.Field * 2 + (sortOrder.Descending ? 1 : 0);
         _checkerboard = settings.Checkerboard;
         _rememberZoom = settings.RememberZoom;
         _cacheSizeText = FormatCacheSize();
@@ -112,7 +114,10 @@ public sealed partial class SettingsViewModel : ObservableObject
             return;
         }
 
-        _services.Settings.Sort = value == 1 ? "name-descending" : "name";
+        // The combo lists each field twice, ascending then descending, so the index maps
+        // straight onto the order without a lookup table.
+        var order = new FolderSortOrder((FolderSortField)(value / 2), value % 2 == 1);
+        _services.Settings.Sort = order.ToSettingValue();
         _services.SaveSettings();
     }
 
