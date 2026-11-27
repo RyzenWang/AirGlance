@@ -23,16 +23,17 @@ AirGlance is a desktop image viewer for Windows, macOS and Linux. It opens a fol
 ## What it does
 
 - Opens from the command line, a drag-and-drop, or the open dialog. The window appears first; the image follows as soon as it is decoded.
-- Browses one folder in natural order (`img2` before `img10`), with a 160 px filmstrip and wrap-around previous / next.
+- Browses one folder in natural name order (`img2` before `img10`), or by modification date, file size or file type, ascending or descending; the 160 px filmstrip and wrap-around previous / next work the same either way.
 - Opens a second canvas with `D` or the split-view button in the dock. The two canvases can show adjacent images from one folder or independent A/B folders; click a canvas or press `Tab` to choose the active one. The active canvas is marked by a 2 px identity border and badge ring; the other image is not dimmed. Right-click either canvas for a pane-specific menu, including Open folder… and Swap A/B.
 - The right pane header reserves the window-control area and a fixed page-counter slot. Folder names are capped at 12 characters; file names are capped at 8 characters at the default width (14 wide), keep the extension, and show the full name on hover. The file chip is capped at 340 px, and nothing draws under the Maximize button.
 - Each canvas has its own previous/next capsule above the image. It targets only that canvas; the inactive pair is at 60% opacity but still clickable, and the pair is hidden when that canvas is empty or has one image.
 - The dual filmstrip is split 50/50: A's folder list on the left, B's folder list on the right, each scrolling and selecting independently. An empty half shows only its A/B badge, with no text or button; if both sides are empty the filmstrip is disabled. The information drawer has A/B tabs.
-- Fit window, fit width and 100% views with animated zoom transitions; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit.
+- Fit window, fit width, fit height and 100% views with animated zoom transitions; the wheel zooms around the pointer, Shift + wheel pans sideways, dragging pans, double-click toggles 100% and fit. An optional lock keeps the zoom you chose when you step to the next image instead of refitting it.
 - Applies the EXIF orientation before the first pixel is shown, and converts embedded ICC profiles (Display P3, Adobe RGB) to sRGB for display.
 - Rotates, flips and crops non-destructively in the Edit drawer (`Ctrl+E`); Cancel restores the previous view and the original file is never written. Export a copy as JPEG, PNG or WebP with quality and resize options, or copy the image to the clipboard.
 - Fullscreen, a 3 / 5 / 10 second slideshow, and an information panel with file, image, ICC and EXIF fields.
 - Right-click → Analyze opens a read-only drawer with luminance/RGB/hue/saturation histograms, clipping and tone zones, a palette and eyedropper samples, sharpness/noise/JPEG estimates and image data. Single images only; nothing is exported.
+- Jump to a file by typing its name (`Ctrl+F`) instead of scrolling a long filmstrip, and reopen one of the last ten folders from the context menu. The recent list is a short path list in the settings file, not a library.
 - English and Chinese switch at runtime. Light, dark and follow-system themes.
 - Settings and thumbnails stay on your machine. There is no account, no telemetry, and no network code.
 
@@ -156,7 +157,7 @@ Mouse and trackpad:
 | `PgUp` `PgDn` | Previous / next image, always |
 | `Space` / `Backspace` | Next / previous image |
 | `+` `-` | Zoom in / out around the pointer |
-| `0` `1` `2` | Fit window / 100% / fit width |
+| `0` `1` `2` `3` | Fit window / 100% / fit width / fit height |
 | `R` / `Shift+R` | Rotate clockwise / counter-clockwise (single view; deferred in dual view) |
 | `H` / `V` | Flip horizontally / vertically (single view; deferred in dual view) |
 | `F` / `F11` / `Esc` | Fullscreen; exit fullscreen or close overlays |
@@ -170,10 +171,11 @@ Mouse and trackpad:
 | `Ctrl+Shift+C` | Copy the active image path (single view) |
 | `Ctrl+Shift+S` | Save a copy (single view; deferred in dual view) |
 | `Ctrl+E` | Open or close the Edit drawer |
+| `Ctrl+F` | Jump to a file by typing its name (Esc cancels) |
 | `Ctrl+Shift+L` | Switch English / Chinese |
 | `F1` | The full shortcut list |
 
-Right-click the image for open, copy, show-in-folder, open-with and settings. In dual view, right-clicking a canvas opens that pane’s menu first and targets only that pane.
+Right-click the image for open, sort by, recent folders, copy, show-in-folder, open-with and settings. In dual view, right-clicking a canvas opens that pane’s menu first and targets only that pane.
 
 ## Performance
 

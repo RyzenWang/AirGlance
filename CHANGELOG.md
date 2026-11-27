@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A folder can be ordered by modification date, file size or file type as well as by
+  name, each ascending or descending. The order is one settings string, the context menu
+  marks the current choice, and two files that tie on the key fall back to the natural
+  name order so the filmstrip stays stable.
+- The last ten opened folders are offered in the context menu, with the full path as a
+  tooltip and an item to clear the list. They are stored as paths in `settings.json`;
+  there is still no library or database.
+- `Ctrl+F` jumps to a file by typing its name: the view steps to the first match as the
+  prefix grows, Backspace widens it, Escape or Enter ends the search.
+- Fit height joins the zoom presets on key `3`, and a new "keep zoom when switching
+  images" setting preserves an explicit zoom or manual factor across navigation instead
+  of refitting every image.
+
 ## [0.7.2] - 2026-11-27
 
 ### Changed
