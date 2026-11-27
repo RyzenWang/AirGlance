@@ -185,9 +185,9 @@ Measured on Windows 10 Pro 22H2 (19045), 2 × Intel Xeon E5-2697 v4 (16 cores), 
 | 24 MP JPEG first frame | ≤ 500 ms | 415.7 ms | 265.9 ms | 272.9 ms |
 | 100 MP JPEG first frame (fit window) | ≤ 2.0 s | 341.4 ms | 309.9 ms | 323.3 ms |
 | 24 MP fit-window peak working set | ≤ 250 MB | 88.1 MB | 63.6 MB | 63.6 MB |
-| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB | 21.38 MiB |
+| Windows x64 portable zip | ≤ 30 MB | 21.84 MiB | 21.79 MiB | 22.19 MiB |
 
-0.7.2 meets every target on the reference machine: the window is up in about 256 ms, a 24 MP image is on screen in about 273 ms and a 100 MP one in about 323 ms, with a peak working set of about 64 MB. The 0.7.2 medians sit 2–4 % above 0.7.1 and its p95 is wider (600 ms first window), which is the machine's spread rather than a regression: the same commit measured 249.3 ms and 265.1 ms on the first run of the dependency bump, and the decode time did not move at all. The portable archive is smaller than 0.7.1 despite the larger SkiaSharp native library, because the 0.7.1 asset was built by a different packaging run; the archive is well inside the 30 MB budget either way. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
+0.7.2 meets every target on the reference machine: the window is up in about 256 ms, a 24 MP image is on screen in about 273 ms and a 100 MP one in about 323 ms, with a peak working set of about 64 MB. The 0.7.2 medians sit 2–4 % above 0.7.1 and its p95 is wider (600 ms first window), which is the machine's spread rather than a regression: the same commit measured 249.3 ms and 265.1 ms on the first run of the dependency bump, and the decode time did not move at all. The portable archive grew by 0.39 MiB over 0.7.1 (22.19 MiB against 21.79 MiB), which is the larger SkiaSharp native library and well inside the 30 MB budget. A cold first run can be slower while the operating system scans the executable, so the median is the number to compare with the budget. The numbers are measured, not projections. See [docs/performance.md](docs/performance.md) for the raw runs.
 
 ## Known limitations
 

@@ -71,6 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first frame, 77.4 MB peak (5 runs). 100 MP at 100%: 128.3 MB peak and steady, tile file
   400 MB (3 runs). The medians sit within the run-to-run spread of the 0.7.1 series, which
   is what the SkiaSharp bump predicted; README and `docs/performance.md` carry the numbers.
+  The published Windows x64 archive is 22.19 MiB, 0.39 MiB larger than 0.7.1, which is
+  the SkiaSharp native library and not packaging drift.
 
 ## [0.7.1] - 2026-11-25
 
