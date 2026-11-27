@@ -11,6 +11,18 @@ updates:
     commit-message:
       prefix: "deps"
     groups:
+      # Avalonia's packages have to move together. A major upgrade that lands one package
+      # at 12.x and leaves the others at 11.x cannot build, and the default grouping (one
+      # pull request per package pair, majors ungrouped) produced four unmergeable
+      # requests during the 12.2.0 bump. Listed first because the first matching group
+      # wins, so Avalonia never lands in the catch-all minor group either.
+      avalonia:
+        patterns:
+          - "Avalonia*"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       nuget-minor:
         patterns:
           - "*"
