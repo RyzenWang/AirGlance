@@ -21,7 +21,7 @@ The 0.7.0 release is a portable, unsigned desktop release. It has no installer, 
 
 Archive names use the three-part product version `0.7.0`. MSIX names use the four-part package version `1.0.2.0`. `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `linux-x64` and `linux-arm64` are .NET runtime identifiers.
 
-> **Current submission (0.7.1):** the Store package is `AirGlance_1.0.3.0_x64.msix`; the procedure below still describes the 0.7.0 release, and the 0.7.1 upload is documented in [packaging/msix/STORE-UPDATE-0.7.1.md](../packaging/msix/STORE-UPDATE-0.7.1.md).
+> **Current submission (0.7.2):** the Store package is `AirGlance_1.0.4.0_x64.msix`; the procedure below still describes the 0.7.0 release, and the current upload is documented in [packaging/msix/STORE-UPDATE-0.7.2.md](../packaging/msix/STORE-UPDATE-0.7.2.md).
 
 The release workflow publishes exactly six portable archives: Windows x64/arm64 zip, macOS x64/arm64 zip and Linux x64/arm64 tar.gz. It rejects MSIX files, so the Store packages never appear on a public GitHub release. The MSIX files are built by `store.yml` for Store review and Partner Center.
 
