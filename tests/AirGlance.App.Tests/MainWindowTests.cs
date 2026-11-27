@@ -18,6 +18,59 @@ namespace AirGlance.App.Tests;
 public sealed class MainWindowTests
 {
     [AvaloniaFact]
+    public async Task Jumping_by_prefix_selects_the_matching_file()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var matched = await viewModel.JumpToPrefixAsync("b");
+
+        Assert.Equal("b.jpg", matched);
+        await WaitUntilAsync(() => viewModel.CurrentIndex == 1);
+
+        // The search continues from the current file, so the same prefix wraps back to it.
+        Assert.Equal("b.jpg", await viewModel.JumpToPrefixAsync("b"));
+        Assert.Null(await viewModel.JumpToPrefixAsync("zzz"));
+    }
+
+    [AvaloniaFact]
+    public async Task Fit_height_is_reachable_from_the_keyboard()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        window.KeyPressQwerty(PhysicalKey.Digit3, RawInputModifiers.None);
+
+        await WaitUntilAsync(() => viewer.ZoomMode == ViewerZoomMode.FitHeight);
+    }
+
+    [AvaloniaFact]
+    public async Task Lock_zoom_keeps_an_explicit_zoom_across_navigation()
+    {
+        using var fixture = new WindowFixture();
+        var window = fixture.Window;
+        var viewModel = Assert.IsType<MainWindowViewModel>(window.DataContext);
+        window.Show();
+        await WaitUntilAsync(() => viewModel.HasImage);
+
+        var viewer = window.GetVisualDescendants().OfType<ImageViewer>().First();
+        fixture.Services.Settings.LockZoom = true;
+        viewer.SetZoomMode(ViewerZoomMode.Actual);
+
+        await viewModel.NextAsync();
+
+        await WaitUntilAsync(() => viewModel.CurrentIndex == 1);
+        Assert.Equal(ViewerZoomMode.Actual, viewer.ZoomMode);
+    }
+
+    [AvaloniaFact]
     public async Task A_corrupt_image_keeps_the_previous_and_next_buttons()
     {
         using var fixture = new WindowFixture(includeBrokenImage: true);

@@ -34,6 +34,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _sortIndex = (int)sortOrder.Field * 2 + (sortOrder.Descending ? 1 : 0);
         _checkerboard = settings.Checkerboard;
         _rememberZoom = settings.RememberZoom;
+        _lockZoom = settings.LockZoom;
         _cacheSizeText = FormatCacheSize();
 
         _initializing = false;
@@ -62,6 +63,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _rememberZoom;
+
+    [ObservableProperty]
+    private bool _lockZoom;
 
     [ObservableProperty]
     private string _cacheSizeText = string.Empty;
@@ -129,6 +133,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
 
         _services.Settings.Checkerboard = value;
+        _services.SaveSettings();
+    }
+
+    partial void OnLockZoomChanged(bool value)
+    {
+        if (_initializing)
+        {
+            return;
+        }
+
+        _services.Settings.LockZoom = value;
         _services.SaveSettings();
     }
 

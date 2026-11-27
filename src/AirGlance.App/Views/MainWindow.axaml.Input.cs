@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Text;
 using AirGlance.App.Controls;
 using AirGlance.App.Services;
 using AirGlance.App.ViewModels;
@@ -23,6 +24,97 @@ namespace AirGlance.App.Views;
 
 public partial class MainWindow
 {
+    private readonly StringBuilder _jumpPrefix = new();
+
+    private bool _jumpActive;
+
+    private async Task BeginJumpAsync()
+    {
+        _jumpActive = true;
+        _jumpPrefix.Clear();
+        await _viewModel.JumpToPrefixAsync(string.Empty);
+        _viewModel.ShowMessage(_services.Localization.T("L.JumpHint"));
+    }
+
+    private async Task<bool> HandleJumpKeyAsync(KeyEventArgs e)
+    {
+        if (_jumpActive && e.Key == Key.Escape)
+        {
+            _jumpActive = false;
+            _jumpPrefix.Clear();
+            return true;
+        }
+
+        if (_jumpActive && e.Key == Key.Back)
+        {
+            if (_jumpPrefix.Length > 0)
+            {
+                _jumpPrefix.Length--;
+            }
+
+            await ReportJumpAsync();
+            return true;
+        }
+
+        if (_jumpActive && e.Key == Key.Enter)
+        {
+            _jumpActive = false;
+            _jumpPrefix.Clear();
+            return true;
+        }
+
+        var character = JumpCharacter(e.Key, e.KeyModifiers);
+        if (!_jumpActive)
+        {
+            return false;
+        }
+
+        if (character is null)
+        {
+            // Any other key ends the search and keeps its normal meaning.
+            _jumpActive = false;
+            _jumpPrefix.Clear();
+            return false;
+        }
+
+        _jumpPrefix.Append(character.Value);
+        await ReportJumpAsync();
+        return true;
+    }
+
+    private async Task ReportJumpAsync()
+    {
+        var prefix = _jumpPrefix.ToString();
+        var match = await _viewModel.JumpToPrefixAsync(prefix);
+        _viewModel.ShowMessage(match is null
+            ? _services.Localization.Format("L.JumpNoMatch", prefix)
+            : _services.Localization.Format("L.JumpMatch", prefix, match));
+    }
+
+    private static char? JumpCharacter(Key key, KeyModifiers modifiers)
+    {
+        if (modifiers.HasFlag(KeyModifiers.Control) ||
+            modifiers.HasFlag(KeyModifiers.Alt) ||
+            modifiers.HasFlag(KeyModifiers.Meta))
+        {
+            return null;
+        }
+
+        var name = key.ToString();
+        if (name.Length == 1 && char.IsLetterOrDigit(name[0]))
+        {
+            return char.ToLowerInvariant(name[0]);
+        }
+
+        return key switch
+        {
+            Key.Space => ' ',
+            Key.OemMinus or Key.Subtract => '-',
+            Key.OemPeriod => '.',
+            _ => null
+        };
+    }
+
     private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (_viewModel.IsSlideshowRunning)
@@ -39,6 +131,19 @@ public partial class MainWindow
 
         var control = e.KeyModifiers.HasFlag(KeyModifiers.Control);
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        if (control && e.Key == Key.F)
+        {
+            await BeginJumpAsync();
+            e.Handled = true;
+            return;
+        }
+
+        if (await HandleJumpKeyAsync(e))
+        {
+            e.Handled = true;
+            return;
+        }
 
         try
         {
@@ -183,6 +288,10 @@ public partial class MainWindow
                 case Key.D2:
                 case Key.NumPad2:
                     Viewer.AnimateZoomMode(ViewerZoomMode.FitWidth);
+                    break;
+                case Key.D3:
+                case Key.NumPad3:
+                    Viewer.AnimateZoomMode(ViewerZoomMode.FitHeight);
                     break;
                 case Key.R:
                     if (shift)

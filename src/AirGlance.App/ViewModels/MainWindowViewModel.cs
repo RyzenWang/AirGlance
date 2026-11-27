@@ -214,6 +214,8 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
 
     public bool RememberZoom => _services.Settings.RememberZoom;
 
+    public bool LockZoom => _services.Settings.LockZoom;
+
     public string InitialZoomMode => _services.Settings.RememberZoom ? _services.Settings.ZoomMode : "fit";
 
     public double InitialZoomFactor => _services.Settings.ZoomFactor;
@@ -408,6 +410,44 @@ public sealed partial class MainWindowViewModel : ObservableObject, IDisposable
         }
 
         await OpenPathAsync(path);
+    }
+
+    /// <summary>
+    /// Steps to the next file whose name starts with <paramref name="prefix"/>, wrapping
+    /// around. Returns the matched file name, or null when nothing matches, so the caller
+    /// can show what happened while the prefix keeps being typed.
+    /// </summary>
+    public async Task<string?> JumpToPrefixAsync(string prefix)
+    {
+        if (string.IsNullOrEmpty(prefix) || _navigator.Count <= 1)
+        {
+            return null;
+        }
+
+        var files = _navigator.Files;
+        var start = -1;
+        var current = _navigator.CurrentPath;
+        for (var index = 0; index < files.Count; index++)
+        {
+            if (string.Equals(files[index], current, StringComparison.OrdinalIgnoreCase))
+            {
+                start = index;
+                break;
+            }
+        }
+
+        for (var offset = 1; offset <= files.Count; offset++)
+        {
+            var index = ((start + offset) % files.Count + files.Count) % files.Count;
+            var name = Path.GetFileName(files[index]);
+            if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                await GoToAsync(index);
+                return name;
+            }
+        }
+
+        return null;
     }
 
     public async Task NextAsync()

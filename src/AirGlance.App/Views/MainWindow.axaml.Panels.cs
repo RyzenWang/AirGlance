@@ -79,6 +79,11 @@ public partial class MainWindow
     private void OnImagePresented(object? sender, ImagePresentedEventArgs e)
     {
         StartupTrace.Mark("image-presented");
+
+        // Captured before the new image is handed over, because presenting a navigation
+        // target refits the view; the lock puts the user's zoom back afterwards.
+        var lockedMode = Viewer.ZoomMode;
+        var lockedFactor = Viewer.ZoomPercent / 100.0;
         if (e.Animation is { } animation)
         {
             Viewer.SetAnimation(animation, e.ResetView);
@@ -103,6 +108,10 @@ public partial class MainWindow
         {
             _initialZoomApplied = true;
             Viewer.ApplySavedZoom(_viewModel.InitialZoomMode, _viewModel.InitialZoomFactor);
+        }
+        else if (e.IsNavigation && _viewModel.LockZoom)
+        {
+            Viewer.SetZoomMode(lockedMode, lockedFactor);
         }
         else if (e.IsNavigation && !_viewModel.RememberZoom)
         {

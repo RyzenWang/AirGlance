@@ -95,7 +95,14 @@
               <ComboBoxItem Content="10 s" />
             </ComboBox>
           </Grid>
-          <Grid ColumnDefinitions="160,*">
+          <Grid ColumnDefinitions="220,*">
+            <TextBlock Text="{DynamicResource L.LockZoom}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <ToggleSwitch Grid.Column="1"
+                          IsChecked="{Binding LockZoom, Mode=TwoWay}"
+                          OnContent="{DynamicResource L.On}"
+                          OffContent="{DynamicResource L.Off}"
+                          HorizontalAlignment="Right" />
+          </Grid>          <Grid ColumnDefinitions="160,*">
             <TextBlock Text="{DynamicResource L.SortOrder}" VerticalAlignment="Center" />
             <ComboBox Grid.Column="1"
                       Classes="settings"

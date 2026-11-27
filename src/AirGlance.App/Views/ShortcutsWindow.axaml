@@ -86,8 +86,12 @@
             <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutZoom}" VerticalAlignment="Center" TextWrapping="Wrap" />
           </Grid>
           <Grid ColumnDefinitions="190,*">
-            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="0 / 1 / 2" /></Border>
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="0 / 1 / 2 / 3" /></Border>
             <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutPresets}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="190,*">
+            <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Ctrl + F" /></Border>
+            <TextBlock Grid.Column="1" Text="{DynamicResource L.ShortcutJump}" VerticalAlignment="Center" />
           </Grid>
           <Grid ColumnDefinitions="190,*">
             <Border Classes="chip"><TextBlock Classes="mono" FontSize="12" Text="Double-click" /></Border>

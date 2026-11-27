@@ -16,6 +16,7 @@ public enum ViewerZoomMode
 {
     FitWindow,
     FitWidth,
+    FitHeight,
     Actual,
     Manual
 }
@@ -518,6 +519,7 @@ public sealed class ImageViewer : Control
 
         var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
         var targetAnchor = mode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitWidth
+            or ViewerZoomMode.FitHeight
             ? center
             : anchor ?? center;
         StartZoomAnimation(ZoomForMode(mode, null), targetAnchor, durationMs, mode);
@@ -554,6 +556,9 @@ public sealed class ImageViewer : Control
         {
             case "fit-width":
                 SetZoomMode(ViewerZoomMode.FitWidth);
+                break;
+            case "fit-height":
+                SetZoomMode(ViewerZoomMode.FitHeight);
                 break;
             case "actual":
                 SetZoomMode(ViewerZoomMode.Actual);
@@ -965,6 +970,7 @@ public sealed class ImageViewer : Control
                 1.0,
                 Math.Min(Bounds.Width * scaling / SourcePixelWidth, Bounds.Height * scaling / SourcePixelHeight)),
             ViewerZoomMode.FitWidth => Math.Min(1.0, Bounds.Width * scaling / SourcePixelWidth),
+            ViewerZoomMode.FitHeight => Math.Min(1.0, Bounds.Height * scaling / SourcePixelHeight),
             ViewerZoomMode.Actual => 1.0,
             _ => factor ?? ZoomFactor
         };
@@ -1074,7 +1080,8 @@ public sealed class ImageViewer : Control
         if (_zoomAnimFinalMode != ViewerZoomMode.Manual)
         {
             ZoomMode = _zoomAnimFinalMode;
-            if (_zoomAnimFinalMode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitWidth)
+            if (_zoomAnimFinalMode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitWidth
+                or ViewerZoomMode.FitHeight)
             {
                 _panX = 0;
                 _panY = 0;
@@ -1158,7 +1165,8 @@ public sealed class ImageViewer : Control
             return;
         }
 
-        if (ZoomMode == ViewerZoomMode.FitWindow || layout.ImageWidth <= Bounds.Width)
+        if (ZoomMode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitWidth ||
+            layout.ImageWidth <= Bounds.Width)
         {
             _panX = 0;
         }
@@ -1168,7 +1176,8 @@ public sealed class ImageViewer : Control
             _panX = Math.Clamp(_panX, -limit, limit);
         }
 
-        if (ZoomMode == ViewerZoomMode.FitWindow || layout.ImageHeight <= Bounds.Height)
+        if (ZoomMode is ViewerZoomMode.FitWindow or ViewerZoomMode.FitHeight ||
+            layout.ImageHeight <= Bounds.Height)
         {
             _panY = 0;
         }
@@ -1198,6 +1207,7 @@ public sealed class ImageViewer : Control
                 1.0,
                 Math.Min(Bounds.Width * scaling / sourceWidth, Bounds.Height * scaling / sourceHeight)),
             ViewerZoomMode.FitWidth => Math.Min(1.0, Bounds.Width * scaling / sourceWidth),
+            ViewerZoomMode.FitHeight => Math.Min(1.0, Bounds.Height * scaling / sourceHeight),
             ViewerZoomMode.Actual => 1.0,
             _ => ZoomFactor
         };

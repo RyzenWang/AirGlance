@@ -379,6 +379,7 @@ public partial class MainWindow : Window
             _services.Settings.ZoomMode = Viewer.ZoomMode switch
             {
                 ViewerZoomMode.FitWidth => "fit-width",
+                ViewerZoomMode.FitHeight => "fit-height",
                 ViewerZoomMode.Actual => "actual",
                 ViewerZoomMode.Manual => "manual",
                 _ => "fit"

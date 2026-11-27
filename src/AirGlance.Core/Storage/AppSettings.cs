@@ -30,7 +30,13 @@ public sealed class AppSettings
 
     public bool RememberZoom { get; set; } = true;
 
-    /// <summary><c>fit</c>, <c>fit-width</c>, <c>actual</c> or <c>manual</c>.</summary>
+    /// <summary>
+    /// Keep the zoom the user chose when stepping to another image, instead of fitting
+    /// every image to the window.
+    /// </summary>
+    public bool LockZoom { get; set; }
+
+    /// <summary><c>fit</c>, <c>fit-width</c>, <c>fit-height</c>, <c>actual</c> or <c>manual</c>.</summary>
     public string ZoomMode { get; set; } = "fit";
 
     public double ZoomFactor { get; set; } = 1.0;
@@ -129,6 +135,7 @@ public sealed class AppSettings
         ZoomMode = ZoomMode switch
         {
             "fit-width" => "fit-width",
+            "fit-height" => "fit-height",
             "actual" => "actual",
             "manual" => "manual",
             _ => "fit"
